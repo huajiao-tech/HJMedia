@@ -1,0 +1,41 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..a8ddf71
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,34 @@
++set(PROJ_NAME sonic)
++
++include_directories(${CMAKE_CURRENT_SOURCE_DIR})
++include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
++
++set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
++
++set(HEADER_FILES
++    ${CMAKE_CURRENT_SOURCE_DIR}/sonic.h
++)
++set(PUBLIC_HEADERS ${HEADER_FILES})
++
++set(SOURCE_FILES
++    sonic.c
++    # sonic_experimental.c
++    # sonic_lite.c
++)
++# message (STATUS "HEADER_FILES:${HEADER_FILES} SOURCE_FILES:${SOURCE_FILES}")
++
++MAKE_COMMON_CONFIG()
++
++add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
++
++# target_link_libraries(${PROJ_NAME} PRIVATE LIBSPDLOG)
++target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
++
++HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
++
++set_target_properties(${PROJ_NAME} PROPERTIES
++    ARCHIVE_OUTPUT_DIRECTORY ${ARCHIVE_output}
++    LIBRARY_OUTPUT_DIRECTORY ${library_output}
++    RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
++
++ProjFolder(${PROJ_NAME} "third_party")
+\ No newline at end of file

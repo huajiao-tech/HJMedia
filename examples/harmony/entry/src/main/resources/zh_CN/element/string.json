@@ -1,0 +1,44 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "模块描述"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "XComponent"
+    },
+    {
+      "name": "page_title",
+      "value": "Native XComponent"
+    },
+    {
+      "name": "opengl_draw",
+      "value": "OPENGL图形绘制"
+    },
+    {
+      "name": "yuv_draw",
+      "value": "YUV图像渲染"
+    },
+    {
+      "name": "status_redraw",
+      "value": "点击按钮重新绘制"
+    },
+    {
+      "name": "draw_star",
+      "value": "Draw Star"
+    },
+    {
+      "name": "change_color",
+      "value": "点击图片改变颜色"
+    },
+    {
+      "name": "load_yuv",
+      "value": "Load YUV"
+    }
+  ]
+}

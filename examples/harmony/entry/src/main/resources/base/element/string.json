@@ -1,0 +1,76 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "permission_microphone",
+      "value": "Allow the application to use a microphone in recording audio scenes."
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "XComponent"
+    },
+    {
+      "name": "page_title",
+      "value": "Native XComponent"
+    },
+    {
+      "name": "opengl_draw",
+      "value": "OpenGL drawing"
+    },
+    {
+      "name": "yuv_draw",
+      "value": "YUV rendering"
+    },
+    {
+      "name": "status_redraw",
+      "value": "Touch button below to redraw"
+    },
+    {
+      "name": "tryPreview",
+      "value": "pv"
+    },
+    {
+      "name": "tryPush",
+      "value": "ps"
+    },
+    {
+      "name": "pnggift",
+      "value": "pnggift"
+    },
+    {
+      "name": "tryClosePreview",
+      "value": "cs"
+    },
+    {
+      "name": "tryRecordOpen",
+      "value": "rco"
+    },
+    {
+      "name": "tryRecordClose",
+      "value": "rcc"
+    },
+    {
+      "name": "change_color",
+      "value": "Touch image to change its color"
+    },
+    {
+      "name": "load_yuv",
+      "value": "Load YUV"
+    },
+    {
+      "name": "testOpen",
+      "value": "tO"
+    },
+    {
+      "name": "testClose",
+      "value": "tC"
+    }
+  ]
+}

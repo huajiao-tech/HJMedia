@@ -1,0 +1,29 @@
+{
+  "routerMap": [
+    {
+      "name": "IndexV2",
+      "pageSourceFile": "src/main/ets/pages/IndexV2.ets",
+      "buildFunction": "PageBuilder"
+    },
+    {
+      "name": "PlayerPage",
+      "pageSourceFile": "src/main/ets/pages/PlayerPage.ets",
+      "buildFunction": "PageBuilder"
+    },
+    {
+      "name": "PusherPage",
+      "pageSourceFile": "src/main/ets/pusher/pages/PusherPage.ets",
+      "buildFunction": "PageBuilder"
+    },
+    {
+      "name": "PusherPreviewPage",
+      "pageSourceFile": "src/main/ets/pusher/pages/PusherPreviewPage.ets",
+      "buildFunction": "PageBuilder"
+    },
+    {
+      "name": "SettingsPage",
+      "pageSourceFile": "src/main/ets/pusher/pages/SettingsPage.ets",
+      "buildFunction": "PageBuilder"
+    }
+  ]
+}

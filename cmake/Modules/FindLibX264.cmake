@@ -1,0 +1,45 @@
+# find_package(PkgConfig QUIET)
+# if(PKG_CONFIG_FOUND)
+#   pkg_check_modules(X264 QUIET x264)
+# endif()
+
+find_path(
+  X264_INCLUDE_DIR
+  NAMES x264.h x264_config.h
+  HINTS ${HJ_DEPS_DIR}/libx264
+  PATH_SUFFIXES include)
+get_filename_component(X264_DIR ${X264_INCLUDE_DIR} DIRECTORY)
+message(STATUS "X264_INCLUDE_DIR=${X264_INCLUDE_DIR}, X264_DIR:${X264_DIR}")
+
+find_library(
+  X264_LIB
+  NAMES ${X264_LIBRARIES} x264 libx264
+  HINTS ${HJ_DEPS_DIR}/libx264 ${HJ_DEPS_DIR}/libx264/lib
+  PATH_SUFFIXES ${ARCHS_NAME})
+message(STATUS "X264_LIB=${X264_LIB}  archs=${ARCHS_NAME}")
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LibX264 DEFAULT_MSG X264_INCLUDE_DIR X264_LIB)
+mark_as_advanced(X264_INCLUDE_DIR X264_LIB)
+
+if(LIBX264_FOUND)
+  set(LIBX264_INCLUDE_DIRS ${X264_INCLUDE_DIR})
+  set(LIBX264_LIBRARIES ${X264_LIB})
+  message(STATUS "LIBX264_INCLUDE_DIRS=${LIBX264_INCLUDE_DIRS}, LIBX264_LIBRARIES:${LIBX264_LIBRARIES}")
+
+  if(NOT TARGET LIBX264)
+      if(IS_ABSOLUTE ${LIBX264_LIBRARIES})
+          add_library(LIBX264 UNKNOWN IMPORTED)
+          set_target_properties(LIBX264 PROPERTIES IMPORTED_LOCATION ${LIBX264_LIBRARIES})
+          # message(STATUS "UNKNOWN=${LIBX264_LIBRARIES}")
+      else()
+          add_library(LIBX264 INTERFACE IMPORTED)
+          set_target_properties(LIBX264 PROPERTIES IMPORTED_LIBNAME ${LIBX264_LIBRARIES})
+          # message(STATUS "INTERFACE=${LIBX264_LIBRARIES}")
+      endif()
+  endif()
+  set_target_properties(LIBX264 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${LIBX264_INCLUDE_DIRS})
+
+  # target_link_libraries(LIBX264 INTERFACE ${LIBX264_LIBRARIES})
+  # target_include_directories(LIBX264 INTERFACE ${LIBX264_INCLUDE_DIRS})
+endif()

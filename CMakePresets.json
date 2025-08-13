@@ -1,0 +1,125 @@
+{
+	"version": 3,
+	"configurePresets": [
+		{
+			"name": "base",
+			"cacheVariables": {
+				"CMAKE_INSTALL_LIBDIR": "lib/$env{ENV_ARCH}",
+				"CMAKE_INSTALL_INCLUDEDIR":"include",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/${presetName}/install"
+			},
+			"environment": {		
+			}
+		},
+		{
+			"name": "build-windows-x64",
+			"inherits": "base",
+			"displayName": "Windows x64 Debug",
+			"description": "面向 Visual Studio 2022 的 Debug 配置",
+			"generator": "Visual Studio 17 2022",
+			"architecture": "x64",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			},
+			"binaryDir": "${sourceDir}/${presetName}/$env{ENV_ARCH}",
+			"environment": {
+				
+			}
+		},
+		{
+			"name": "base-android",
+			"inherits": "base",
+			"generator": "Ninja",
+			"environment": {			
+				"ENV_ANDROID_NDK": "$env{ENV_ANDROID_SDK}/ndk/$env{ENV_ANDROID_NDK_VERSION}",
+				"ENV_ANDROID_CMAKE": "$env{ENV_ANDROID_SDK}/cmake/$env{ENV_ANDROID_CMAKE_VERSION}/bin/ninja.exe"
+			},
+			"cacheVariables": {
+				"ANDROID_NDK": "$env{ENV_ANDROID_NDK}",
+				"CMAKE_TOOLCHAIN_FILE": "$env{ENV_ANDROID_NDK}/build/cmake/android.toolchain.cmake",
+				"CMAKE_MAKE_PROGRAM": "$env{ENV_ANDROID_CMAKE}",
+				"CMAKE_BUILD_TYPE": "Release",
+				"ANDROID_ABI": "$env{ENV_ARCH}",
+				"ANDROID_ARM_NEON": "ON",
+				"ANDROID_NATIVE_API_LEVEL": "$env{ENV_API}",
+				"ANDROID_APP_PIE": "TRUE",
+				"ANDROID_STL_FORCE_FEATURES": "TRUE",
+				"ANDROID_FORCE_ARM_BUILD": "TRUE",
+				"ANDROID_UNIFIED_HEADERS": "TRUE",
+				"CMAKE_SHARED_LINKER_FLAGS":"-Wl,-Bsymbolic",
+				"CMAKE_CXX_FLAGS": "-Wno-c++11-narrowing",
+				"ANDROID_STL": "c++_static",
+				"CMAKE_HOST_SYSTEM_NAME": "Windows",
+				"ANDROID_TOOLCHAIN": "clang"
+			}
+		},
+		{
+			"name": "build-android-arm64-v8a",
+			"displayName": "Android ARM64-v8a",
+			"inherits": "base-android",
+			"cacheVariables": {
+				"CMAKE_ANDROID_ARCH_ABI": "arm64-v8a",
+				"CMAKE_ANDROID_ARM_MODE": "armv8-a"
+			},
+			"environment": {
+				
+			},
+			"binaryDir": "${sourceDir}/${presetName}/$env{ENV_ARCH}"
+		},
+		{
+			"name": "build-android-armeabi-v7a",
+			"displayName": "Android armeabi-v7a",
+			"inherits": "base-android",
+			"environment": {
+				
+			},
+			"cacheVariables": {
+				"CMAKE_ANDROID_ARCH_ABI": "armeabi-v7a",
+				"CMAKE_ANDROID_ARM_MODE": "armv7-a"
+			},
+			"binaryDir": "${sourceDir}/${presetName}/$env{ENV_ARCH}"
+		},
+		{
+			"name": "build-harmony-arm64-v8a",
+			"generator": "Ninja",
+			"displayName": "macOS HarmonyOS Build",
+			"description": "Build for HarmonyOS using DevEco toolchain",
+			"environment": {
+				"TOOL_HOME": "/Applications/DevEco-Studio.app/Contents",
+				"HARMONY_SDK_PATH": "$env{TOOL_HOME}/sdk/default/openharmony/native",
+				"HARMONY_CMAKE_PATH": "$env{HARMONY_SDK_PATH}/build-tools/cmake/bin"
+			},
+			"cacheVariables": {
+				"CMAKE_MAKE_PROGRAM": "$env{HARMONY_CMAKE_PATH}/ninja",
+				"OHOS_ARCH": "arm64-v8a",
+				"OHOS_PLATFORM": "OHOS",
+				"CMAKE_BUILD_TYPE": "Release"
+			},
+			"toolchainFile": "$env{HARMONY_SDK_PATH}/build/cmake/ohos.toolchain.cmake",
+			"binaryDir": "${sourceDir}/build_harmony"
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "build-arm64",
+			"configurePreset": "build-android-arm64-v8a",
+			"targets": [
+				"install"
+			],
+			"configuration": "Release"
+		},
+		{
+			"name": "build-armv7",
+			"configurePreset": "build-android-armeabi-v7a",
+			"targets": [
+				"install"
+			],
+			"configuration": "Release"
+		},
+		{
+			"name": "build-harmony",
+			"configurePreset": "build-harmony-arm64-v8a",
+			"configuration": "Release"
+		}
+	]
+}

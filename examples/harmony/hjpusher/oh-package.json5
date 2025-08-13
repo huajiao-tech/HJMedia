@@ -1,0 +1,9 @@
+{
+  "name": "@hj-live/hjpusher",
+  "version": "1.0.0",
+  "description": "HJMedia.",
+  "main": "Index.ets",
+  "author": "huajiao",
+  "license": "LGPL v2.1",
+  "dependencies": {}
+}

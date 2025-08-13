@@ -1,0 +1,44 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "XComponent"
+    },
+    {
+      "name": "page_title",
+      "value": "Native XComponent"
+    },
+    {
+      "name": "opengl_draw",
+      "value": "OpenGL drawing"
+    },
+    {
+      "name": "yuv_draw",
+      "value": "YUV rendering"
+    },
+    {
+      "name": "status_redraw",
+      "value": "Touch button below to redraw"
+    },
+    {
+      "name": "draw_star",
+      "value": "Draw Star"
+    },
+    {
+      "name": "change_color",
+      "value": "Touch image to change its color"
+    },
+    {
+      "name": "load_yuv",
+      "value": "Load YUV"
+    }
+  ]
+}

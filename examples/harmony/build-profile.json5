@@ -1,0 +1,105 @@
+{
+  "app": {
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "lfs",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS"
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B33342259BCBA46BDB496B0C3314BB59A49CBEBC87D219EF11505F6DA43023EAAC8870D225DE517",
+          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
+          "storePassword": "0000001BB091822D991B96590A1E11CC9B8013A2AF0238455CA68C1CDECC0ACD2191990CFA0AC26C96E9AE"
+        }
+      },
+      {
+        "name": "gs",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\gs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BAB92DDE5488F44DB856FBD144DAA85988B05E276583A8754B5631DD6FC3C9F22EA388FDAE1455B",
+          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\gs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\gs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
+          "storePassword": "0000001BADCCE65C27490459D08956DF84949CA163C94D46E149CC28A921AE8A6C175104C366DBE553B892"
+        }
+      },
+      {
+        "name": "wks",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/wks/.ohos/config/wks_harmony_RFBDYeiOXDCpaZnQaUzaQlzgvi-D0WqjPHG4mK5RDms=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BF4C17770A578E914B2939A640AD1AA120B19EC80A02E58BF32D46AF5C94094A7354FFC6FB0D22F",
+          "profile": "/Users/wks/.ohos/config/wks_harmony_RFBDYeiOXDCpaZnQaUzaQlzgvi-D0WqjPHG4mK5RDms=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/wks/.ohos/config/wks_harmony_RFBDYeiOXDCpaZnQaUzaQlzgvi-D0WqjPHG4mK5RDms=.p12",
+          "storePassword": "0000001BD25338AEC0D76A6BAB1F0A6F47B9FC92F00C09C793DF9791F1C19D74A79518B092A32887B96AD5"
+        }
+      },
+      {
+        "name": "lfs",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B970228295DDF8F8F5604E82AEAE88BA34A7C2B0B6AB16FFC848A163E0E030311D56D0B5FF8E56C",
+          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
+          "storePassword": "0000001B4734FB788B2996B5460FDF4B5F78DA72E95B979D86C2D4DF1DA78B8A2FA3CEE984EE0772E62A04"
+        }
+      },
+      {
+        "name": "lzy",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B39937816C0C5745F3FDF10B83EDF58BB3BBEF2066C693516B80A77C48ABAF521A9D72F2106CA1F",
+          "profile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.p12",
+          "storePassword": "0000001B49F5A7FFAF7A4E255703D8E95B4D9F04C7C7E32D385E5C803F2FC5B1552A8608B048CDC3CBA80C"
+        }
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hjpusher",
+      "srcPath": "./hjpusher",
+    }
+  ]
+}

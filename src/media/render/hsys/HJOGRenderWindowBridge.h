@@ -1,0 +1,68 @@
+#pragma once
+
+#include "HJPrerequisites.h"
+#include "HJOGCopyShaderStrip.h"
+#include "HJTransferInfo.h"
+#include "HJOGCopyShaderStrip.h"
+#include <deque>
+#if defined(HarmonyOS)
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES3/gl3.h>
+#include <GLES2/gl2ext.h>
+#include <native_window/graphic_error_code.h>
+#include <native_image/native_image.h>
+#include <native_window/external_window.h>
+#include <native_buffer/native_buffer.h>
+#endif
+
+NS_HJ_BEGIN
+
+class HJOGRenderWindowBridge
+{
+public:
+    HJ_DEFINE_CREATE(HJOGRenderWindowBridge);
+    HJOGRenderWindowBridge();
+    virtual ~HJOGRenderWindowBridge();
+
+    void setInsName(const std::string &i_insName)
+    {
+        m_insName = i_insName;
+    }
+    int init(const std::string &i_renderModeInfo);
+    void done();
+    int update();
+    int draw(int i_targetWidth, int i_targetHeight);
+    int getSurfaceId(uint64_t &o_surfaceId) const;
+    int produceFromPixel(uint8_t* i_pData[3], int i_size[3], int i_width, int i_height);
+#if defined(HarmonyOS)
+    OHNativeWindow* getNativeWindow() const
+    {
+        return m_nativeWindow;
+    }
+#endif
+    bool m_bRead = false;
+private:
+    std::string m_insName = "";
+    float m_matrix[16] = {1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f};
+#if defined(HarmonyOS)
+    std::shared_ptr<HJOGCopyShaderStrip> m_draw = nullptr;
+    bool m_bTextureReady = false;
+	GLuint m_texture = 0;
+    OH_NativeImage* m_nativeImage = nullptr;
+    OHNativeWindow *m_nativeWindow = nullptr;
+#endif
+    int priUpdate();
+    int priDraw(int i_targetWidth, int i_targetHeight);
+    int m_srcWidth = 0;
+    int m_srcHeight = 0;
+    
+    int m_cacheWidth = 0;
+    int m_cacheHeight = 0;
+    HJTransferRenderModeInfo m_renderModeInfo;
+};
+
+using OGRenderWindowBridgeQueue = std::deque<HJOGRenderWindowBridge::Ptr>;
+using OGRenderWindowBridgeQueueIt = OGRenderWindowBridgeQueue::iterator;
+
+NS_HJ_END

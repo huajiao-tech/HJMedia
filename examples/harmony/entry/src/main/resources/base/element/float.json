@@ -1,0 +1,80 @@
+{
+  "float": [
+    {
+      "name": "tab_bar_font_size",
+      "value": "16fp"
+    },
+    {
+      "name": "tab_bar_line_height",
+      "value": "22vp"
+    },
+    {
+      "name": "tab_bar_title_margin_top",
+      "value": "17vp"
+    },
+    {
+      "name": "tab_bar_title_height",
+      "value": "46vp"
+    },
+    {
+      "name": "zero",
+      "value": "0vp"
+    },
+    {
+      "name": "tab_bar_title_border_width",
+      "value": "2vp"
+    },
+    {
+      "name": "page_title_font_size",
+      "value": "24fp"
+    },
+    {
+      "name": "page_title_margin_left",
+      "value": "24vp"
+    },
+    {
+      "name": "page_title_margin_top",
+      "value": "36vp"
+    },
+    {
+      "name": "page_title_height",
+      "value": "56vp"
+    },
+    {
+      "name": "bar_height",
+      "value": "56vp"
+    },
+    {
+      "name": "tabs_margin_top",
+      "value": "8vp"
+    },
+    {
+      "name": "xcomponent_width",
+      "value": "336vp"
+    },
+    {
+      "name": "xcomponent_border_radius",
+      "value": "24vp"
+    },
+    {
+      "name": "status_font_size",
+      "value": "14fp"
+    },
+    {
+      "name": "status_margin_top",
+      "value": "16vp"
+    },
+    {
+      "name": "button_font_size",
+      "value": "16fp"
+    },
+    {
+      "name": "button_height",
+      "value": "40vp"
+    },
+    {
+      "name": "button_margin_bottom",
+      "value": "56vp"
+    }
+  ]
+}

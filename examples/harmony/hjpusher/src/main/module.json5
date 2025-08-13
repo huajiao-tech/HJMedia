@@ -1,0 +1,24 @@
+{
+  "module": {
+    "name": "hjpusher",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "tablet",
+      "2in1"
+    ],
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.CAMERA",
+        "reason": "$string:permission_CAMERA"
+      },
+      {
+        "name": "ohos.permission.MICROPHONE",
+        "reason": "$string:permission_MICROPHONE"
+      },
+      {
+        "name": "ohos.permission.INTERNET"
+      }
+    ]
+  }
+}
