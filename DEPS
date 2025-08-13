@@ -26,8 +26,8 @@
                 "dir": "third_party/soundtouch"
             },
             {
-                "url": "https://gitee.com/medkit/librtmp.git",
-                "commit": "6bb7d902259f5488443002d31e14e1823bcee732",
+                "url": "https://github.com/huajiao-tech/librtmp.git",
+                "commit": "9353a172c039651b59f4d2b1ccfa0e47953dea0f",
                 "dir": "third_party/librtmp"
             },
             {
