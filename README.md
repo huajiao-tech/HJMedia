@@ -17,6 +17,11 @@
 # 快速入门/演示
 
 - Harmony - [快速入门](examples/harmony/README.md) / [演示](examples/harmony)
+- Demo展示
+  
+  
+  
+   <img src="file:///E:/code/github/HJMedia/hjpusherDemo.gif" title="" alt="" data-align="center">
 
 # 特性
 
