@@ -129,7 +129,7 @@ int HJRTMPWrapper::init(const std::string url, HJOptions::Ptr opts)
 		if (m_socketBufferSize > 0) {
 			rtmp->socket_buffer_size = m_socketBufferSize;
 		}
-       rtmp->Link.timeout = 10;  //s
+        rtmp->Link.timeout = 10;  //s
 
 		HJLogi("rtmp connect before");
 		if (!RTMP_Connect(rtmp, NULL)) {

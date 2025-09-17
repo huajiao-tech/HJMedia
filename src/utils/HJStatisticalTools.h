@@ -271,11 +271,34 @@ public:
         return minIt->value;
     }
     
+    std::optional<T> get95thValue(bool min = false) const {
+        if (dataPoints.empty()) {
+            return std::nullopt;
+        }
+        
+        std::vector<T> values;
+        values.reserve(dataPoints.size());
+        
+        for (const auto& dp : dataPoints) {
+            values.push_back(dp.value);
+        }
+        size_t idx = 0;
+        if(min) {
+            idx  = static_cast<size_t>(values.size() * 0.05);
+            std::nth_element(values.begin(), values.begin() + idx, values.end());
+            return values[idx];
+        } else {
+            idx = static_cast<size_t>(std::ceil(values.size() * 0.95)) - 1;
+            std::nth_element(values.begin(), values.begin() + idx, values.end());
+        }
+        return values[idx];
+    }
+    
     size_t getCount() const {
         return dataPoints.size();
     }
     
-    void clear() {
+    void reset() {
         dataPoints.clear();
     }
     

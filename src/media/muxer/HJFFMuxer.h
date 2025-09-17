@@ -22,7 +22,7 @@ public:
 	virtual ~HJFFMuxer();
 
 	virtual int init(const HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts = nullptr) override;
-    virtual int init(const std::string url, int mediaTypes = HJMEDIA_TYPE_AV, HJOptions::Ptr opts = nullptr);
+    virtual int init(const std::string url, int mediaTypes = HJMEDIA_TYPE_AV, HJOptions::Ptr opts = nullptr) override;
     virtual int addFrame(const HJMediaFrame::Ptr& frame) override;
 	virtual int writeFrame(const HJMediaFrame::Ptr& frame) override;
 	virtual void done() override;

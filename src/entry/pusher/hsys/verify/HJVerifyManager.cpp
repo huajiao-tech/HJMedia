@@ -31,9 +31,8 @@ int HJVerifyManager::s_fmt = (int)AV_SAMPLE_FMT_S16;
 int HJVerifyManager::s_samplerate = 48000;
 int HJVerifyManager::s_channels = 2;
 
-
-std::string HJVerifyManager::s_rtmpUrl = "rtmp://live-push-0.test.huajiao.com/main/kjl879?auth_key=1755050081-0-0-0d647165122f8a753f1e23e474e7d883";  //https://live-pull-0.test.huajiao.com/main/lldl14413.flv?auth_key=1754446655-0-0-5be5a0b2cec6fbb9a745d03fe45f3de4
-//"flv  https://live-pull-1.huajiao.com/main/lfs.flv?auth_key=1754963851-0-0-921faa16bc04d5f4bc2c4c3f89e47d14"
+std::string HJVerifyManager::s_rtmpUrl = "rtmp://live-push-2.huajiao.com/main/lfs?auth_key=1758091785-0-0-0a7c48ff754428962a93b5bce32da95c";
+//"flv  https://live-pull-1.huajiao.com/main/lfs.flv?auth_key=1756107592-0-0-18b9d1330cbf136b5187f7909dec501c"
 std::string HJVerifyManager::s_localUrl = "/data/storage/el2/base/haps/entry/files/rec.mp4";
 
 HJVerifyManager HJVerifyManager::m_HJVerifyManager;
@@ -52,7 +51,7 @@ void HJVerifyManager::priTest()
     
     if (m_testThreadPool)
     {
-#if 1       
+#if 1      
         m_testThreadPool->async([](){
             HJPusherVideoInfo o_videoInfo;
             HJPusherAudioInfo o_audioInfo;
@@ -62,7 +61,7 @@ void HJVerifyManager::priTest()
         }, 2000);
 #endif
         
-#if 1
+#if 0
         m_testThreadPool->async([](){
             HJPusherPNGSegInfo pngInfo;
             pngInfo.pngSeqUrl = std::string("/data/storage/el2/base/haps/entry/files/ShuangDanCaiShen");
@@ -116,9 +115,9 @@ napi_value HJVerifyManager::testOpen(napi_env env, napi_callback_info info)
     static bool s_btestInit = false;
     if (!s_btestInit)
     {
-        HJPusherContextInfo contextInfo;
+        HJEntryContextInfo contextInfo;
         contextInfo.logIsValid = true;
-        contextInfo.logDir = "/data/storage/el2/base/haps/entry/files/";
+        contextInfo.logDir = "/data/storage/el2/base/haps/entry/files/log_pusher";
         contextInfo.logLevel = HJLOGLevel_INFO;
         contextInfo.logMode = HJLogLMode_CONSOLE | HJLLogMode_FILE;
         contextInfo.logMaxFileSize = 1024 * 1024 * 5;
@@ -135,13 +134,24 @@ napi_value HJVerifyManager::testOpen(napi_env env, napi_callback_info info)
     if (i_err < 0)
     {
         return nullptr;
+    }  
+    
+    if (width > height)
+    {
+        s_width = 1280;
+        s_height = 720;  
+    }
+    else
+    {
+        s_width = 720;
+        s_height = 1280; 
     }    
     m_testLiveStream = HJNAPITestLive::Create();
   
     
     HJPusherPreviewInfo previewInfo;
-    previewInfo.videoWidth = 720;
-    previewInfo.videoHeight = 1280;
+    previewInfo.videoWidth = s_width;
+    previewInfo.videoHeight = s_height;
     previewInfo.videoFps = s_previewFps;
     uint64_t surfaceId = 0;
     i_err = m_testLiveStream->openPreview(previewInfo, [](int i_type, const std::string& i_msgInfo)
@@ -197,14 +207,15 @@ napi_value HJVerifyManager::testClose(napi_env env, napi_callback_info info)
     }    
     return nullptr;
 }
+
 napi_value HJVerifyManager::tryOpenPreview(napi_env env, napi_callback_info info)
 {
     static bool s_bInit = false;
     if (!s_bInit)
     {
-        HJPusherContextInfo contextInfo;
+        HJEntryContextInfo contextInfo;
         contextInfo.logIsValid = true;
-        contextInfo.logDir = "/data/storage/el2/base/haps/entry/files/";
+        contextInfo.logDir = "/data/storage/el2/base/haps/entry/files/log_pusher";
         contextInfo.logLevel = HJLOGLevel_INFO;
         contextInfo.logMode = HJLogLMode_CONSOLE | HJLLogMode_FILE;
         contextInfo.logMaxFileSize = 1024 * 1024 * 5;
@@ -216,11 +227,25 @@ napi_value HJVerifyManager::tryOpenPreview(napi_env env, napi_callback_info info
     uint64_t surfaceId = 0;
     if (render)
     {
+        NativeWindow *window = nullptr;
+        int width = 0;
+        int height = 0;
+        int i_err = render->test(window, width, height);
+        if (width > height)
+        {
+            s_width = 1280;
+            s_height = 720;  
+        }
+        else
+        {
+            s_width = 720;
+            s_height = 1280; 
+        }    
+                            
         HJPusherPreviewInfo previewInfo;
-        previewInfo.videoWidth = 720;
-        previewInfo.videoHeight = 1280;
+        previewInfo.videoWidth = s_width;
+        previewInfo.videoHeight = s_height;
         previewInfo.videoFps = 30;
-        int i_err = 0;
         i_err = render->openPreview(previewInfo, [](int i_type, const std::string& i_msgInfo)
         {
     
@@ -353,6 +378,37 @@ napi_value HJVerifyManager::tryClosePreview(napi_env env, napi_callback_info inf
     {
         render->closePreview();
     }
+    return nullptr;    
+}
+
+napi_value HJVerifyManager::tryGiftOpen(napi_env env, napi_callback_info info)
+{
+    HJVerifyRender* render = HJVerifyManager::GetInstance()->GetRender(S_XCOM_ID);
+    
+    if (render)
+    {
+        render->tryGiftOpen();
+    }
+    return nullptr;    
+}
+napi_value HJVerifyManager::tryDoubleScreen(napi_env env, napi_callback_info info)
+{
+    HJVerifyRender* render = HJVerifyManager::GetInstance()->GetRender(S_XCOM_ID);
+    
+    if (render)
+    {
+        render->tryDoubleScreen();
+    }
+    return nullptr;    
+}
+napi_value HJVerifyManager::tryGiftPusher(napi_env env, napi_callback_info info)
+{
+    HJVerifyRender* render = HJVerifyManager::GetInstance()->GetRender(S_XCOM_ID);
+    
+    if (render)
+    {
+        render->tryGiftPusher();
+    } 
     return nullptr;    
 }
 //void HJVerifyManager::priTimerRestartRecorder(HJVerifyRender* render)

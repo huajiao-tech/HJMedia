@@ -33,6 +33,7 @@ int HJBaseDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
         m_name = HJ2STR(mediaUrl->getUrlHash());
     }
     m_atrs = std::make_shared<HJSourceAttribute>();
+    m_runState = HJRun_Init;
     
     return HJ_OK;
 }

@@ -19,19 +19,64 @@ typedef enum HJOGCopyShaderStripFlag
     OGCopyShaderStripFlag_UNKNOWN        = 0,
     OGCopyShaderStripFlag_2D             = 1 << 1,
     OGCopyShaderStripFlag_OES            = 1 << 2,
-    OGCopyShaderStripFlag_AlphaLeftRight = 1 << 3,
 
 } HJOGCopyShaderStripFlag;
 
-class HJOGCopyShaderStrip
+class HJOGCopyShaderStripInterf
+{
+public:
+    HJOGCopyShaderStripInterf()
+    {
+        
+    }
+    virtual ~HJOGCopyShaderStripInterf()
+    {
+        
+    }
+    virtual std::string shaderGetVertex()
+    {
+        return "";
+    }
+    virtual std::string shaderGetFragment()
+    {
+        return "";
+    }
+    virtual int shaderGetHandle(GLuint i_program)
+    {
+        return 0;
+    }
+    virtual void shaderDrawUpdate()
+    {
+        
+    }
+    virtual void shaderDrawEnd()
+    {
+        
+    }
+    
+    void setInsName(const std::string &i_name)
+    {
+        m_insName = i_name;
+    }
+    const std::string &getInsName() const 
+    {
+        return m_insName;
+    }
+    
+private:
+    std::string m_insName = "";    
+};
+
+class HJOGCopyShaderStrip : public HJOGCopyShaderStripInterf
 {
 public:
     HJ_DEFINE_CREATE(HJOGCopyShaderStrip);
 
 	HJOGCopyShaderStrip();
 	virtual ~HJOGCopyShaderStrip();
-    int init(int i_nFlag);
-    int draw(GLuint textureId, const std::string &i_fitMode, int srcw, int srch, int dstw, int dsth, float *texMat, bool i_bYFlip);
+    
+    int init(int i_nFlag = OGCopyShaderStripFlag_2D);
+    int draw(GLuint textureId, const std::string &i_fitMode, int srcw, int srch, int dstw, int dsth, float *texMat = nullptr, bool i_bYFlip = false);
     void release();
 	
 private:
@@ -48,6 +93,8 @@ private:
     GLint mSampleHandle = 0;
     GLint muMVPMatrixHandle = 0;
     GLint muSTMatrixHandle = 0;
+    
+    float m_texMatrix[16] = {1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f}; 
 };
 
 NS_HJ_END

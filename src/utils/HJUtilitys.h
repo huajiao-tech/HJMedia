@@ -52,6 +52,8 @@ public:
     static std::string concatenateDir(const std::string& pre, const std::string& suf);
     static std::string concatenatePath(const std::string& dir, const std::string& filename);
     static std::string concateString(const std::string& pre, const std::string& suf);
+    static std::string convertBackslashesToForward(const std::string& dir);
+    static std::string getDirectory(const std::string& dir);
     //
     static std::string m_globalWorkDir;
     static void setWorkDir(const std::string& dir);
@@ -211,6 +213,9 @@ private:
 #define HJAnsiToUtf8(s) HJ::HJUtilitys::AnsiToUtf8(s)
 #define HJUtf8ToAnsi(s) HJ::HJUtilitys::Utf8ToAnsi(s)
 
+#define HJCurrentDirectory() HJ::HJUtilitys::getDirectory(__FILE__)
+#define HJConcateDirectory(pre, suf) HJ::HJUtilitys::concatenateDir(pre, suf)
+
 //***********************************************************************************//
 class HJNonCopyable {
 protected:
@@ -328,6 +333,47 @@ private:
 };
 using HJSemaphore = HJBaseSemaphore<std::mutex, std::condition_variable>;
 
+//***********************************************************************************//
+class HJCondition {
+public:
+    using Ptr = std::shared_ptr<HJCondition>;
+    ~HJCondition() = default;
+
+    void wait() {
+        HJ_AUTOU_LOCK(m_mutex);
+        m_cv.wait(lock, [this] { return m_ready; });
+        m_ready = false;
+    }
+
+    template <class Rep, class Period>
+    bool wait_for(const std::chrono::duration<Rep, Period>& rel_time) {
+        HJ_AUTOU_LOCK(m_mutex);
+        bool is_ready = m_cv.wait_for(lock, rel_time, [this] { return m_ready; });
+        if (is_ready) {
+            m_ready = false;
+        }
+        return is_ready;
+    }
+
+    void notify(uint32_t n = 1) {
+        HJ_AUTOU_LOCK(m_mutex);
+        m_ready = true;
+        if (n == 1) {
+            m_cv.notify_one();
+        } else {
+            m_cv.notify_all();
+        }
+    }
+
+    void reset() {
+        HJ_AUTOU_LOCK(m_mutex);
+        m_ready = false;
+    }
+private:
+    bool m_ready = false;
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+};
 //***********************************************************************************//
 template<typename T>
 class HJList : public std::list<T> {

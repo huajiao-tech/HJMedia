@@ -18,6 +18,7 @@
 #include <js_native_api.h>
 #include <js_native_api_types.h>
 #include <string>
+#include "HJFLog.h"
 #include "HJTransferInfo.h"
 #include "HJVerifyRender.h"
 #include "HJVerifyManager.h"
@@ -51,12 +52,12 @@ namespace NativeXComponentSample
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-    int HJVerifyRender::contextInit(const HJPusherContextInfo& i_contextInfo)
+    int HJVerifyRender::contextInit(const HJEntryContextInfo& i_contextInfo)
     {
         return HJ::HJNAPILiveStream::contextInit(i_contextInfo);
     }
 
-    int HJVerifyRender::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIPusherNotify i_notify, uint64_t &o_surfaceId)
+    int HJVerifyRender::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIEntryNotify i_notify, uint64_t &o_surfaceId)
     {
         int i_err = 0;
         do
@@ -65,7 +66,18 @@ namespace NativeXComponentSample
             {
                 m_livestream = HJ::HJNAPILiveStream::Create();
             }
-            i_err = m_livestream->openPreview(i_previewInfo, i_notify, o_surfaceId);
+            HJEntryStatInfo statInfo;
+            statInfo.bUseStat = true;
+            statInfo.uid = 7123456;
+            statInfo.device = "testdevice";
+            statInfo.sn = "testsn";
+            statInfo.interval = 10;
+            statInfo.statNotify = [](const std::string& i_name, int i_nType, const std::string& i_info)
+            {
+                HJFLogi("statNotify name:{} type:{} info:{}", i_name, i_nType, i_info);
+            };
+        
+            i_err = m_livestream->openPreview(i_previewInfo, i_notify, statInfo, o_surfaceId);
             if (i_err < 0)
             {
                 break;
@@ -105,6 +117,35 @@ namespace NativeXComponentSample
             m_livestream = nullptr;
         }
     }
+    void HJVerifyRender::tryGiftOpen()
+    {
+        if (m_livestream)
+        {
+            HJPusherPNGSegInfo pngInfo;
+            pngInfo.pngSeqUrl = std::string("/data/storage/el2/base/haps/entry/files/ShuangDanCaiShen");
+            m_livestream->openPngSeq(pngInfo);
+        }
+    }
+
+    void HJVerifyRender::tryDoubleScreen()
+    {
+        if (m_livestream)
+        {
+            static bool s_bDoubleScreen = true;
+            m_livestream->setDoubleScreen(s_bDoubleScreen);
+            s_bDoubleScreen = !s_bDoubleScreen;
+        }
+    }
+    void HJVerifyRender::tryGiftPusher()
+    {
+        if (m_livestream)
+        {
+            static bool s_bGitfPusher = false;
+            m_livestream->setGiftPusher(s_bGitfPusher);
+            s_bGitfPusher = !s_bGitfPusher;
+        }
+    }
+
     int HJVerifyRender::openPusher(const HJPusherVideoInfo& i_videoInfo, const HJPusherAudioInfo& i_audioInfo, const HJPusherRTMPInfo &i_rtmpInfo)
     {
         int i_err = 0;
@@ -115,7 +156,9 @@ namespace NativeXComponentSample
                 i_err = -1;
                 break;
             }
-            i_err = m_livestream->openPusher(i_videoInfo, i_audioInfo, i_rtmpInfo);
+            HJEntryStatInfo statInfo;
+            statInfo.bUseStat = false;
+            i_err = m_livestream->openPusher(i_videoInfo, i_audioInfo, i_rtmpInfo, statInfo);
             if (i_err < 0)
             {
                 break;

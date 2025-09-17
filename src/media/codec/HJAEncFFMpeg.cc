@@ -5,6 +5,7 @@
 //***********************************************************************************//
 #include "HJAEncFFMpeg.h"
 #include "HJFFUtils.h"
+#include "HJFLog.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -85,7 +86,7 @@ HJAEncFFMpeg::~HJAEncFFMpeg()
 
 int HJAEncFFMpeg::init(const HJStreamInfo::Ptr& info)
 {
-    HJLogi("init begin");
+    HJFNLogi("init begin");
     int res = HJBaseCodec::init(info);
     if (HJ_OK != res) {
         return res;
@@ -99,7 +100,7 @@ int HJAEncFFMpeg::init(const HJStreamInfo::Ptr& info)
     }
     const AVCodec* codec = avcodec_find_encoder((AVCodecID)m_codecID);
     if (!codec) {
-        HJLoge("can't find codec:" + HJ2STR(m_codecID) + " error");
+        HJFNLoge("can't find codec:{} error", m_codecID);
         return HJErrFFCodec;
     }
     AVCodecContext* avctx = avcodec_alloc_context3(codec);
@@ -121,7 +122,7 @@ int HJAEncFFMpeg::init(const HJStreamInfo::Ptr& info)
     //
     res = check_sample_fmt(codec, avctx->sample_fmt);
     if (res < HJ_OK) {
-        HJLoge("sample format error");
+        HJFNLoge("sample format error");
         return res;
     }
     avctx->sample_rate = audioInfo->m_samplesRate;
@@ -130,7 +131,7 @@ int HJAEncFFMpeg::init(const HJStreamInfo::Ptr& info)
     }
     res = select_channel_layout(codec, &avctx->ch_layout);
     if (res < HJ_OK) {
-        HJLoge("select channel layout error");
+        HJFNLoge("select channel layout error");
         return res;
     }
 	m_timeBase = { 1, audioInfo->m_samplesRate };
@@ -141,13 +142,13 @@ int HJAEncFFMpeg::init(const HJStreamInfo::Ptr& info)
 
     res = avcodec_open2(avctx, codec, NULL);
     if (res < HJ_OK) {
-        HJLoge("avcodec open error:" + HJ2STR(res));
+        HJFNLoge("avcodec open error:{}", res);
         return res;
     }
     m_info->setAVCodecParams(av_dup_codec_params_from_avcodec(avctx));
     //
     m_runState = HJRun_Init;
-    HJLogi("init end");
+    HJFNLogi("init end");
 
     return res;
 }
@@ -174,7 +175,7 @@ int HJAEncFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
             res = HJ_EOF;
             break;
         } else if(res < HJ_OK) {
-            HJLoge("receive frame error:" + HJ2String(res));
+            HJFNLoge("receive frame error:{}", res);
             res = HJErrFFGetFrame;
             break;
         } else
@@ -202,7 +203,7 @@ int HJAEncFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
 
             HJNipInterval::Ptr nip = m_nipMuster->getOutNip();
             if (frame && nip && nip->valid()) {
-                HJLogi("name:" + getName() + ", " + frame->formatInfo());
+                HJFNLogi(frame->formatInfo());
             }
         }
     } while (false);
@@ -225,7 +226,7 @@ int HJAEncFFMpeg::run(const HJMediaFrame::Ptr frame)
     {
         res = init(frame->getInfo());
         if (HJ_OK != res) {
-            HJLoge("init in run error");
+            HJFNLoge("init in run error");
             return res;
         }
     }
@@ -240,7 +241,7 @@ int HJAEncFFMpeg::run(const HJMediaFrame::Ptr frame)
                 avf = (AVFrame*)frame->makeAVFrame();
             }
             if (!avf) {
-                HJLogi("have no AVFrame");
+                HJFNLogi("have no AVFrame");
                 res = HJErrInvalidParams;
                 break;
             }
@@ -248,7 +249,7 @@ int HJAEncFFMpeg::run(const HJMediaFrame::Ptr frame)
             //
             HJNipInterval::Ptr nip = m_nipMuster->getInNip();
             if (frame && nip && nip->valid()) {
-                HJLogi("name:" + getName() + ", " + frame->formatInfo());
+                HJFNLogi(frame->formatInfo());
             }
         } else {
             //HJLogi("audio encoder send frame pts:" + HJ2STR(frame->getPTS()) + ", dts:" + HJ2STR(frame->getDTS()));
@@ -261,7 +262,7 @@ int HJAEncFFMpeg::run(const HJMediaFrame::Ptr frame)
             m_runState = HJRun_Stop;
             return HJ_EOF;
         } else if (res < HJ_OK){
-            HJLoge("error, audio encoder send frame");
+            HJFNLoge("error, audio encoder send frame");
             return HJErrFatal;
         }
         m_frameCounter++;

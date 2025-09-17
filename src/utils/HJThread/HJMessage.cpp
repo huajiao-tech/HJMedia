@@ -24,13 +24,6 @@ HJMessage::Ptr HJMessage::obtain()
 	return std::make_shared<HJMessage>();
 }
 
-HJMessage::Ptr HJMessage::obtain(HJHandlerPtr h) {
-	auto m = obtain();
-	m->target = h;
-
-	return m;
-}
-
 void HJMessage::recycleUnchecked()
 {
 	what = 0;
@@ -48,7 +41,6 @@ void HJMessage::recycleUnchecked()
 		SYNCHRONIZED_LOCK(sPoolSync);
 		if (sPoolSize < MAX_POOL_SIZE) {
 			next = sPool;
-//			sPool = std::dynamic_pointer_cast<HJMessage>(shared_from_this());
 			sPool = SHARED_FROM_THIS;
 			sPoolSize++;
 		}
@@ -58,7 +50,6 @@ void HJMessage::recycleUnchecked()
 HJMessage::Ptr HJMessage::setWhat(int what)
 {
 	this->what = what;
-//	return std::dynamic_pointer_cast<HJMessage>(shared_from_this());
 	return SHARED_FROM_THIS;
 }
 

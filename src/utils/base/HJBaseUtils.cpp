@@ -206,6 +206,37 @@ bool HJBaseUtils::isSuffixFlv(const std::string& i_url)
 	return (i_url.size() >= flv_suffix.length() &&
 		i_url.compare(i_url.size() - flv_suffix.length(), flv_suffix.length(), flv_suffix) == 0);
 }
+
+std::string HJBaseUtils::getPlatform()
+{
+	std::string platform = "platform_no";
+#if defined(ANDROID_LIB)
+	platform = "Android";
+#endif
+
+#if defined(WIN32_LIB)
+	platform = "Windows";
+#endif
+
+#if defined(IOS_LIB)
+	platform = "ios";
+#endif
+
+#if defined(MACOS_LIB)
+	platform = "mac";
+#endif
+
+#if defined(LINUX_LIB)
+	platform = "Linux";
+#endif
+
+#if defined(HarmonyOS)
+	platform = "Harmony";
+#endif
+
+	return platform;
+}
+
 std::string HJBaseUtils::formatU8ArrayToStr(const std::string& i_name, unsigned char* i_pBuffer, int i_nSize)
 {
 	size_t size = (size_t)i_nSize;

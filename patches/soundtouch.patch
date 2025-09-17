@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 3047b93..79965de 100644
+index 3047b93..f809833 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -1,191 +1,50 @@
@@ -13,7 +13,7 @@ index 3047b93..79965de 100644
 +include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
  
 -set(COMPILE_OPTIONS)
-+set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
++set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
  
 -if(MSVC)
 -  set(COMPILE_DEFINITIONS /O2 /fp:fast)
@@ -232,7 +232,6 @@ index 3047b93..79965de 100644
 -  COMPONENT SoundTouch
 -)
 +ProjFolder(${PROJ_NAME} "third_party")
-\ No newline at end of file
 diff --git a/CMakeLists_bak.txt b/CMakeLists_bak.txt
 new file mode 100644
 index 0000000..3047b93

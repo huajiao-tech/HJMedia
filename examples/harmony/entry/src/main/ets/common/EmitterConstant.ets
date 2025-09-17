@@ -1,0 +1,1 @@
+export const EMITTER_SOUND = "EMITTER_SOUND"

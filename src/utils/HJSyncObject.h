@@ -12,11 +12,6 @@ NS_HJ_BEGIN
 
 #define SYNCHRONIZED_SYNC(lock)		SYNCHRONIZED(m_sync, lock)
 #define SYNC_WAIT					m_sync.wait
-//#define SYNC_NOTIFY_ALL				m_sync.notifyAll()
-//#define SYNC_NOTIFY					m_sync.notify()
-//#define SYNC_LOCK					m_sync.lock()
-//#define SYNC_TRY_LOCK				m_sync.tryLock()
-//#define SYNC_UNLOCK					m_sync.unlock()
 #define SYNC_CONS_LOCK				m_sync.consLock
 #define SYNC_PROD_LOCK				m_sync.prodLock
 
@@ -26,7 +21,13 @@ NS_HJ_BEGIN
 
 #define SHARED_FROM_THIS			std::dynamic_pointer_cast<std::remove_reference_t<decltype(*this)>>(shared_from_this())
 
-#define GET_PARAMETER(TYPE, NANE)	auto NANE = (i_param != nullptr) ? i_param->getValue<TYPE>(#NANE) : (TYPE)0
+#define MUST_HAVE_PARAMETERS			if (!i_param) return HJErrInvalidParams
+#define GET_PARAMETER(TYPE, NANE)		auto NANE = i_param->getValue<TYPE>(#NANE)
+#define MUST_GET_PARAMETER(TYPE, NANE)	GET_PARAMETER(TYPE, NANE); \
+										if (!NANE) return HJErrInvalidParams
+//#define GET_STRING(NANE)				const std::string& NANE = i_param->getString(#NANE)
+//#define MUST_GET_STRING(NANE)			GET_STRING(NANE); \
+//										if (NANE.empty()) return HJErrInvalidParams
 
 
 class HJSyncObject : public HJObject
@@ -35,12 +36,12 @@ public:
 	HJ_DEFINE_CREATE(HJSyncObject);
 
 	HJSyncObject(const std::string& i_name = "HJSyncObject", size_t i_identify = -1)
-		: HJObject(i_name, i_identify) {}
+		: HJObject(i_name, i_identify) { }
 	virtual ~HJSyncObject() {
 		HJSyncObject::done();
 	}
 
-	virtual int init(HJKeyStorage::Ptr i_param) {
+	virtual int init(HJKeyStorage::Ptr i_param = nullptr) {
 		return SYNC_PROD_LOCK([=] {
 			int ret = internalInit(i_param);
 			if (ret == HJ_OK) {
@@ -53,8 +54,6 @@ public:
 	}
 
 	virtual int done() {
-		beforeDone();
-
 		int ret = SYNC_PROD_LOCK([=] {
 			CHECK_DONE_STATUS(HJErrAlreadyDone);
 			m_status = HJSTATUS_Done;
@@ -71,7 +70,7 @@ public:
 protected:
 	virtual int internalInit(HJKeyStorage::Ptr i_param) {
 		CHECK_DONE_STATUS(HJErrAlreadyDone);
-		if (m_status > HJSTATUS_NONE && m_status < HJSTATUS_Exception) {
+		if (m_status > HJSTATUS_NONE && m_status < HJSTATUS_Exception) {	// _TODO_ 是否需要考虑(<HJSTATUS_Released)
 			return HJErrAlreadyInited;
 		}
 		if (m_status == HJSTATUS_Exception) {
@@ -89,7 +88,6 @@ protected:
 	}
 
 	virtual void afterInit() { }	// 注：在m_sync锁内
-	virtual void beforeDone() { }	// 注：不在m_sync锁内
 
 	HJSync m_sync;
 	HJStatus m_status{ HJSTATUS_NONE };

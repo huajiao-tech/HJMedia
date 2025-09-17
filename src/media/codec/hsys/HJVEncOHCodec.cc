@@ -321,6 +321,7 @@ int HJVEncOHCodec::getFrame(HJMediaFrame::Ptr &frame)
 			}
 
 			frame = HJMediaFrame::makeMediaFrameAsAVPacket(info, data, data_size, (attr.flags & AVCODEC_BUFFER_FLAGS_SYNC_FRAME), ptr->m_timestamp, ptr->m_timestamp, m_timeBase);
+            frame->setExtraTS(ptr->m_timestamp);
 		}
 		
 

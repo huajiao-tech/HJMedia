@@ -11,15 +11,17 @@ public:
 	using Ptr = std::shared_ptr<HJMediaFrameDeque>;
 
 	HJMediaFrameDeque(const std::string& i_name = "HJMediaFrameDeque", size_t i_identify = -1);
+	virtual ~HJMediaFrameDeque();
 
-	void setMaxSize(int i_maxSize);
-	bool isFull();
 	size_t size();
-	uint64_t duration();
+	int64_t audioDuration();
+	int64_t videoKeyFrames();
+    int64_t audioSamples();
 
-	bool deliver(HJMediaFrame::Ptr i_mediaFrame);
-	HJMediaFrame::Ptr receive(size_t& o_size);
-	HJMediaFrame::Ptr preview(size_t& o_size);
+	bool deliver(HJMediaFrame::Ptr i_mediaFrame, size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_videoKeyFrames = nullptr, int64_t* o_audioSamples = nullptr);
+	HJMediaFrame::Ptr receive(size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_videoKeyFrames = nullptr, int64_t* o_audioSamples = nullptr);
+	HJMediaFrame::Ptr preview(size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_videoKeyFrames = nullptr);
+	void dropFrames(int64_t i_audioDutation, size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_audioSamples = nullptr, int64_t* o_videoKeyFrames = nullptr, int64_t* o_videoFrames = nullptr);
 
 	void flush();
 
@@ -29,10 +31,16 @@ protected:
 
 	void internalRelease() override;
 
+	void eraseFrame(HJMediaFrame::Ptr i_mediaFrame);
+	void internalFlush();
+
 	MediaFrameDeque m_deque;
 
 private:
-	int m_maxSize;
+	int64_t m_audioDuration{};
+	int64_t m_audioSamples{};
+	int64_t m_videoKeyFrames{};
+	int64_t m_videoFrames{};
 };
 
 NS_HJ_END

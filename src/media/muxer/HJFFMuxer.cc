@@ -48,7 +48,7 @@ int HJFFMuxer::init(const std::string url, int mediaTypes, HJOptions::Ptr opts)
         return res;
     }
     if (m_url.empty()) {
-        HJFLoge("error, invalid url:{}", m_url);
+        HJFNLoge("error, invalid url:{}", m_url);
         return HJErrInvalidParams;
     }
     m_mediaInfo = HJCreates<HJMediaInfo>();
@@ -64,11 +64,11 @@ int HJFFMuxer::gatherMediaInfo(const HJMediaFrame::Ptr& frame)
         auto mediaInfo = m_mediaInfo->getStreamInfo(mtype);
         if (!mediaInfo) {
             m_mediaInfo->addStreamInfo(frame->getInfo());
-            HJFLogi("add stream info:{}, key frame info:{}", mtype, frame->formatInfo());
+            HJFNLogi("add stream info:{}, key frame info:{}", mtype, frame->formatInfo());
         }
     }
     else {
-        HJFLoge("deliver not support media type:{}", mtype);
+        HJFNLoge("deliver not support media type:{}", mtype);
         return HJErrNotSupport;
     }
     return HJ_OK;
@@ -76,7 +76,7 @@ int HJFFMuxer::gatherMediaInfo(const HJMediaFrame::Ptr& frame)
 
 int64_t HJFFMuxer::waitStartDTSOffset(HJMediaFrame::Ptr frame)
 {
-    HJFLogi("entry, frame info:{}", frame->formatInfo());
+    HJFNLogi("entry, frame info:{}", frame->formatInfo());
     m_framesQueue.push_back(frame);
     //
     int64_t startDTSOffset = HJ_NOTS_VALUE;
@@ -109,10 +109,10 @@ int HJFFMuxer::createAVIO()
     int res = HJ_OK;
     //const HJMediaUrl::Ptr mediaUrl = m_mediaInfo->getMediaUrl();
     if (m_url.empty()) {
-        HJFLoge("error, invalid url");
+        HJFNLoge("error, invalid url");
         return HJErrInvalidParams;
     }
-    HJFLogi("init begin, url:{}", m_url);
+    HJFNLogi("init begin, url:{}", m_url);
     AVFormatContext* ic = NULL;
     do {
         const AVOutputFormat* output_format = NULL;
@@ -126,7 +126,7 @@ int HJFFMuxer::createAVIO()
         res = avformat_alloc_output_context2(&ic, output_format, NULL, m_url.c_str());
         //res = avformat_alloc_output_context2(&ic, nullptr, mediaUrl->getFmtName().empty() ? NULL : mediaUrl->getFmtName().c_str(), mediaUrl->getUrl().c_str());
         if (res < HJ_OK) {
-            HJFLogi("alloc output error:{},{}", res, HJ_AVErr2Str(res));
+            HJFNLogi("alloc output error:{},{}", res, HJ_AVErr2Str(res));
             break;
         }
         ic->interrupt_callback = *m_interruptCB;
@@ -159,22 +159,22 @@ int HJFFMuxer::createAVIO()
                 holder->m_codec = encoder;
             }
             if (!codecParam) {
-                HJFLoge("need codec params error");
+                HJFNLoge("need codec params error");
                 return HJErrFatal;
             }
             const AVCodec* codec = avcodec_find_encoder(codecParam->codec_id);
             if (!codec) {
-                HJFLogw("warning, can't find codec id:{}", codecParam->codec_id);
+                HJFNLogw("warning, can't find codec id:{}", codecParam->codec_id);
 //                return HJErrNotSupport;
             }
             outStream = avformat_new_stream(ic, codec);
             if (!outStream) {
-                HJFLoge("new stream error");
+                HJFNLoge("new stream error");
                 return HJErrNewObj;
             }
             ret = avcodec_parameters_copy(outStream->codecpar, codecParam);
             if (ret < HJ_OK) {
-                HJLoge("copy codec param error:{}, {}", ret, HJ_AVErr2Str(ret));
+                HJFNLoge("copy codec param error:{}, {}", ret, HJ_AVErr2Str(ret));
                 return HJErrFatal;
             }
             /* macOS High Sierra Quicktime or IOS requires by using -tag:v hvc1 */
@@ -217,14 +217,14 @@ int HJFFMuxer::createAVIO()
             return ret;
          });
         if (res < HJ_OK) {
-            HJLogi("m_mediaInfo->forEachInfo error:" + HJ2STR(res) + ", " + HJ_AVErr2Str(res));
+            HJFNLogi("m_mediaInfo->forEachInfo error:{}, {}", res, HJ_AVErr2Str(res));
             break;
         }
 
         if (!(ic->oformat->flags & AVFMT_NOFILE)) {
             res = avio_open2(&ic->pb, m_url.c_str(), AVIO_FLAG_WRITE, &ic->interrupt_callback, NULL);
             if (res < HJ_OK) {
-                HJLoge("error, Could not open output file:" + m_url + ", " + HJ_AVErr2Str(res));
+                HJFNLoge("error, Could not open output file:{}, res:{}", m_url, HJ_AVErr2Str(res));
                 break;
             }
         }
@@ -232,7 +232,7 @@ int HJFFMuxer::createAVIO()
         res = avformat_write_header(ic, &hdOpts);
         av_dict_free(&hdOpts);
         if (res < HJ_OK) {
-            HJLoge("Error occurred when opening output file, res:" + HJ2STR(res) + ", " + HJ_AVErr2Str(res));
+            HJFNLoge("Error occurred when opening output file, res:{}, {}", res, HJ_AVErr2Str(res));
             break;
         }
         m_nipMuster = std::make_shared<HJNipMuster>(nidIdxs);
@@ -274,7 +274,7 @@ void HJFFMuxer::done()
     if (m_ic) {
         av_write_trailer(m_ic);
     }
-    HJLogi("done frame cnt video:" + HJ2STR(m_videoFrameCnt) + ", audio:" + HJ2STR(m_audioFrameCnt) + ", total:" + HJ2STR(m_totalFrameCnt));
+    HJFNLogi("done frame cnt video:{}, , audio:{}, , total:{}", m_videoFrameCnt, m_audioFrameCnt, m_totalFrameCnt);
 }
 
 int HJFFMuxer::procFrame(const HJMediaFrame::Ptr& frame, bool isDup)
@@ -292,7 +292,7 @@ int HJFFMuxer::procFrame(const HJMediaFrame::Ptr& frame, bool isDup)
                     m_firstKeyFrame = true;
                 }
                 if (!m_firstKeyFrame) {
-                    HJFLogw("warning, before first key frame, drop frame:{} ", frame->formatInfo());
+                    HJFNLogw("warning, before first key frame, drop frame:{} ", frame->formatInfo());
                     return HJ_MORE_DATA;
                 }
             }
@@ -310,7 +310,7 @@ int HJFFMuxer::procFrame(const HJMediaFrame::Ptr& frame, bool isDup)
             for (const auto& mavf : m_framesQueue) {
                 res = deliver(mavf, isDup);
                 if (HJ_OK != res) {
-                    HJFLoge("error, deliver frame info:{}", mavf->formatInfo());
+                    HJFNLoge("error, deliver frame info:{}", mavf->formatInfo());
                     break;
                 }
             }
@@ -342,7 +342,7 @@ int HJFFMuxer::deliver(const HJMediaFrame::Ptr& frame, bool isDup)
 #endif //HJ_MUXER_DELAY_INIT
         if (!m_ic) {
             res = HJErrNotAlready;
-            HJFLoge("error, format context is null");
+            HJFNLoge("error, format context is null");
             break;
         }
         HJMediaFrame::Ptr mavf = nullptr;
@@ -350,7 +350,7 @@ int HJFFMuxer::deliver(const HJMediaFrame::Ptr& frame, bool isDup)
             mavf = frame->deepDup();
             if (!mavf) {
                 res = HJErrNotAlready;
-                HJFLoge("error, dup frame failed");
+                HJFNLoge("error, dup frame failed");
                 break;
             }
         }
@@ -368,7 +368,7 @@ int HJFFMuxer::deliver(const HJMediaFrame::Ptr& frame, bool isDup)
             track = it->second;
         }
         if (!track || !track->m_st) {
-            HJLoge("can't find property track");
+            HJFNLoge("can't find property track");
             return HJ_OK;
         }
 
@@ -382,12 +382,12 @@ int HJFFMuxer::deliver(const HJMediaFrame::Ptr& frame, bool isDup)
             if (outStream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
             {
                 if ((pkt->dts < m_lastVideoDTS) && (m_lastVideoDTS != HJ_INT64_MIN)) {
-                    HJLoge("error, muxer video input dts:" + HJ2STR(pkt->dts) + " < last dts:" + HJ2STR(m_lastVideoDTS));
+                    HJFNLoge("error, muxer video input dts:{} < last dts:{}", pkt->dts, m_lastVideoDTS);
                     return HJErrMuxerDTS;
                 }
                 if (pkt->pts < pkt->dts) {
                     pkt->pts = pkt->dts + 1;
-                    HJLogw("muxer write video AVPacket warning, pts:" + HJ2STR(pkt->pts) + " < dts:" + HJ2STR(pkt->dts));
+                    HJFNLogw("muxer write video AVPacket warning, pts:{}  < dts:{}", pkt->pts, pkt->dts);
                 }
                 m_lastVideoDTS = pkt->dts;
                 m_videoFrameCnt++;
@@ -395,12 +395,12 @@ int HJFFMuxer::deliver(const HJMediaFrame::Ptr& frame, bool isDup)
             else if (outStream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
             {
                 if ((pkt->dts < m_lastAudioDTS) && (m_lastAudioDTS != HJ_INT64_MIN)) {
-                    HJLoge("error, muxer audio input dts:" + HJ2STR(pkt->dts) + " < last dts:" + HJ2STR(m_lastAudioDTS));
+                    HJFNLoge("error, muxer audio input dts:{} < last dts:{}", pkt->dts, m_lastAudioDTS);
                     return HJErrMuxerDTS;
                 }
                 if (pkt->pts < pkt->dts) {
                     pkt->pts = pkt->dts + 1;
-                    HJLogw("muxer write audio AVPacket warning, pts:" + HJ2STR(pkt->pts) + " < dts:" + HJ2STR(pkt->dts));
+                    HJFNLogw("muxer write audio AVPacket warning, pts:{} < dts:{}", pkt->pts, pkt->dts);
                 }
                 m_lastAudioDTS = pkt->dts;
                 m_audioFrameCnt++;
@@ -412,7 +412,7 @@ int HJFFMuxer::deliver(const HJMediaFrame::Ptr& frame, bool isDup)
 #endif
             HJNipInterval::Ptr nip = m_nipMuster->getNipById(mediaType);
             if (mavf && nip && nip->valid()) {
-                HJLogi("name:" + getName() + ", " + mavf->formatInfo());
+                HJFNLogi(mavf->formatInfo());
             }
             //
             if (av_cmp_q(outStream->time_base, pkt->time_base)) {
@@ -423,9 +423,9 @@ int HJFFMuxer::deliver(const HJMediaFrame::Ptr& frame, bool isDup)
             pkt->stream_index = outStream->index;
 
             if (pkt->pts == AV_NOPTS_VALUE || pkt->dts == AV_NOPTS_VALUE) {
-                HJLogw("warning, pkt pts or dts is AV_NOPTS_VALUE");
+                HJFNLogw("warning, pkt pts or dts is AV_NOPTS_VALUE");
             }
-            //HJFLogi("AVPacket pts:{}, dts:{}, time base:{}:{}", copy->pts, copy->dts, copy->time_base.num, copy->time_base.den);
+            //HJFNLogi("AVPacket pts:{}, dts:{}, time base:{}:{}", copy->pts, copy->dts, copy->time_base.num, copy->time_base.den);
         }
         //
 //        auto t0 = HJCurrentSteadyMS();
@@ -437,7 +437,7 @@ int HJFFMuxer::deliver(const HJMediaFrame::Ptr& frame, bool isDup)
     } while (false);
 
     if (res < HJ_OK) {
-        HJLoge("name:" + getName() + ", muxer write frame error:" + HJ2STR(res) + ", " + HJ_AVErr2Str(res));
+        HJFNLoge("muxer write frame error:{}, {}", res, HJ_AVErr2Str(res));
     }
 
     return res;

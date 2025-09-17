@@ -45,6 +45,8 @@ AVFrame* hj_dup_audio_frame(AVFrame* src, int dstChannels, const AVChannelLayout
 AVFrame* hj_make_silence_audio_frame(int channel, int sampleRate, enum AVSampleFormat sampleFmt, int nbSamples, const AVChannelLayout* layout);
 AVFrame* hj_make_avframe(int width, int height, enum AVPixelFormat format);
 
+bool hj_has_protocol(char* protoName);
+
 #if defined( __cplusplus )
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -86,6 +88,9 @@ typedef struct HJUriComponents
 HJUriComponents hj_url_split(const std::string& uri);
 
 HJBuffer::Ptr hj_make_adts_header(size_t dataSize, const HJ_AMPEG_ID mpegID = HJ_AMPEG_2, const HJAACProfileType profile = HJ_AAPROFILE_LC, const int samplerate = 48000, const int channels = 2);
+
+std::string hj_replace_fasthttp(const std::string& url);
+
 //***********************************************************************************//
 NS_HJ_END
 #endif //__cplusplus

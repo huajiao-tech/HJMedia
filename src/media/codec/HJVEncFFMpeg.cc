@@ -66,7 +66,7 @@ HJVEncFFMpeg::~HJVEncFFMpeg()
 
 int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
 {
-    HJLogi("init begin");
+    HJFNLogi("init begin");
     int res = HJBaseCodec::init(info);
     if (HJ_OK != res) {
         return res;
@@ -85,7 +85,7 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
         AVBufferRef* hw_device_ctx = (AVBufferRef*)hwDevice->getHWDeviceCtx();
         hwType = hj_device_type_map(hwDevice->getDeviceType());
         if (!hw_device_ctx || AV_HWDEVICE_TYPE_NONE == hwType) {
-            HJLoge("hw device error or Device type is not supported");
+            HJFNLoge("hw device error or Device type is not supported");
             return HJErrHWDevice;
         }
         codec = hj_find_av_encoder((AVCodecID)m_codecID, hwType);
@@ -96,7 +96,7 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
         codec = avcodec_find_encoder((AVCodecID)m_codecID);
     }
     if (!codec) {
-        HJLoge("can't find codec:" + HJ2STR(m_codecID) + " error");
+        HJFNLoge("can't find codec:{} error", m_codecID);
         return HJErrFFCodec;
     }
 
@@ -134,7 +134,7 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
         }
         if (!m_hwFrameCtx) {
             res = HJErrHWFrameCtx;
-            HJLoge("hw frame ctx error");
+            HJFNLoge("hw frame ctx error");
             return res;
         }
         avctx->hw_frames_ctx = av_buffer_ref((AVBufferRef*)m_hwFrameCtx->getHWFrameRef());
@@ -179,9 +179,9 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
     {
         if(m_info->haveStorage("threads")) {
             avctx->thread_count = m_info->getStorageValue<int>("threads");
-            HJLogi("threads set " + HJ2STR(avctx->thread_count));
+            HJFNLogi("threads set:{}", avctx->thread_count);
         } else {
-            HJLogi("threads set auto ");
+            HJFNLogi("threads set auto ");
             av_dict_set(&opts, "threads", "auto", 0);
         }
         if (!hwDevice) {
@@ -190,14 +190,14 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
             if (m_info->haveStorage("profile"))
             {
                 std::string profile = m_info->getStorageValue<std::string>("profile");
-                HJLogi("profile set " + profile);
+                HJFNLogi("profile set:{}", profile);
                 av_opt_set(avctx->priv_data, "profile", profile.c_str(), 0);
             }
 
             if (m_info->haveStorage("preset"))
             {
                 std::string preset = m_info->getStorageValue<std::string>("preset");
-                HJLogi("preset set " + preset);
+                HJFNLogi("preset set:{}", preset);
                 av_opt_set(avctx->priv_data, "preset", preset.c_str(), 0);
             }
 
@@ -213,7 +213,7 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
                     }
 
                     std::string rc = m_info->getStorageValue<std::string>("rc");
-                    HJLogi("rc set " + rc);
+                    HJFNLogi("rc set:{}", rc);
                     if (rc == "ABR")
                     {
                         //default
@@ -229,7 +229,7 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
                         avctx->rc_max_rate = avctx->bit_rate * vbvFactor;
                         av_opt_set(avctx->priv_data, "nal-hrd", "cbr", 0);  //nal-hrd=X264_NAL_HRD_CBR
                     }
-                    HJLogi("vbv factor " + HJ2STR(vbvFactor) + " bufsize " + HJ2STR(avctx->rc_buffer_size) + " maxrate " + HJ2STR(avctx->rc_max_rate));
+                    HJFNLogi("vbv factor:{}, bufsize:{}, maxrate:{}", vbvFactor, avctx->rc_buffer_size, avctx->rc_max_rate);
                 }
             }
             //av_opt_set(avctx->priv_data, "x264-params", "preset=veryfast:profile=high:level=3.1:keyint=60:ref=3:b-pyramid=normal:weightp=1:vbv-bufsize=5200:vbv-maxrate=5200:rc-lookahead=15:bframes=3:force-cfr=1", 0);
@@ -248,14 +248,14 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
     }
     res = avcodec_open2(avctx, codec, &opts);
     if (res < HJ_OK) {
-        HJLoge("avcodec open error:" + HJ2STR(res));
+        HJFNLoge("avcodec open error:{}", res);
         return res;
     }
     m_timeBase = HJMediaUtils::checkTimeBase({ avctx->time_base.num, avctx->time_base.den });
 
     AVCodecParameters* codecParams = av_dup_codec_params_from_avcodec(avctx);
     if (!codecParams) {
-        HJLoge("codec params dup error");
+        HJFNLoge("codec params dup error");
         return res;
     }
     m_info->setAVCodecParams(codecParams);
@@ -264,7 +264,7 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
         m_parser = std::make_shared<HJBSFParser>();
         res = m_parser->init("", codecParams);
         if (HJ_OK != res) {
-            HJLoge("bsf parser init error");
+            HJFNLoge("bsf parser init error:{}", res);
             return res;
         }
         m_parser->setAVCHeader(true);
@@ -281,7 +281,7 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
     }
     //
     m_runState = HJRun_Init;
-    HJLogi("init end");
+    HJFNLogi("init end");
     
     return res;
 }
@@ -308,7 +308,7 @@ int HJVEncFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
             res = HJ_EOF;
             break;
         } else if(res < HJ_OK) {
-            HJLoge("receive frame error:" + HJ2String(res));
+            HJFNLoge("receive frame error:{}", res);
             res = HJErrFFGetFrame;
             break;
         } else
@@ -372,7 +372,7 @@ int HJVEncFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
 #endif
             HJNipInterval::Ptr nip = m_nipMuster->getOutNip();
             if (frame && nip && nip->valid()) {
-                HJLogi("name:" + getName() + ", " + frame->formatInfo());
+                HJFNLogi(frame->formatInfo());
             }
         }
         
@@ -396,7 +396,7 @@ int HJVEncFFMpeg::run(const HJMediaFrame::Ptr frame)
     {
         res = init(frame->getInfo());
         if (HJ_OK != res) {
-            HJLoge("init in run error");
+            HJFNLoge("init in run error");
             return res;
         }
     }
@@ -410,7 +410,7 @@ int HJVEncFFMpeg::run(const HJMediaFrame::Ptr frame)
         {
             avf = (AVFrame *)mvf->getAVFrame();
             if (!avf) {
-                HJLogi("have no AVFrame");
+                HJFNLogi("have no AVFrame");
                 res = HJErrInvalidParams;
                 break;
             }
@@ -423,15 +423,16 @@ int HJVEncFFMpeg::run(const HJMediaFrame::Ptr frame)
                 }
                 res = av_hwframe_get_buffer(avctx->hw_frames_ctx, hw_avf, 0);
                 if (res < HJ_OK || !hw_avf || !hw_avf->hw_frames_ctx) {
-                    HJLoge("get hw frame buffer error");
+                    HJFNLoge("get hw frame buffer error");
                     return HJErrNewObj;
                 }
                 res = av_hwframe_transfer_data(hw_avf, avf, 0);
                 if (res < HJ_OK) {
-                    HJLoge("hwframe transfer data error");
+                    HJFNLoge("hwframe transfer data error");
                     return res;
                 }
-                hw_avf->key_frame = avf->key_frame;
+                //hw_avf->key_frame = avf->key_frame;
+                hw_avf->flags = avf->flags;
                 hw_avf->pict_type = avf->pict_type;
                 hw_avf->pts = avf->pts;
                 hw_avf->time_base = avf->time_base;
@@ -452,7 +453,7 @@ int HJVEncFFMpeg::run(const HJMediaFrame::Ptr frame)
 #endif
             HJNipInterval::Ptr nip = m_nipMuster->getInNip();
             if (frame && nip && nip->valid()) {
-                HJLogi("name:" + getName() + ", " + mvf->formatInfo());
+                HJFNLogi(mvf->formatInfo());
             }
 		} else {
 			//HJLogi("video encoder send frame pts:" + HJ2STR(frame->getPTS()) + ", dts:" + HJ2STR(frame->getDTS()));
@@ -465,7 +466,7 @@ int HJVEncFFMpeg::run(const HJMediaFrame::Ptr frame)
             m_runState = HJRun_Stop;
             return HJ_EOF;
         } else if (res < HJ_OK){
-            HJLoge("error, video enc send packet");
+            HJFNLoge("error, video enc send packet");
             return HJErrFatal;
         }
     } while (false);

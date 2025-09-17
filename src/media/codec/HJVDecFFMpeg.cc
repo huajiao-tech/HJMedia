@@ -11,8 +11,7 @@
 
 NS_HJ_BEGIN
 //***********************************************************************************//
-static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
-                                        const enum AVPixelFormat *pix_fmts)
+static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
 {
     const enum AVPixelFormat *p;
     enum AVPixelFormat hw_pix_fmt = *(enum AVPixelFormat *)ctx->opaque;
@@ -54,7 +53,7 @@ static AVPixelFormat get_mediacodec_format(AVCodecContext* avctx, const enum AVP
  */
 int HJVDecFFMpeg::init(const HJStreamInfo::Ptr& info)
 {
-    HJLogi("init entry");
+    HJFNLogi("init entry");
     int res = HJBaseCodec::init(info);
     if (HJ_OK != res) {
         return res;
@@ -64,7 +63,7 @@ int HJVDecFFMpeg::init(const HJStreamInfo::Ptr& info)
     //
     AVCodecParameters* codecParam = (AVCodecParameters*)videoInfo->getAVCodecParams();
     if (!codecParam) {
-        HJLoge("can't find codec params error");
+        HJFNLoge("can't find codec params error");
         return HJErrInvalidParams;
     }
     m_codecID = (AV_CODEC_ID_NONE != codecParam->codec_id) ? codecParam->codec_id : videoInfo->getCodecID();
@@ -78,7 +77,7 @@ int HJVDecFFMpeg::init(const HJStreamInfo::Ptr& info)
         hw_device_ctx = (AVBufferRef*)hwDevice->getHWDeviceCtx();
         hwType = hj_device_type_map(hwDevice->getDeviceType());
         if (!hw_device_ctx || AV_HWDEVICE_TYPE_NONE == hwType) {
-            HJLoge("hw device error or Device type is not supported");
+            HJFNLoge("hw device error or Device type is not supported");
             return HJErrHWDevice;
         }
         codec = hj_find_av_decoder(codecParam->codec_id, hwType);
@@ -87,20 +86,20 @@ int HJVDecFFMpeg::init(const HJStreamInfo::Ptr& info)
         codec = avcodec_find_decoder((AVCodecID)m_codecID);
     }
     if (!codec) {
-        HJLoge("can't find property codec error, codec id:" + HJ2STR(codecParam->codec_id));
+        HJFNLoge("can't find property codec error, codec id:{}", codecParam->codec_id);
         return HJErrFFCodec;
     }
 
     AVCodecContext* avctx = avcodec_alloc_context3(codec);
     if (!avctx) {
-        HJLoge("alloc context error");
+        HJFNLoge("alloc context error");
         return HJErrFFNewAVCtx;
     }
     m_avctx = avctx;
     //
     res = avcodec_parameters_to_context(avctx, codecParam);
     if (HJ_OK != res) {
-        HJLoge("codec parms from error");
+        HJFNLoge("codec parms from error");
         return res;
     }    
     //
@@ -115,7 +114,7 @@ int HJVDecFFMpeg::init(const HJStreamInfo::Ptr& info)
         }
         m_hwPixFmt = hj_hw_pixel_format(codec, hwType);
         if (AV_PIX_FMT_NONE == m_hwPixFmt) {
-            HJLogi("error, hw pixel format is none");
+            HJFNLoge("error, hw pixel format is none");
             return HJErrFFCodec;
         }
         avctx->opaque = &m_hwPixFmt;
@@ -174,14 +173,14 @@ int HJVDecFFMpeg::init(const HJStreamInfo::Ptr& info)
         res = m_parser->init(codecParam);
         if (HJ_OK != res) {
             m_parser = nullptr;
-            HJLoge("parser open error");
+            HJFNLoge("parser open error");
             return res;
         }
     }
 #endif
 
     m_runState = HJRun_Init;
-    HJLogi("init end");
+    HJFNLogi("init end");
     
     return res;
 }
@@ -194,7 +193,7 @@ int HJVDecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
     int res = HJ_OK;
     AVFrame* avf = av_frame_alloc();
     if (!avf) {
-        HJLoge("error, alloc avframe");
+        HJFNLoge("error, alloc avframe");
         return HJErrNewObj;
     }
     do {
@@ -216,7 +215,7 @@ int HJVDecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
             }
             break;
         } else if(res < HJ_OK) {
-            HJLoge("receive frame error:" + HJ2String(res));
+            HJFNLoge("receive frame error:" + HJ2String(res));
             res = HJErrFFGetFrame;
             break;
         } else
@@ -228,7 +227,8 @@ int HJVDecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
                 if (res < HJ_OK) {
                     break;
                 }
-                sw_avf->key_frame = avf->key_frame;
+                //sw_avf->key_frame = avf->key_frame;
+                sw_avf->flags = avf->flags;
                 sw_avf->pict_type = avf->pict_type;
                 sw_avf->pts = avf->pts;
                 sw_avf->best_effort_timestamp = avf->best_effort_timestamp;
@@ -248,7 +248,7 @@ int HJVDecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
             mvf->setDuration(avf->duration, m_timeBase);
 			//mvf->m_pts = av_time_to_ms(avf->best_effort_timestamp, avf->time_base);
 			//mvf->m_dts = av_time_to_ms(avf->best_effort_timestamp, avf->time_base);
-            if((avf->key_frame && avf->pict_type && (avf->pict_type == AV_PICTURE_TYPE_I))) {
+            if((/*avf->key_frame*/(avf->flags & AV_FRAME_FLAG_KEY) && avf->pict_type && (avf->pict_type == AV_PICTURE_TYPE_I))) {
                 mvf->setFrameType(HJFRAME_KEY);
             }
             //
@@ -278,7 +278,7 @@ int HJVDecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
                 auto outMvf = converter->convert(mvf);
                 if (outMvf) {
                     mvf->setAuxMFrame(outMvf->getMFrame());
-                    HJLogi("convert scale");
+                    HJFNLogi("convert scale");
                 }
             }
             //output
@@ -299,7 +299,7 @@ int HJVDecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
 #endif
                 HJNipInterval::Ptr nip = m_nipMuster->getOutNip();
                 if (frame && nip && nip->valid()) {
-                    HJLogi("name:" + getName() + ", " + frame->formatInfo());
+                    HJFNLogi(frame->formatInfo());
                 }
             }
         }
@@ -322,7 +322,7 @@ int HJVDecFFMpeg::run(const HJMediaFrame::Ptr frame)
     {
         res = init(frame->getInfo());
         if (HJ_OK != res) {
-            HJLoge("init in run error");
+            HJFNLoge("init in run error");
             return res;
         }
     }
@@ -342,13 +342,17 @@ int HJVDecFFMpeg::run(const HJMediaFrame::Ptr frame)
         {
             mvf->setAVTimeBase(m_timeBase);
             pkt = mvf->getAVPacket();
-        } else {
+        }
+        else {
             nullPkt = hj_make_null_packet();
             pkt = nullPkt;
         }
         if (!pkt) {
-            HJLoge("run get avpacket error");
+            HJFNLoge("run get avpacket error");
             return HJErrInvalidParams;
+        }
+        if (AV_NOPTS_VALUE == pkt->dts || AV_NOPTS_VALUE == pkt->pts) {
+            HJFNLogw("checkFrame dts pts invalid before");
         }
 #if HJ_HAVE_TRACKER
         auto tracker = mvf->getTracker()->dup();
@@ -356,26 +360,28 @@ int HJVDecFFMpeg::run(const HJMediaFrame::Ptr frame)
             tracker->addTrajectory(HJakeTrajectory());
             addTracker(HJ2STR(mvf->getPTS()), tracker);
             //m_trackers[HJ2STR(mvf->getPTS())] = mvf->getTracker()->dup();
-         }
+        }
 #endif
         HJNipInterval::Ptr nip = m_nipMuster->getInNip();
         if (mvf && nip && nip->valid()) {
-            HJLogi("name:" + getName() + ", " + mvf->formatInfo());
+            HJFNLogi(mvf->formatInfo());
         }
         //
         res = avcodec_send_packet(avctx, pkt);
         if (AVERROR(EAGAIN) == res) {
             return HJ_WOULD_BLOCK;
-        } else if(AVERROR_EOF == res) {
+        }
+        else if (AVERROR_EOF == res) {
             m_runState = HJRun_Stop;
             return HJ_EOF;
-        } else if (res < HJ_OK){
-            HJFLoge("error, video dec send packet failed:{}", res);
+        }
+        else if (res < HJ_OK) {
+            HJFNLoge("error, video dec send packet failed:{}", res);
             return HJErrFatal;
         }
     } while (false);
-    
-    if(nullPkt) {
+
+    if (nullPkt) {
         av_packet_free(&nullPkt);
     }
     return res;
@@ -383,14 +389,14 @@ int HJVDecFFMpeg::run(const HJMediaFrame::Ptr frame)
 
 int HJVDecFFMpeg::flush()
 {
-    HJLogi("flush entry");
-    if(m_avctx) {
+    HJFNLogi("flush entry");
+    if (m_avctx) {
         AVCodecContext* avctx = (AVCodecContext*)m_avctx;
         avcodec_flush_buffers(avctx);
     }
     m_runState = HJRun_Ready;
-    HJLogi("flush end");
-    
+    HJFNLogi("flush end");
+
     return HJ_OK;
 }
 
@@ -399,19 +405,19 @@ bool HJVDecFFMpeg::checkFrame(const HJMediaFrame::Ptr frame)
     if (HJRun_Init == m_runState) {
         return false;
     }
-    if (frame->isFlushFrame()) 
+    if (frame->isFlushFrame())
     {
-        HJFLogi("flush frame");
+        //HJFLogi("flush frame");
         const auto& inInfo = frame->getVideoInfo();
         if (!inInfo) {
-            HJFLogw("waning, video info in null");
+            HJFNLogw("waning, video info in null");
             return false;
         }
         const auto otherCodecParam = inInfo->getCodecParams();
         const auto codecParam = m_info->getCodecParams();
         if (!codecParam || !codecParam->isEqual(otherCodecParam)) {
             m_info->setCodecParams(otherCodecParam);
-            HJFLogi("set flush codec params");
+            HJFNLogi("set flush codec params");
             return true;
         }
         //AVCodecParameters* inCodecParam = (AVCodecParameters*)inInfo->getAVCodecParams();
@@ -431,6 +437,9 @@ bool HJVDecFFMpeg::checkFrame(const HJMediaFrame::Ptr frame)
         if (!pkt) {
             break;
         }
+        if (AV_NOPTS_VALUE == pkt->dts || AV_NOPTS_VALUE == pkt->pts) {
+            HJFNLogw("checkFrame dts pts invalid");
+        }
 //        uint64_t tt0 = HJUtils::getCurrentMillisecond();
         int ret = m_parser->parse(pkt);
         if (HJ_OK != ret) {
@@ -440,7 +449,7 @@ bool HJVDecFFMpeg::checkFrame(const HJMediaFrame::Ptr frame)
         if (m_parser->getReboot())
         {
             HJSizei size = m_parser->getVSize();
-            HJLogi("key video frame new size:" + HJ2STR(size.w) + " , " + HJ2STR(size.h));
+            HJFNLogi("key video frame new size:{}, {}", size.w, size.h);
             
             HJVideoInfo::Ptr videoInfo = std::dynamic_pointer_cast<HJVideoInfo>(m_info);
             const auto vcodecParam = videoInfo->getCodecParams();
@@ -472,7 +481,7 @@ bool HJVDecFFMpeg::checkFrame(const HJMediaFrame::Ptr frame)
             m_info->setCodecParams(newCodecParma);
 
             invalid = true;
-            HJLogi("reboot codec params");
+            HJFNLogi("reboot codec params");
         }
     } while (false);
     
@@ -481,7 +490,7 @@ bool HJVDecFFMpeg::checkFrame(const HJMediaFrame::Ptr frame)
 
 int HJVDecFFMpeg::reset()
 {
-    HJLogi("entry");
+    HJFNLogi("entry");
     done();
     return init(m_info);
 }
@@ -497,7 +506,7 @@ void HJVDecFFMpeg::done()
         if (m_bMediacodecDec)
         {
             //avcodec can use surface, after DeleteGlobalRef surface 
-            avcodec_close(avctx);
+            //avcodec_close(avctx);
             av_mediacodec_default_free(avctx);
         }
         avcodec_free_context(&avctx);
@@ -513,13 +522,83 @@ int HJVDecFFMpeg::buildConverters()
     //outVInfo->m_height = 640;
     //addOutInfo(outVInfo);
 
-    for (auto it : m_outInfos)
+    for (auto& it : m_outInfos)
     {
         HJVideoInfo::Ptr videoInfo = std::dynamic_pointer_cast<HJVideoInfo>(it.second);
         auto converter = std::make_shared<HJVideoConverter>(videoInfo);
         m_videoConverters.push_back(converter);
     }
     return HJ_OK;
+}
+
+//***********************************************************************************//
+HJVDecFFMpegPlus::HJVDecFFMpegPlus()
+    : HJVDecFFMpeg()
+{
+    m_popFrontFrame = true;
+}
+
+int HJVDecFFMpegPlus::getFrame(HJMediaFrame::Ptr& frame)
+{
+    int res = HJVDecFFMpeg::getFrame(frame);
+    if (res < HJ_OK) {
+        return res;
+    }
+    if (m_popFrontFrame && m_firstFrame && !frame)
+    {
+        HJFNLogi("pop front frame entry");
+        int retryCount = 0;
+        do
+        {
+            res = HJVDecFFMpeg::run(m_firstFrame);
+            if (HJ_OK != res) {
+                break;
+            }
+            res = HJVDecFFMpeg::getFrame(frame);
+            if (res < HJ_OK) {
+                break;
+            }
+            retryCount++;
+        } while (!frame && retryCount < 16);
+        //
+        m_firstFrame = nullptr;
+        m_popFrontFrame = false;
+
+        if (frame) {
+            HJFNLogi("pop front frame end:{}, retryCount:{}", frame->formatInfo(), retryCount);
+        }
+    }
+    //check
+    if (frame)
+    {
+        if (frame->isKeyFrame() && m_checkFirstFrameFlag)
+        {
+            auto dts = frame->getDTS();
+            if (dts <= m_firstFrameDTS) {
+                HJFNLogi("discard frame:{}", frame->formatInfo());
+                frame = nullptr;
+            }
+            if (HJ_NOTS_VALUE == m_firstFrameDTS) {
+                m_firstFrameDTS = dts;
+            }
+        } else {
+            m_checkFirstFrameFlag = false;
+        }
+    } 
+    //if (frame) {
+    //    HJFNLogi("frame:{}", frame->formatInfo());
+    //}
+    
+    return res;
+}
+
+int HJVDecFFMpegPlus::run(const HJMediaFrame::Ptr frame)
+{
+    //HJFNLogi("frame:{}", frame->formatInfo());
+    if (m_popFrontFrame && !m_firstFrame) {
+        m_firstFrame = frame;
+    }
+    return HJVDecFFMpeg::run(frame);
 }
 
 NS_HJ_END

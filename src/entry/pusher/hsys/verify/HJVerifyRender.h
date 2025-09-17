@@ -24,14 +24,18 @@ public:
     
     int test(NativeWindow *&o_window, int &o_width, int &o_height);
      
-    static int contextInit(const HJPusherContextInfo& i_contextInfo);
-    int openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIPusherNotify i_notify, uint64_t &o_surfaceId);
+    static int contextInit(const HJEntryContextInfo& i_contextInfo);
+    int openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIEntryNotify i_notify, uint64_t &o_surfaceId);
     int openPusher(const HJPusherVideoInfo& i_videoInfo, const HJPusherAudioInfo& i_audioInfo, const HJPusherRTMPInfo &i_rtmpInfo); 
     void closePusher();
     int openPngSeq(const HJPusherPNGSegInfo &i_pngseqInfo);
     int openRecorder(const HJPusherRecordInfo &i_recorderInfo);
     void closeRecorder();
     void closePreview();
+    void tryGiftOpen();
+    void tryDoubleScreen();
+    void tryGiftPusher();
+
     
     static void onSurfaceChanged();
          

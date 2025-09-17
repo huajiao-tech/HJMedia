@@ -11,7 +11,7 @@ int HJPluginMuxer::internalInit(HJKeyStorage::Ptr i_param)
 	GET_PARAMETER(HJListener, pluginListener);
 	auto param = std::make_shared<HJKeyStorage>();
 	(*param)["thread"] = thread;
-	(*param)["createThread"] = static_cast<bool>(thread == nullptr);
+	(*param)["createThread"] = (thread == nullptr);
 	if (pluginListener) {
 		(*param)["pluginListener"] = pluginListener;
 	}
@@ -24,6 +24,10 @@ int HJPluginMuxer::internalInit(HJKeyStorage::Ptr i_param)
 		GET_PARAMETER(HJMediaUrl::Ptr, mediaUrl);
 		GET_PARAMETER(HJAudioInfo::Ptr, audioInfo);
 		GET_PARAMETER(HJVideoInfo::Ptr, videoInfo);
+		std::weak_ptr<HJStatContext> statCtx;
+        if(i_param) {
+			statCtx = i_param->getValueObj<std::weak_ptr<HJStatContext>>("HJStatContext");
+        }
 		std::string url{};
 		int mediaTypes{};
 		if (audioInfo != nullptr) {
@@ -36,7 +40,7 @@ int HJPluginMuxer::internalInit(HJKeyStorage::Ptr i_param)
 			url = mediaUrl->getUrl();
 		}
 
-		ret = initMuxer(url, mediaTypes);
+		ret = initMuxer(url, mediaTypes, statCtx);
 		if (ret != HJ_OK) {
 			break;
 		}
@@ -60,7 +64,7 @@ void HJPluginMuxer::onInputAdded(size_t i_srcKeyHash, HJMediaType i_type)
 	m_inputKeyHash.store(i_srcKeyHash);
 }
 
-int HJPluginMuxer::runTask()
+int HJPluginMuxer::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	int64_t enter = HJCurrentSteadyMS();
@@ -68,7 +72,7 @@ int HJPluginMuxer::runTask()
 	size_t size = -1;
 	int ret = HJ_OK;
 	do {
-		auto inFrame = receive(m_inputKeyHash.load(), size);
+		auto inFrame = receive(m_inputKeyHash.load(), &size);
 		if (inFrame == nullptr) {
 			route += "_1";
 			ret = HJ_WOULD_BLOCK;
@@ -105,8 +109,10 @@ int HJPluginMuxer::runTask()
 				route += HJFMT("_ADTS({})", inFrame->getDTS());
 			}
 
-			inFrame->setExtraTS(HJCurrentSteadyMS());
-
+            if (inFrame->getExtraTS() == HJ_NOTS_VALUE)
+            {
+                inFrame->setExtraTS(HJCurrentSteadyMS());
+            }
 			deliverToOutputs(inFrame);
 //			if (m_status == HJSTATUS_Running) return HJ_OK;
 
@@ -135,12 +141,15 @@ int HJPluginMuxer::runTask()
 	return ret;
 }
 
-int HJPluginMuxer::initMuxer(std::string i_url, int i_mediaTypes)
+int HJPluginMuxer::initMuxer(std::string i_url, int i_mediaTypes, std::weak_ptr<HJStatContext> statCtx)
 {
 	int ret;
 	do {
 		m_muxer->done();
-		ret = m_muxer->init(i_url, i_mediaTypes);
+		//
+		HJOptions::Ptr opts = HJCreates<HJOptions>();
+        (*opts)["HJStatContext"] = statCtx;
+		ret = m_muxer->init(i_url, i_mediaTypes, opts);
 		if (m_quitting.load()) {
 			ret = HJ_STOP;
 			break;

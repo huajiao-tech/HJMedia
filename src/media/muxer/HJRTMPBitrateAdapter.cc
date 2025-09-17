@@ -8,13 +8,59 @@
 
 NS_HJ_BEGIN
 //***********************************************************************************//
+int HJBitrateIncEvaluator::evaluate(int recommendedBitrate, int receivableBitrate)
+{
+    int step = HJ_CLIP(receivableBitrate - recommendedBitrate, 50, 2 * 50);
+    recommendedBitrate += step;
+    recommendedBitrate = HJ_MIN(m_maxBitrate, recommendedBitrate);
+    return recommendedBitrate;
+}
+
+int HJBitrateDecEvaluator::evaluate(int recommendedBitrate, int receivableBitrate)
+{
+    int step = HJ_MAX(recommendedBitrate - 0.9 * receivableBitrate, 100);
+    recommendedBitrate -= step;
+    recommendedBitrate = HJ_MAX(m_minBitrate, recommendedBitrate);
+    return recommendedBitrate;
+}
+
+//***********************************************************************************//
 HJRTMPBitrateAdapter::HJRTMPBitrateAdapter(int bitrate, int minBitrate, int adjustInterval, int dropThreshold)
     : m_bitrate(bitrate)
     , m_minBitrate(minBitrate)
     , m_adjustInterval(adjustInterval)
     , m_dropThreshold(dropThreshold)
 {
-    // m_recommendedBitrate = m_bitrate;
+     m_recommendedBitrate = m_bitrate;
+}
+
+int HJRTMPBitrateAdapter::evaluateBitrate(int inBitrate, int outBitrate, int netBitrate, float dropRatio, int64_t queueDuration)
+{
+    if(m_recommendedBitrate <= 0) {
+        m_recommendedBitrate = inBitrate;
+        HJFLogi("init m_recommendedBitrate:{}", m_recommendedBitrate);
+    }
+    if(m_evaluator && !m_evaluator->expire()) {
+        return m_recommendedBitrate;
+    }
+    m_evaluator = nullptr;
+    //
+    // HJFLogi("entry, inBitrate:{}, outBitrate:{}, netBitrate:{}, dropRatio:{}, queueDuration:{}, m_recommendedBitrate:{}", inBitrate, outBitrate, netBitrate, dropRatio, queueDuration, m_recommendedBitrate);
+    int receivableBitrate = HJ_MAX(HJ_MIN(outBitrate, netBitrate), m_minBitrate);
+    if((dropRatio > 0.0f || queueDuration > m_dropThreshold) && m_recommendedBitrate > receivableBitrate)
+    {
+        m_evaluator = HJCreates<HJBitrateDecEvaluator>(m_adjustInterval, m_bitrate, m_minBitrate);
+        m_recommendedBitrate = m_evaluator->evaluate(m_recommendedBitrate, receivableBitrate);
+        //
+        HJFLogi("decrease, m_recommendedBitrate:{}, receivableBitrate:{}, queueDuration:{}, m_dropThreshold:{}, dropRatio:{}", m_recommendedBitrate, receivableBitrate, queueDuration, m_dropThreshold, dropRatio);
+    } else if(dropRatio <= 0.0 && queueDuration < m_queueDurationMin && m_recommendedBitrate < HJ_MIN(m_bitrate, netBitrate))
+    {
+        m_evaluator = HJCreates<HJBitrateIncEvaluator>(2 * m_adjustInterval, m_bitrate, m_minBitrate);
+        m_recommendedBitrate = m_evaluator->evaluate(m_recommendedBitrate, netBitrate);
+        //
+        HJFLogi("increase, m_recommendedBitrate:{}, netBitrate:{}, queueDuration:{}, m_queueDurationMin:{}, dropRatio:{}", m_recommendedBitrate, netBitrate, queueDuration, m_queueDurationMin, dropRatio);
+    }
+    return m_recommendedBitrate;
 }
 
 int HJRTMPBitrateAdapter::update2(int inBitrate, int outBitrate, int netBitrate, float dropRatio, int64_t queueDuration)
@@ -22,11 +68,19 @@ int HJRTMPBitrateAdapter::update2(int inBitrate, int outBitrate, int netBitrate,
     int recommendedBitrate = 0;
     if(m_recommendedBitrate <= 0) {
         m_recommendedBitrate = inBitrate;
-        // m_recommendedBitrate = m_bitrate = inBitrate;
     }
-    HJFLogi("entry, inBitrate:{}, outBitrate:{}, netBitrate:{}, dropRatio:{}, m_recommendedBitrate:{}", inBitrate, outBitrate, netBitrate, dropRatio, m_recommendedBitrate);
+    HJFLogi("entry, inBitrate:{}, outBitrate:{}, netBitrate:{}, dropRatio:{}, queueDuration:{}, m_recommendedBitrate:{}", inBitrate, outBitrate, netBitrate, dropRatio, queueDuration, m_recommendedBitrate);
     int64_t gapTime = (HJ_NOTS_VALUE != m_lastTime) ? (HJCurrentSteadyMS() - m_lastTime) : 0;
-    if(dropRatio > 0.0f) 
+    int receivableBitrate = HJ_MIN(outBitrate, netBitrate);
+    if (dropRatio > 0.0f && receivableBitrate < m_recommendedBitrate * 0.7)
+    {
+        m_recommendedBitrate -= HJ_MAX(m_recommendedBitrate - receivableBitrate, 100);
+        m_recommendedBitrate = HJ_MAX(m_minBitrate, m_recommendedBitrate);
+    }
+
+
+
+    if(dropRatio > 0.0f || receivableBitrate < m_recommendedBitrate * 0.7)
     {
         m_goodTime = 0;
         m_badTime += gapTime;

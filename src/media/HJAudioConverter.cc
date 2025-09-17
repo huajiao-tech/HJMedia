@@ -138,6 +138,7 @@ HJMediaFrame::Ptr HJAudioConverter::convert(HJMediaFrame::Ptr&& inFrame)
         //int nbBufSize =  av_samples_get_buffer_size(NULL, m_dstInfo->m_channels, nbSamples, (AVSampleFormat)m_dstInfo->m_sampleFmt, 0);
         //outFrame = HJMediaFrame::makeAudioFrame();
         //outFrame->setData(m_buffer->data(), nbBufSize);
+        mavf->setDuration(nbSamples, { outAvf->time_base.num, outAvf->time_base.den });
         mavf->setPTSDTS(inFrame->m_pts, inFrame->m_dts, inFrame->m_timeBase);
         mavf->m_frameType = inFrame->m_frameType;
         outFrame = std::move(mavf);
@@ -491,7 +492,7 @@ HJMediaFrame::Ptr HJAudioAdopter::getFrame()
             avf->best_effort_timestamp = avf->pts;
             avf->time_base = av_rational_from_hj_rational(m_timebase);
             mvf->setPTSDTS(avf->best_effort_timestamp, avf->best_effort_timestamp, m_timebase);
-            if ((avf->key_frame && avf->pict_type && (avf->pict_type == AV_PICTURE_TYPE_I))) {
+            if ((/*avf->key_frame*/(avf->flags & AV_FRAME_FLAG_KEY) && avf->pict_type && (avf->pict_type == AV_PICTURE_TYPE_I))) {
                 mvf->setFrameType(HJFRAME_KEY);
             }
             //

@@ -21,6 +21,30 @@
       "value": "0vp"
     },
     {
+      "name": "xcomponent_width",
+      "value": "300vp"
+    },
+    {
+      "name": "xcomponent_height",
+      "value": "600vp"
+    },
+    {
+      "name": "xcomponent_width2",
+      "value": "400vp"
+    },
+    {
+      "name": "xcomponent_height2",
+      "value": "400vp"
+    },
+    {
+      "name": "xcomponent_width3",
+      "value": "400vp"
+    },
+    {
+      "name": "xcomponent_height3",
+      "value": "300vp"
+    },
+    {
       "name": "tab_bar_title_border_width",
       "value": "2vp"
     },
@@ -47,10 +71,6 @@
     {
       "name": "tabs_margin_top",
       "value": "8vp"
-    },
-    {
-      "name": "xcomponent_width",
-      "value": "336vp"
     },
     {
       "name": "xcomponent_border_radius",

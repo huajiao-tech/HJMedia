@@ -13,14 +13,15 @@
  * limitations under the License.
  */
 
-import { OpenGLView } from '../view/OpenGLView';
+import { PusherView } from '../view/PusherView';
+import { PlayerView} from '../view/PlayerView';
 import { CommonConstant as Common } from '../common/CommonConstant';
 import { NavStackUtil } from '../util/NavStackUitl';
 
 @Entry
 @ComponentV2
 struct Index {
-  @Local currentIndex: number = 0;
+  @Local currentIndex: number = 0;//1;//0;
 
   @Builder
   tabBuilder(index: number, name: ResourceStr) {
@@ -66,10 +67,16 @@ struct Index {
       .justifyContent(FlexAlign.Start)
 
       Tabs({ barPosition: BarPosition.Start, index: this.currentIndex }) {
+
         TabContent() {
-          OpenGLView()
+          PlayerView()
         }
-        .tabBar(this.tabBuilder(0, $r('app.string.opengl_draw')))
+        .tabBar(this.tabBuilder(0, $r('app.string.player')))
+
+        TabContent() {
+          PusherView()
+        }
+        .tabBar(this.tabBuilder(1, $r('app.string.pusher')))
       }
       .vertical(false)
       .barMode(BarMode.Fixed)

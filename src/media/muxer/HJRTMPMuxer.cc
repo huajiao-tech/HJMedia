@@ -41,6 +41,11 @@ int HJRTMPMuxer::init(const HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts)
             res = HJErrInvalidParams;
             break;
         }
+        if (opts) {
+            m_localUrl = opts->getString(HJRTMPUtils::STORE_KEY_LOCALURL);
+            //
+            m_statCtx = opts->getValueObj<std::weak_ptr<HJStatContext>>("HJStatContext");
+        }
         auto videoInfo = m_mediaInfo->getVideoInfo();
         if (videoInfo) {
             int codecID = videoInfo->getCodecID();
@@ -87,6 +92,8 @@ int HJRTMPMuxer::init(const std::string url, int mediaTypes, HJOptions::Ptr opts
         //
         if (opts) {
             m_localUrl = opts->getString(HJRTMPUtils::STORE_KEY_LOCALURL);
+            //
+            m_statCtx = opts->getValueObj<std::weak_ptr<HJStatContext>>("HJStatContext");
         }
         if (!m_localUrl.empty()) {
             m_localFile = std::make_shared<HJXIOFile>();
@@ -128,6 +135,8 @@ int HJRTMPMuxer::addFrame(const HJMediaFrame::Ptr& frame)
             if (HJ_OK != res) {
                 break;
             }
+            //
+            notifyStatInfo();
         }
         if (HJ_NOTS_VALUE == m_startDTSOffset) {
             m_startDTSOffset = waitStartDTSOffset(frame);
@@ -155,9 +164,12 @@ void HJRTMPMuxer::done()
     if (m_rtmpWrapper) {
         m_rtmpWrapper->done();
         m_rtmpWrapper = nullptr;
+        //
+        notifyStatDoneInfo();
     }
     m_packetManager = nullptr;
     m_localFile = nullptr;
+    m_statCtx.reset();
 
     HJFLogi("end");
 }
@@ -184,6 +196,12 @@ void HJRTMPMuxer::setNetBlock(const bool block)
         m_packetManager->setNetBlock(block);
     }
 }
+void HJRTMPMuxer::setNetSimulater(int bitrate)
+{
+    if (m_rtmpWrapper) {
+		m_rtmpWrapper->setNetSimulBitrate(bitrate);
+    }
+}
 
 int HJRTMPMuxer::onRTMPWrapperNotify(HJNotification::Ptr ntf)
 {
@@ -200,6 +218,20 @@ int HJRTMPMuxer::onRTMPWrapperNotify(HJNotification::Ptr ntf)
         case HJRTMP_EVENT_NET_BITRATE: {
             if(m_packetManager) {
                 m_packetManager->setNetBitrate(ntf->getVal());
+            }
+            return HJ_OK;
+        }
+        case HJRTMP_EVENT_DISCONNECTED: {
+            if(m_packetManager) {
+                m_packetManager->setWrapperGoing(true);
+            }
+        }
+        case HJRTMP_EVENT_CONNECT_FAILED:
+        case HJRTMP_EVENT_STREAM_CONNECT_FAIL: 
+        {
+            auto statPtr = m_statCtx.lock();
+            if (statPtr && m_rtmpWrapper) {
+                statPtr->notify("connectFailed", JNotify_Publish_Failed, m_rtmpWrapper->getRetryCount());
             }
             break;
         }
@@ -244,6 +276,9 @@ int HJRTMPMuxer::addRTMPPacket(HJMediaFrame::Ptr frame, int64_t tsOffset)
     }
     m_packetManager->push(packet);
 
+    //
+    HJPERIOD_RUN1([&]() {notifyStatLiveInfo();});
+    
     return HJ_OK;
 }
 
@@ -301,6 +336,64 @@ int64_t HJRTMPMuxer::waitStartDTSOffset(HJMediaFrame::Ptr frame)
         m_framesQueue.clear();
     }
     return startDTSOffset;
+}
+
+void HJRTMPMuxer::notifyStatInfo()
+{
+    auto statPtr = m_statCtx.lock();
+    if (statPtr) {
+        std::string ntfyName = "muxer" + getName();
+        JStatPublishLiveInfo liveInfo;
+        auto& videoInfo = m_mediaInfo->getVideoInfo();
+        if (videoInfo) {
+            liveInfo.m_encodeType = AVCodecIDToString((AVCodecID)videoInfo->m_codecID);
+            liveInfo.m_width = videoInfo->m_width;
+            liveInfo.m_height = videoInfo->m_height;
+            liveInfo.m_preFps = videoInfo->m_frameRate;
+            liveInfo.m_preBps = videoInfo->m_bitrate / 1000;
+        }
+
+        liveInfo.m_highCpu = 0;
+        //liveInfo.m_gamut
+        liveInfo.m_version = HJ_VERSION;
+        statPtr->notify(ntfyName, JNotify_Publish_LiveInfo, liveInfo);
+        HJFLogi("[publish stat notify JNotify_Publish_LiveInfo, m_encodeType:{}, m_width:{}, m_height:{}, m_preFps:{}, m_preBps:{}, m_version:{}]", liveInfo.m_encodeType, liveInfo.m_width, liveInfo.m_height, liveInfo.m_preFps, liveInfo.m_preBps, liveInfo.m_version);
+    }
+}
+
+void HJRTMPMuxer::notifyStatLiveInfo()
+{
+    auto streamStat = m_packetManager->getStats();
+    auto outKbps = streamStat.outStats.video_kbps + streamStat.outStats.audio_kbps;
+    auto outFps = streamStat.outStats.video_fps;
+    auto outDelay = streamStat.delay;
+    //
+    auto statPtr = m_statCtx.lock();
+    if (statPtr && m_packetManager) {
+        statPtr->notify("vido bps", JNotify_Publish_FinalBPS, outKbps);
+        statPtr->notify("vido fps", JNotify_Publish_FinalFPS, outFps);
+        //
+        statPtr->notify("push delay", JNotify_Publish_PushDelay, outDelay);
+        HJFLogi("[publish stat notify JNotify_Publish_FinalBPS, JNotify_Publish_FinalFPS, JNotify_Publish_PushDelay, m_outKbps:{}, m_outFps:{}, m_delay:{}]", outKbps, outFps, outDelay);
+    }
+    //
+    if(m_listener) {
+        auto ntfy = HJMakeNotification(HJRTMP_EVENT_LIVE_INFO, "rtmp muxer live info");
+        (*ntfy)["kbps"] = (int)outKbps;
+        (*ntfy)["fps"] = (int)outFps;
+        (*ntfy)["delay"] = (int)outDelay;
+        m_listener(std::move(ntfy));
+        HJFLogi("notify HJRTMP_EVENT_LIVE_INFO: outKbps:{}, outFps:{}, outDelay:{}", outKbps, outFps, outDelay);
+    }
+    return;
+}
+
+void HJRTMPMuxer::notifyStatDoneInfo()
+{
+    auto statPtr = m_statCtx.lock();
+    if(statPtr) {
+        statPtr->notify("disconnected", JNotify_Publish_Disconnected, "rtmp link disconnected");
+    }
 }
 
 NS_HJ_END

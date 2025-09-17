@@ -31,8 +31,8 @@ export class VideoConstants {
   static readonly DEFAULT_PROFILE: camera.Profile = {
     format: camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP,
     size: {
-      width: 1280,
-      height: 720
+      width: 1920,
+      height: 1080
     }
   };
   /**

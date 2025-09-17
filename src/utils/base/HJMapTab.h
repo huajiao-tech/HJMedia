@@ -22,6 +22,14 @@ public:
 		return find(key) != end();
 	}
 
+    void remove(const std::string& key)
+    {
+        if (contains(key))
+        {
+            erase(key);
+        }    
+    }
+    
 	template<typename ValueType>
 	ValueType getValue(const std::string& key) const
 	{

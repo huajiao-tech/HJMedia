@@ -147,3 +147,104 @@ public openPngSeq(url: string): void
 | 参数名     | 类型      | 必填 | 说明 |
 |---------|---------|------|----|
 | url | string | 是   | 路径 |
+
+### HJPlayer API
+
+#### 导入模块
+
+```typescript
+import { HJPlayer } from '@hj-live/hjplayer'
+```
+
+**contextInit**
+
+public static contextInit(valid: boolean, logDir: string, logLevel: number, logMode: number, maxSize: number,
+maxFiles: number): void
+
+初始化HJPusherSDK日志系统
+
+参数：
+
+| 参数名     | 类型      | 必填 | 说明 |
+|---------|---------|------|-----|
+| valid | boolean | 是   | 是否启用日志功能 |
+| logDir | string | 是   | 日志文件存储目录路径 |
+| logLevel | number | 是   | 日志级别 |
+| logMode | number | 是   | 日志输出模式 |
+| maxSize | number | 是   | 单个日志文件最大大小(字节) |
+| maxFiles | number | 是   | 日志文件最大保留数量 |
+
+**preloadUrl**
+
+public static preloadUrl(url: string): void
+
+预加载指定URL的媒体资源
+
+参数：
+
+| 参数名     | 类型      | 必填 | 说明 |
+|---------|---------|------|-----|
+| url | string | 是   | 需要预加载的媒体资源URL |
+
+**createPlayer**
+
+public createPlayer(): void
+
+创建播放器实例
+
+**destroyPlayer**
+
+public destroyPlayer(): void
+
+销毁播放器实例
+
+**setWindow**
+
+public setWindow(setWindowInfo: SetWindowInfo): void
+
+设置播放器输出窗口
+
+参数：
+
+| 参数名     | 类型      | 必填 | 说明 |
+|---------|---------|------|-----|
+| setWindowInfo | SetWindowInfo | 是   | 播放器输出窗口信息 |
+
+**openPlayer**
+
+public openPlayer(openPlayerInfo: OpenPlayerInfo, stateCall: (str: string) => void, stateInfo: MediaStateInfo, statCall: (str: string) => void): void
+
+启动播放
+
+参数：
+
+| 参数名     | 类型      | 必填 | 说明 |
+|---------|---------|------|-----|
+| openPlayerInfo | OpenPlayerInfo | 是   | 播放配置信息 |
+| stateCall | (str: string) => void | 是   | 播放器状态回调 |
+| stateInfo | MediaStateInfo | 是   | 媒体状态信息 |
+| statCall | (str: string) => void | 是   | 统计信息回调 |
+
+**closePlayer**
+
+public closePlayer(): void
+
+关闭播放器
+
+**exitPlayer**
+
+public exitPlayer(): void
+
+退出播放器
+
+**setMute**
+
+public setMute(mute: boolean): void
+
+设置播放器静音
+
+参数：
+
+| 参数名     | 类型      | 必填 | 说明 |
+|---------|---------|------|-----|
+| mute | boolean | 是   | 是否静音 |

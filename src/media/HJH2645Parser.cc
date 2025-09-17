@@ -114,9 +114,12 @@ int HJH2645Parser::init(const AVCodecParameters* codecParams)
                     sps = m_h265Params->sps_list[pps->sps_id];
                 }
             }
-            m_h265Params->vps = vps;
-            m_h265Params->pps = pps;
-            m_h265Params->sps = sps;
+            m_vps = (HEVCVPS*)vps;
+            m_pps = (HEVCPPS*)pps;
+            m_sps = (HEVCSPS*)sps;
+            //m_h265Params->vps = vps;
+            //m_h265Params->pps = pps;
+            //m_h265Params->sps = sps;
 //            bsfName = "hevc_mp4toannexb";
         } else {
             res = HJErrNotSupport;
@@ -285,10 +288,14 @@ int HJH2645Parser::parse(const AVPacket* pkt)
                     sps = params->sps_list[pps->sps_id];
                 }
             }
-            params->vps = vps;
-            params->pps = pps;
-            params->sps = sps;
-            if (!params->pps || !params->sps) {
+            //params->vps = vps;
+            //params->pps = pps;
+            //params->sps = sps;
+            //if (!params->pps || !params->sps) {
+            m_vps = (HEVCVPS*)vps;
+            m_pps = (HEVCPPS*)pps;
+            m_sps = (HEVCSPS*)sps;
+            if (!m_vps || !m_pps || !m_sps) {
                 break;
             }
             //
@@ -346,9 +353,12 @@ void HJH2645Parser::reset()
         m_h264Params = NULL;
     }
     if (m_h265Params) {
-        m_h265Params->vps = NULL;
-        m_h265Params->pps = NULL;
-        m_h265Params->sps = NULL;
+        m_vps = NULL;
+        m_sps = NULL;
+        m_pps = NULL;
+        //m_h265Params->vps = NULL;
+        //m_h265Params->pps = NULL;
+        //m_h265Params->sps = NULL;
         ff_hevc_ps_uninit(m_h265Params);
         av_freep(&m_h265Params);
         m_h265Params = NULL;
@@ -384,22 +394,22 @@ void HJH2645Parser::setting()
         }
     } else if(m_h265Params)
     {
-        if (m_h265Params->sps) {
+        if (m_sps) {
             const HEVCWindow *ow;
-            ow  = &m_h265Params->sps->output_window;
-            HJSizei vsize = {m_h265Params->sps->width, m_h265Params->sps->height};
+            ow  = &m_sps->output_window;
+            HJSizei vsize = {m_sps->width, m_sps->height};
             vsize.w -= (ow->left_offset + ow->right_offset);
             vsize.h -= (ow->top_offset  + ow->bottom_offset);
             //
             m_reboot = false;
             if(vsize.w != m_vsize.w ||
                vsize.h != m_vsize.h ||
-               m_profile != m_h265Params->sps->ptl.general_ptl.profile_idc ||
-               m_level != m_h265Params->sps->ptl.general_ptl.level_idc )
+               m_profile != m_sps->ptl.general_ptl.profile_idc ||
+               m_level != m_sps->ptl.general_ptl.level_idc )
             {
                 m_vsize = vsize;
-                m_profile  = m_h265Params->sps->ptl.general_ptl.profile_idc;
-                m_level    = m_h265Params->sps->ptl.general_ptl.level_idc;
+                m_profile  = m_sps->ptl.general_ptl.profile_idc;
+                m_level    = m_sps->ptl.general_ptl.level_idc;
                 m_reboot = true;
             }
         }

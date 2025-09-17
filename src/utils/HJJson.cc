@@ -141,7 +141,7 @@ int HJYJsonObject::addObj(HJYJsonObject::Ptr obj)
     if (!ret) {
         return HJErrJSONAddValue;
     }
-    
+    m_childList.push_back(obj);
     return HJ_OK;
 }
 

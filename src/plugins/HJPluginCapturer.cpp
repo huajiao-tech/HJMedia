@@ -15,7 +15,7 @@ int HJPluginCapturer::internalInit(HJKeyStorage::Ptr i_param)
 	GET_PARAMETER(HJListener, pluginListener);
 	auto param = std::make_shared<HJKeyStorage>();
 //	(*param)["thread"] = thread;
-//	(*param)["createThread"] = static_cast<bool>(thread == nullptr);
+//	(*param)["createThread"] = (thread == nullptr);
 	(*param)["createThread"] = false;
 	if (pluginListener) {
 		(*param)["pluginListener"] = pluginListener;
@@ -48,7 +48,7 @@ void HJPluginCapturer::internalRelease()
 	HJPlugin::internalRelease();
 }
 
-int HJPluginCapturer::runTask()
+int HJPluginCapturer::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	int64_t enter = HJCurrentSteadyMS();

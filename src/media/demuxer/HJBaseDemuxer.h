@@ -146,6 +146,13 @@ public:
     bool getIsLiving() {
         return m_isLiving;
     }
+    void setTimeOffsetEnable(const bool enable) {
+        m_timeOffsetEnable = enable;
+    }
+    const bool getTimeOffsetEnable() const {
+        return m_timeOffsetEnable;
+    }
+
     void setNext(HJBaseDemuxer::Ptr next) {
         m_next = next;
     }
@@ -161,7 +168,7 @@ public:
 public:
     static const std::string KEY_WORLDS_URLBUFFER;
 protected:
-    HJRunState             m_runState{ HJRun_NONE };
+    HJRunState              m_runState{ HJRun_NONE };
     HJMediaUrl::Ptr         m_mediaUrl = nullptr;
     HJMediaInfo::Ptr        m_mediaInfo = nullptr;
     size_t                  m_vfCnt = 0;
@@ -170,6 +177,8 @@ protected:
     bool                    m_lowDelay = false;
     int                     m_loopIdx = 1;
     bool                    m_isLiving = false;
+    int				        m_streamID{ 0 };
+    bool                    m_timeOffsetEnable{ false };
     //
     HJSourceAttribute::Ptr m_atrs = nullptr;
     HJBuffer::Ptr          m_extraVBuffer = nullptr;

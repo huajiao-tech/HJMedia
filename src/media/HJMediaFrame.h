@@ -152,10 +152,10 @@ public:
         }
         return HJMEDIA_TYPE_NONE;
     }
-    bool isVideo() {
+    bool isVideo() const {
         return (HJMEDIA_TYPE_VIDEO == getType());
     }
-    bool isAudio() {
+    bool isAudio() const {
         return (HJMEDIA_TYPE_AUDIO == getType());
     }
     const size_t getIndex() const {
@@ -280,13 +280,13 @@ public:
         return nullptr;
     }
     const HJAudioInfo::Ptr getAudioInfo() {
-        if (HJ_ISTYPE(*m_info, HJAudioInfo)) {
+        if (m_info && HJ_ISTYPE(*m_info, HJAudioInfo)) {
             return std::dynamic_pointer_cast<HJAudioInfo>(m_info);
         }
         return nullptr;
     }
     const HJVideoInfo::Ptr getVideoInfo() {
-		if (HJ_ISTYPE(*m_info, HJVideoInfo)) {
+		if (m_info && HJ_ISTYPE(*m_info, HJVideoInfo)) {
 			return std::dynamic_pointer_cast<HJVideoInfo>(m_info);
 		}
         return nullptr;
@@ -375,6 +375,7 @@ public:
     int                 m_trackIndex = 0;
     int                 m_streamIndex = 0;
     int                 m_flag = 0;
+    int32_t             m_bufferPos = 0;
     HJTracker::Ptr      m_tracker = nullptr;
 };
 using HJMediaFrameList = HJList<HJMediaFrame::Ptr>;

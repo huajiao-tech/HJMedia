@@ -125,7 +125,7 @@ void HJOGShaderProgram::SetFloat4v(const std::string &name, float *values, int c
 void HJOGShaderProgram::SetMatrix4v(const std::string &name, float *matrix, int cnt, bool transpose)
 {
     if (cnt != 16 || matrix == nullptr) {
-        HJFLoge("ShaderProgram::SetFloat4v: invalid arguments.");
+        HJFLoge("ShaderProgram::SetMatrix4v: invalid arguments.");
         return;
     }
     GLboolean glTranspose = transpose ? GL_TRUE : GL_FALSE;
@@ -135,7 +135,7 @@ void HJOGShaderProgram::SetMatrix4v(const std::string &name, float *matrix, int 
 void HJOGShaderProgram::SetMatrix4v(GLint i_handle, float *matrix, int cnt, bool transpose)
 {
     if (cnt != 16 || matrix == nullptr) {
-        HJFLoge("ShaderProgram::SetFloat4v: invalid arguments.");
+        HJFLoge("ShaderProgram::SetMatrix4v: i_handle invalid arguments.");
         return;
     }
     GLboolean glTranspose = transpose ? GL_TRUE : GL_FALSE;

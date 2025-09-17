@@ -57,29 +57,42 @@
         }
       },
       {
-        "name": "lfs",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001B970228295DDF8F8F5604E82AEAE88BA34A7C2B0B6AB16FFC848A163E0E030311D56D0B5FF8E56C",
-          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
-          "storePassword": "0000001B4734FB788B2996B5460FDF4B5F78DA72E95B979D86C2D4DF1DA78B8A2FA3CEE984EE0772E62A04"
-        }
-      },
-      {
         "name": "lzy",
         "type": "HarmonyOS",
         "material": {
           "certpath": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B39937816C0C5745F3FDF10B83EDF58BB3BBEF2066C693516B80A77C48ABAF521A9D72F2106CA1F",
+          "keyPassword": "0000001A459A5A69E4C1819C3EA018149325A8DD14DE0D823EFCFDD61E45B95CE2A80BE9342E2223D7DF",
           "profile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.p12",
-          "storePassword": "0000001B49F5A7FFAF7A4E255703D8E95B4D9F04C7C7E32D385E5C803F2FC5B1552A8608B048CDC3CBA80C"
+          "storePassword": "0000001A54D2089351C0509493700E6D0240D08D55A008C40FB2902F1A12EA5451F1BA2EFA01DE45CAEF"
+        }
+      },
+      {
+        "name": "mac",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/zhiyongleng/.ohos/config/mac_harmony_EJ6yLUh-3d27KBlISXd6N4dEkrJNXjVdYxJOGihsB-4=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001A6120980F15BFEEEC302E203BA8B5B2D1ED3073BEBB7DF6A74777782D5F0874A2BFAA36FC4C72",
+          "profile": "/Users/zhiyongleng/.ohos/config/mac_harmony_EJ6yLUh-3d27KBlISXd6N4dEkrJNXjVdYxJOGihsB-4=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/zhiyongleng/.ohos/config/mac_harmony_EJ6yLUh-3d27KBlISXd6N4dEkrJNXjVdYxJOGihsB-4=.p12",
+          "storePassword": "0000001A19E0FC0E6B832EB907C9494690A379438E8C5C1475344A1896F5DF15795CEFAFFA4A9020102E"
+        }
+      },
+      {
+        "name": "lfs",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B4574008743AE650A0A83986498EF9E61367D68615ACB9E17430F9948CBE65B81294FFBCF967B79",
+          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
+          "storePassword": "0000001B5FBC4B751FB9BD47072A746385210FCDC99E313D0BF06944B9A55F0BBA346F235C0274DD521922"
         }
       }
     ]
@@ -100,6 +113,10 @@
     {
       "name": "hjpusher",
       "srcPath": "./hjpusher",
+    },
+    {
+      "name": "hjplayer",
+      "srcPath": "./hjplayer",
     }
   ]
 }

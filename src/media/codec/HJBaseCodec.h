@@ -84,6 +84,13 @@ public:
     const bool getLowDelay() const {
         return m_lowDelay;
     }
+    void setPopFrontFrame(const bool pop) {
+        m_popFrontFrame = pop;
+    }
+    const bool getPopFrontFrame() const {
+        return m_popFrontFrame;
+    }
+
     HJTracker::Ptr getTracker(const std::string key) {
         auto it = m_trackers.find(key);
         if (m_trackers.end() != it) {
@@ -107,21 +114,22 @@ public:
     static HJBaseCodec::Ptr createVEncoder(HJDeviceType type = HJDEVICE_TYPE_NONE);
     static HJBaseCodec::Ptr createEncoder(const HJMediaType mediaType, HJDeviceType type = HJDEVICE_TYPE_NONE);
 protected:
-    HJRunState             m_runState = HJRun_NONE;
-    HJStreamInfo::Ptr      m_info;
-    HJStreamInfoMap        m_outInfos;
-    HJDeviceType           m_deviceType = HJDEVICE_TYPE_NONE;
+    HJRunState              m_runState = HJRun_NONE;
+    HJStreamInfo::Ptr       m_info;
+    HJStreamInfoMap         m_outInfos;
+    HJDeviceType            m_deviceType = HJDEVICE_TYPE_NONE;
     int                     m_deviceID = 0;
-    HJRational             m_timeBase = { 0, 1 };
+    HJRational              m_timeBase = { 0, 1 };
     int                     m_codecID = 0;
     std::string             m_codecName = "";
     bool                    m_isChanged = false;
     //options
     bool                    m_lowDelay = false;
-    HJQuality              m_quality = HJQuality_Default;
+    HJQuality               m_quality = HJQuality_Default;
+    bool                    m_popFrontFrame = false;
     //other
-    HJNipMuster::Ptr       m_nipMuster = nullptr;
-    HJTrackerMap           m_trackers;
+    HJNipMuster::Ptr        m_nipMuster = nullptr;
+    HJTrackerMap            m_trackers;
     int                     m_error = HJ_OK;
 };
 using HJBaseCodecMap = std::unordered_multimap<HJMediaType, HJBaseCodec::Ptr>;

@@ -73,12 +73,9 @@ class HJObject : public enable_shared_from_this<HJObject>
 {
 public:
     HJ_DECLARE_PUWTR(HJObject)
-    HJObject() = default;
-    HJObject(const std::string& name, size_t identify = -1)
-        : m_name(name)
-        , m_id(identify)
-    { }
-    virtual ~HJObject() { }
+    HJObject();
+    HJObject(const std::string& name, size_t identify = -1);
+    virtual ~HJObject();
     
     //attributes
     virtual const std::string& getName() const {
@@ -86,6 +83,9 @@ public:
     }
     virtual void setName(const std::string& name) {
         m_name = name;
+    }
+    virtual const std::string getFMTName() {
+        return "[name:" + m_name + "], ";
     }
     virtual const size_t getID() const {
         return m_id;
@@ -126,6 +126,12 @@ public:
 protected:
     std::string             m_name = "";
     size_t                  m_id = 0;
+
+private:
+    void priCreateStat();
+    static std::atomic<int64_t> m_memoryCreateIdx;
+    static std::atomic<int64_t> m_memoryReleaseIdx;    
+    int64_t m_curStatIdx = 0;
 };
 using HJObjectMap = std::unordered_map<std::string, HJObject::Ptr>;
 #define HJMakeGlobalID()            HJ::HJObject::getGlobalID()

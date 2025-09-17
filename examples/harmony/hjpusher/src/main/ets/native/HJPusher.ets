@@ -1,13 +1,15 @@
 import nPusher from 'libHJPusher.so';
-import { PreviewInfo, PusherConfig, PusherStateCall,
-  RecorderInfo,
-  SetWindowInfo, SetWindowState } from './HJPusherTypes';
+import { MediaStateInfo, SetWindowInfo } from './HJCommTypes';
+import {
+  PreviewInfo, PusherConfig, RecorderInfo,
+} from './HJPusherTypes';
 
 const TAG = "wkshhh"
 
 export class HJPusher {
   static m_contextInitFlag: boolean = false;
   private m_pusherHandler?: bigint
+  private m_ImageNativeHandler?: bigint
   private isOpen: boolean = false
 
   public static contextInit(valid: boolean, logDir: string, logLevel: number, logMode: number, maxSize: number,
@@ -58,11 +60,11 @@ export class HJPusher {
     }
   }
 
-  public openPusher(pusherConfig: PusherConfig) {
+  public openPusher(pusherConfig: PusherConfig, stateInfo: MediaStateInfo, stateCall: (str: string) => void) {
     if (this.m_pusherHandler) {
       if (!this.isOpen) {
         console.log(TAG, "openPusher", this.m_pusherHandler)
-        const result: number = nPusher.n_openPusher(this.m_pusherHandler, JSON.stringify(pusherConfig));
+        const result: number = nPusher.n_openPusher(this.m_pusherHandler, JSON.stringify(pusherConfig), JSON.stringify(stateInfo), stateCall);
         if (result != 0) {
           throw new Error("openPusher failed");
         }
@@ -106,4 +108,46 @@ export class HJPusher {
       nPusher.n_openPngSeq(this.m_pusherHandler, url);
     }
   }
+
+  public setDoubleScreen(flag: boolean) {
+    if (this.m_pusherHandler) {
+      nPusher.n_setDoubleScreen(this.m_pusherHandler, flag);
+    }
+  }
+
+  public setGiftPusher(flag: boolean) {
+    if (this.m_pusherHandler) {
+      nPusher.n_setGiftPusher(this.m_pusherHandler, flag);
+    }
+  }
+
+  public openSpeechRecognizer(call: (buffer: ArrayBuffer) => void) {
+    if (this.m_pusherHandler) {
+      nPusher.n_openSpeechRecognizer(this.m_pusherHandler, call);
+    }
+  }
+
+  public closeSpeechRecognizer() {
+    if (this.m_pusherHandler) {
+      nPusher.n_closeSpeechRecognizer(this.m_pusherHandler);
+    }
+  }
+
+  // public openPixelMapOutput() {
+  //   this.m_ImageNativeHandler = nPusher.n_openPixelMapOutput()
+  // }
+  //
+  // public getImageReceiver(): bigint {
+  //   if (this.m_ImageNativeHandler) {
+  //     return nPusher.n_getImageReceiver(this.m_ImageNativeHandler)
+  //   }
+  //   return 0n;
+  // }
+  //
+  // public closePixelMapOutput() {
+  //   if (this.m_ImageNativeHandler) {
+  //     nPusher.n_closePixelMapOutput(this.m_ImageNativeHandler)
+  //     this.m_ImageNativeHandler = undefined
+  //   }
+  // }
 }

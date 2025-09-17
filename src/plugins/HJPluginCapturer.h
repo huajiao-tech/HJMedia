@@ -8,17 +8,21 @@ NS_HJ_BEGIN
 class HJPluginCapturer : public HJPlugin
 {
 public:
-	HJPluginCapturer(const std::string& i_name = "HJPluginCapturer", size_t i_identify = -1)
-		: HJPlugin(i_name, i_identify) { }
+	HJPluginCapturer(const std::string& i_name = "HJPluginCapturer", HJKeyStorage::Ptr i_graphInfo = nullptr)
+		: HJPlugin(i_name, i_graphInfo) { }
+	virtual ~HJPluginCapturer() {
+		HJPluginCapturer::done();
+	}
 
 protected:
 	// HJStreamInfo::Ptr streamInfo
 	// HJLooperThread::Ptr thread = nullptr
+	// HJListener pluginListener
 	virtual int internalInit(HJKeyStorage::Ptr i_param) override;
 	virtual void internalRelease() override;
 	virtual void afterInit() override { }
-	virtual int runTask() override;
-	virtual void internalUpdated() override { }
+	virtual int runTask(int64_t* o_delay = nullptr) override;
+	virtual void internalUpdated(int64_t i_delay = 0) override { }
 
 	virtual HJBaseCapture::Ptr createCapturer() = 0;
 	virtual int initCapturer(const HJStreamInfo::Ptr& i_streamInfo);

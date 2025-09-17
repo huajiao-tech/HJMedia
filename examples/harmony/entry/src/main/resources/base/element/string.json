@@ -21,8 +21,12 @@
       "value": "Native XComponent"
     },
     {
-      "name": "opengl_draw",
-      "value": "OpenGL drawing"
+      "name": "pusher",
+      "value": "pusher"
+    },
+    {
+      "name": "player",
+      "value": "player"
     },
     {
       "name": "yuv_draw",
@@ -71,6 +75,50 @@
     {
       "name": "testClose",
       "value": "tC"
+    },
+    {
+      "name": "tryGift",
+      "value": "gift"
+    },
+    {
+      "name": "tryDoubleScreen",
+      "value": "DoubleScreen"
+    },
+    {
+      "name": "tryGiftPusher",
+      "value": "giftPusher"
+    },
+    {
+      "name": "testPlayerOpen",
+      "value": "testOpen"
+    },
+    {
+      "name": "testPlayerClose",
+      "value": "testClose"
+    },
+    {
+      "name": "testEffectGray",
+      "value": "testEffectGray"
+    },
+    {
+      "name": "testEffectBlur",
+      "value": "testEffectBlur"
+    },
+    {
+      "name": "tryPlayerOpen",
+      "value": "tryOpen"
+    },
+    {
+      "name": "tryPlayerMute",
+      "value": "tryMute"
+    },
+    {
+      "name": "tryWindowChange",
+      "value": "WChange"
+    },
+    {
+      "name": "tryPlayerClose",
+      "value": "tryClose"
     }
   ]
 }

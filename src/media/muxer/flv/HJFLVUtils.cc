@@ -388,7 +388,16 @@ HJBuffer::Ptr HJFLVUtils::buildAudioTag(HJFLVPacket::Ptr packet, int64_t dts0ffs
 	//if (!es->data() || !es->size()) {
 	//	return nullptr;
 	//}
-	size_t esDataSize = es ? es->size() : 0;
+	uint8_t* esDataPtr = NULL;
+	size_t esDataSize = 0;
+	if(es) {
+        esDataPtr = es->data();
+        esDataSize = es->size();
+		auto adtsLength = HJFLVUtils::getADTSHeaderLength(esDataPtr, esDataSize);
+		//
+		esDataPtr += adtsLength;
+		esDataSize -= adtsLength;
+	}
 	HJBuffer::Ptr tag = std::make_shared<HJBuffer>(esDataSize + HJ_FLV_TAG_SIZE_DEFAULT);
 	int32_t time_ms = packet->m_dts - dts0ffset;
 
@@ -403,11 +412,9 @@ HJBuffer::Ptr HJFLVUtils::buildAudioTag(HJFLVPacket::Ptr packet, int64_t dts0ffs
 	/* these are the two extra bytes mentioned above */
 	tag->w8(0xaf);
 	tag->w8(isHeader ? 0 : 1);
-	if (es) 
-	{
-		auto adtsLength = HJFLVUtils::getADTSHeaderLength(es->data(), es->size());
-		tag->write(es->data() + adtsLength, es->size() - adtsLength);
-	}
+	if (esDataPtr) {
+		tag->write(esDataPtr, esDataSize);
+	} 
 
 	/* write tag size (starting byte doesn't count) */
 	tag->wb32((uint32_t)tag->size());

@@ -15,10 +15,11 @@ public:
     HJComplexDemuxer();
     virtual ~HJComplexDemuxer();
     
-    int init(const HJMediaUrlVector& mediaUrls);
-    virtual int seek(int64_t pos);
-    virtual int getFrame(HJMediaFrame::Ptr& frame);
+    int init(const HJMediaUrlVector& mediaUrls) override;
+    virtual int seek(int64_t pos) override;
+    virtual int getFrame(HJMediaFrame::Ptr& frame) override;
     virtual void reset() override;
+
     virtual int64_t getDuration() override;
 private:
     HJBaseDemuxer::Ptr getNextSource();

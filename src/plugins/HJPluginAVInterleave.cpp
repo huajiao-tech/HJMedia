@@ -11,7 +11,7 @@ int HJPluginAVInterleave::internalInit(HJKeyStorage::Ptr i_param)
 	GET_PARAMETER(HJListener, pluginListener);
 	auto param = std::make_shared<HJKeyStorage>();
 	(*param)["thread"] = thread;
-	(*param)["createThread"] = static_cast<bool>(thread == nullptr);
+	(*param)["createThread"] = (thread == nullptr);
 	if (pluginListener) {
 		(*param)["pluginListener"] = pluginListener;
 	}
@@ -30,7 +30,7 @@ void HJPluginAVInterleave::onInputAdded(size_t i_srcKeyHash, HJMediaType i_type)
 	}
 }
 
-int HJPluginAVInterleave::runTask()
+int HJPluginAVInterleave::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	std::string route = "0";
@@ -56,13 +56,13 @@ int HJPluginAVInterleave::runTask()
 		HJMediaFrame::Ptr previewAudio{};
 		if (flag & HJMEDIA_TYPE_AUDIO) {
 			route += "_2";
-			previewAudio = preview(inputAudioKeyHash, audioSize);
+			previewAudio = preview(inputAudioKeyHash, &audioSize);
 		}
 		size_t videoSize = -1;
 		HJMediaFrame::Ptr previewVideo{};
 		if (flag & HJMEDIA_TYPE_VIDEO) {
 			route += "_3";
-			previewVideo = preview(inputVideoKeyHash, videoSize);
+			previewVideo = preview(inputVideoKeyHash, &videoSize);
 		}
 
 		HJMediaFrame::Ptr outFrame{};
@@ -70,7 +70,7 @@ int HJPluginAVInterleave::runTask()
 			if (previewAudio != nullptr) {
 				route += HJFMT("_ADTS({})", previewAudio->getDTS());
 				if (!(flag & HJMEDIA_TYPE_VIDEO) || ((previewVideo != nullptr) && (previewAudio->getDTS() <= previewVideo->getDTS()))) {
-					receive(inputAudioKeyHash, audioSize);
+					receive(inputAudioKeyHash, &audioSize);
 					route += HJFMT("<=VDTS({})_ASize({})", previewVideo->getDTS(), audioSize);
 					outFrame = previewAudio;
 					break;
@@ -81,7 +81,7 @@ int HJPluginAVInterleave::runTask()
 				route += previewAudio ? ">=" : "_";
 				route += HJFMT("VDTS({})", previewVideo->getDTS());
 				if (!(flag & HJMEDIA_TYPE_AUDIO) || ((previewAudio != nullptr) && (previewVideo->getDTS() <= previewAudio->getDTS()))) {
-					receive(inputVideoKeyHash, videoSize);
+					receive(inputVideoKeyHash, &videoSize);
 					route += HJFMT("_VSize({})", videoSize);
 					outFrame = previewVideo;
 					break;

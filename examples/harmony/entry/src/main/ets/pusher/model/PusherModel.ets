@@ -1,5 +1,5 @@
 @ObservedV2
-export class PusherConfig {
+export class MediaConfig {
   type: "string" | "boolean"
   title: string
   @Trace value: string | boolean

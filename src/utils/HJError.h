@@ -80,6 +80,7 @@ typedef int32_t HJRet;
 #define HJErrFIFOREAD          HJDefErrID(1010)
 #define HJErrETIME             HJDefErrID(1011)
 #define HJErrParseData         HJDefErrID(1012)
+#define HJErrFFAVPacket        HJDefErrID(1013)
 
 //render
 #define HJErrRender            HJDefErrID(2000)

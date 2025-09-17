@@ -8,7 +8,7 @@
 
 - HJMedia研发目的是让开发者能够快速搭建多媒体相关业务，并能根据自身需求进行简单扩展，以满足不同用户的多样化需求。它既可以作为学生学习的基础工具，也能供企业用于商业平台。
 
-- HJMedia目前基于自有核心模块搭建的业务流包括推流器、播放器（进行中），可供开发者灵活调用。
+- HJMedia目前基于自有核心模块搭建的业务流包括**推流器、播放器**，可供开发者灵活调用。
 
 | 平台      | 状态  |
 | ------- | --- |
@@ -17,11 +17,11 @@
 # 快速入门/演示
 
 - Harmony - [快速入门](examples/harmony/README.md) / [演示](examples/harmony)
-- Demo展示
-  
-  
-  
-   <img src="file:///E:/code/github/HJMedia/hjpusherDemo.gif" title="" alt="" data-align="center">
+- 推流器、播放器Demo展示
+
+<img title="" src="examples/harmony/hjpusher/hjpusherDemo.gif" alt="" data-align="center">    
+<img title="" src="examples/harmony/hjplayer/hjplayerDemo.gif" alt="" data-align="center">
+
 
 # 特性
 
@@ -47,6 +47,37 @@
 | 信息统计                 | 统计推流状态及网络状态                           | Y    |                                                                             |
 | 日志分析                 | 支持控制台日志及文件日志循环记录                      | Y    | 便于问题定位及异常分析                                                                 |
 
+- 播放器
+
+|                |                                      |      |             |
+| -------------- | ------------------------------------ | ---- | ----------- |
+| 特性             | 描述                                   | 支持状态 | 备注          |
+| 格式支持           | HTTP-FLV, RTMP，M3U8                  | Y    |             |
+| 支持 HTTPS       | 支持播放 HTTPS 的视频资源                     | Y    |             |
+| 视频格式支持         | H264、H265                            | Y    |             |
+| 视频礼物           | 支持播放透明通道左右分屏视频礼物                     | Y    |             |
+| H.264硬加速解码、软解码 | H.264硬加速及软解支持                        | Y    |             |
+| H.265硬加速解码、软解码 | H.265硬加速及软解支持                        | Y    |             |
+| 视音频格式切换        | 支持无缝中途切换H264、H265，分辨率和音频格式           | Y    |             |
+| 音频格式           | AAC                                  | Y    |             |
+| 纯音频播放          | 支持 纯音频播放                             | Y    |             |
+| 预加载            | HTTP预连接TLS+TCP+DNS连接池                | Y    | 首屏优化        |
+| 网络失败自动重连       | 网络连接失败后自动重连                          | Y    |             |
+| 变速播放           | 自适应                                  | Y    | 低延迟及低卡顿率兼顾  |
+| 动态追帧           | 发生卡顿时，通过类似“快进”的方式追赶上当前直播进度，保证直播画面实时性 | Y    |             |
+| 信息统计           | 统计播放状态信息                             | Y    |             |
+| 日志分析           | 支持控制台日志及文件日志循环记录；支持多实例播放器日志区分        | Y    | 便于问题定位及异常分析 |
+| 播放器音量控制        | 播放过程可音量调节，例如静音模式                     | Y    |             |
+| 播放多实例          | 支持多实例同时运行                            | Y    |             |
+| 音量设置           | 支持实时调节系统音量和静音操作                      | Y    |             |
+| 播放质量监控         | 基于播放数据上报,提供播放全链路的数据统计                | Y    |             |
+| 音频数据回调         | 支持播放过程中的音频数据回调                       | Y    |             |
+| 视频数据回调         | 支持播放过程中的视频数据回调                       | Y    |             |
+| 试看功能           | 支持播放开启试看功能的视频                        | N    | 后续支持        |
+| 截图功能           | 支持截取播放画面的任意一帧                        | N    | 后续支持        |
+| SEI 回调         | 解析视频流中的 SEI 帧，并进行事件回调                | N    | 后续支持        |
+| 视频镜像           | 支持水平、垂直等方向的镜像                        | N    | 后续支持        |
+
 # 编译
 
 - 依赖项
@@ -65,7 +96,9 @@
   
   - Harmony
     
-    - 使用 [DevEco Studio]([DevEco Studio-鸿蒙应用集成开发环境（IDE）-华为开发者联盟](https://developer.huawei.com/consumer/cn/deveco-studio/))。
+    - 使用 [DevEco Studio]([DevEco Studio-鸿蒙应用集成开发环境（IDE）-华为开发者联盟](https://developer.huawei.com/consumer/cn/deveco-studio/))，5.1.1 Release
+
+# 
 
 # 最新更新
 
@@ -81,19 +114,6 @@
 Copyright (c) 2025 huajiao
 Licensed under LGPLv2.1 or later
 ```
-
-#### 依赖许可证
-
-- ffmpeg: LGPL v2.1+
-- libRTMP: BSD 3-Clause License
-- soundtouch: LGPL v2.1
-- openssl: Apache License 2.0
-- spdlog: MIT License
-- minicoro: MIT License
-- sonic: Apache License 2.0
-- yyjson: MIT License
-- miniaudio: MIT License
-- stb: MIT License
 
 ### 法律法规
 

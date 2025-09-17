@@ -22,6 +22,7 @@ set(${PROJ_NAME}_INCLUDE_DIRS
 	
 if (HarmonyOS)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/capture/hsys)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/render/hsys)
 	list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/render/hsys)	
     list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/codec/hsys)
     list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/capture/hsys)
@@ -50,7 +51,7 @@ endif ()
 
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE libfdkaac librtmp HJUtils soundtouch sonic LIBMBEDTLS LIBFFMPEG LIBYUV LIBMINIAUDIO LIBSPDLOG)
+target_link_libraries(${PROJ_NAME} PRIVATE HJStat libfdkaac librtmp HJUtils soundtouch sonic zlib LIBOPENSSL LIBMBEDTLS LIBFFMPEG LIBYUV LIBMINIAUDIO LIBSPDLOG)
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

@@ -1,11 +1,18 @@
 #include "HJGraph.h"
 #include "HJFLog.h"
+#include "HJGraphLivePlayer.h"
+#include "HJGraphVodPlayer.h"
 
 NS_HJ_BEGIN
 
 HJGraph::HJGraph(const std::string& i_name, size_t i_identify)
 	: HJSyncObject(i_name, i_identify)
 {
+}
+
+HJGraph::~HJGraph()
+{
+	HJGraph::done();
 }
 
 void HJGraph::internalRelease()
@@ -21,6 +28,11 @@ void HJGraph::internalRelease()
 	m_threads.clear();
 
 	HJSyncObject::internalRelease();
+}
+
+bool HJGraph::hasAudio()
+{
+	return false;
 }
 
 int HJGraph::connectPlugins(HJPlugin::Ptr i_src, HJPlugin::Ptr i_dst, HJMediaType i_type, int i_trackId)
@@ -78,6 +90,37 @@ void HJGraph::removeThread(HJLooperThread::Ptr i_thread)
 			break;
 		}
 	}
+}
+
+//////////////////////////////////////////////////////////////////
+
+HJGraphPlayer::HJGraphPlayer(const std::string& i_name, size_t i_identify):
+	HJGraph(i_name, i_identify)
+{
+
+}
+HJGraphPlayer::~HJGraphPlayer()
+{
+	HJGraphPlayer::done();
+}
+
+HJGraphPlayer::Ptr HJGraphPlayer::createGraph(HJGraphType i_type, int i_curIdx)
+{
+	HJGraphPlayer::Ptr graph = nullptr;
+	switch (i_type)
+	{
+	case HJGraphType_LIVESTREAM:
+		graph = HJGraphLivePlayer::Create<HJGraphLivePlayer>("HJGraphLivePlayer" + HJFMT("_{}", i_curIdx));
+		HJFLogi("HJGraphLivePlayer createGraph");
+		break;
+	case HJGraphType_VOD:
+		graph = HJGraphVodPlayer::Create<HJGraphVodPlayer>("HJGraphVodPlayer" + HJFMT("_{}", i_curIdx));
+		HJFLogi("HJGraphVodPlayer createGraph");
+		break;
+	default:
+		break;
+	}
+	return graph;
 }
 
 NS_HJ_END

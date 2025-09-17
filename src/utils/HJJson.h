@@ -66,6 +66,8 @@ class HJYJsonObject : public HJObject
 public:
     using Ptr = std::shared_ptr<HJYJsonObject>;
     HJYJsonObject();
+    HJYJsonObject(HJYJsonObject&& other) noexcept;
+    HJYJsonObject& operator=(HJYJsonObject&& other) noexcept;
     HJYJsonObject(const std::string& key, yyjson_val* val);
     HJYJsonObject(const std::string& key, yyjson_mut_val* val, yyjson_mut_doc* doc);
     HJYJsonObject(const std::string& key, HJYJsonObject::Ptr obj);
@@ -154,11 +156,101 @@ public:
     int setMember(const std::string& key, const uint8_t* value, const size_t len);
     int setMember(const std::string& key, std::vector<HJYJsonObject::Ptr> value);
 protected:
+    //proxy []
+    class JsonProxy {
+    public:
+        JsonProxy(HJYJsonObject* obj, const std::string& key) : m_obj(obj), m_key(key) {}
+        
+
+        JsonProxy& operator=(bool value) {
+            m_obj->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(int value) {
+            m_obj->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(int64_t value) {
+            m_obj->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(uint64_t value) {
+            m_obj->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(double value) {
+            m_obj->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(const std::string& value) {
+            m_obj->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(const char* value) {
+            m_obj->setMember(m_key, std::string(value));
+            return *this;
+        }
+        
+        operator bool() const {
+            bool value = false;
+            m_obj->getMember(m_key, value);
+            return value;
+        }
+        
+        operator int() const {
+            int value = 0;
+            m_obj->getMember(m_key, value);
+            return value;
+        }
+        
+        operator int64_t() const {
+            int64_t value = 0;
+            m_obj->getMember(m_key, value);
+            return value;
+        }
+        
+        operator uint64_t() const {
+            uint64_t value = 0;
+            m_obj->getMember(m_key, value);
+            return value;
+        }
+        
+        operator double() const {
+            double value = 0.0;
+            m_obj->getMember(m_key, value);
+            return value;
+        }
+        
+        operator std::string() const {
+            std::string value;
+            m_obj->getMember(m_key, value);
+            return value;
+        }
+    private:
+        HJYJsonObject* m_obj = NULL;
+        std::string m_key{""};
+    };
+public:
+    JsonProxy operator[](const std::string& key) {
+        return JsonProxy(this, key);
+    }
+    
+    const JsonProxy operator[](const std::string& key) const {
+        return JsonProxy(const_cast<HJYJsonObject*>(this), key);
+    }
+protected:
     std::string         m_key  = "";
     yyjson_val*         m_rval = NULL;
     yyjson_mut_val*     m_wval = NULL;
     yyjson_mut_doc*     m_mdoc = NULL;
     HJObjectMap        m_subObjs;
+    std::vector<HJYJsonObject::Ptr> m_childList;
 };
 //using HJYJsonObjectDeque = std::deque<HJYJsonObject::Ptr>;
 using HJYJsonObjectVector = std::vector<HJYJsonObject::Ptr>;
@@ -171,7 +263,13 @@ public:
     HJYJsonDocument();
     virtual ~HJYJsonDocument();
     
+    /**
+     * serial *
+     */
     int init();
+    /**
+     * deserial *
+     */
     int init(const std::string& info);
     int initWithUrl(const std::string& url);
     
@@ -180,6 +278,30 @@ public:
     }
     std::string getSerialInfo();
     int writeFile(const std::string &path);
+public:
+    static HJYJsonDocument::Ptr create() {
+        auto doc = std::make_shared<HJYJsonDocument>();
+        if (doc->init() == HJ_OK) {
+            return doc;
+        }
+        return nullptr;
+    }
+
+    static HJYJsonDocument::Ptr createWithInfo(const std::string& info) {
+        auto doc = std::make_shared<HJYJsonDocument>();
+        if (doc->init(info) == HJ_OK) {
+            return doc;
+        }
+        return nullptr;
+    }
+    
+    static HJYJsonDocument::Ptr createWithUrl(const std::string& url) {
+        auto doc = std::make_shared<HJYJsonDocument>();
+        if (doc->initWithUrl(url) == HJ_OK) {
+            return doc;
+        }
+        return nullptr;
+    }
 private:
     yyjson_doc*         m_rdoc = NULL;
     yyjson_val*         m_rroot = NULL;

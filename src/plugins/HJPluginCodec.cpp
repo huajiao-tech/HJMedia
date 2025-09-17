@@ -6,27 +6,18 @@ NS_HJ_BEGIN
 int HJPluginCodec::internalInit(HJKeyStorage::Ptr i_param)
 {
 	GET_PARAMETER(HJStreamInfo::Ptr, streamInfo);
-	if (!streamInfo) {
-		return HJErrInvalidParams;
-	}
-	GET_PARAMETER(HJLooperThread::Ptr, thread);
-	GET_PARAMETER(bool, createThread);
-	GET_PARAMETER(HJListener, pluginListener);
-	auto param = std::make_shared<HJKeyStorage>();
-	(*param)["thread"] = thread;
-	(*param)["createThread"] = createThread;
-	if (pluginListener) {
-		(*param)["pluginListener"] = pluginListener;
-	}
-	int ret = HJPlugin::internalInit(param);
+
+	int ret = HJPlugin::internalInit(i_param);
 	if (ret < 0) {
 		return ret;
 	}
 
 	do {
-		ret = initCodec(streamInfo);
-		if (ret < 0) {
-			break;
+		if (streamInfo) {
+			ret = initCodec(streamInfo);
+			if (ret < 0) {
+				break;
+			}
 		}
 
 		return HJ_OK;
@@ -38,10 +29,7 @@ int HJPluginCodec::internalInit(HJKeyStorage::Ptr i_param)
 
 void HJPluginCodec::internalRelease()
 {
-	if (m_codec != nullptr) {
-		m_codec->done();
-		m_codec = nullptr;
-	}
+	releaseCodec();
 
 	HJPlugin::internalRelease();
 }
@@ -68,6 +56,7 @@ int HJPluginCodec::initCodec(const HJStreamInfo::Ptr& i_streamInfo)
 
 	int ret;
 	do {
+		releaseCodec();
 		m_codec = createCodec();
 		if (m_codec == nullptr) {
 			ret = HJErrFatal;
@@ -81,12 +70,79 @@ int HJPluginCodec::initCodec(const HJStreamInfo::Ptr& i_streamInfo)
 			break;
 		}
 
+        //_lfs_
+        passThroughReset();
+        
 		return HJ_OK;
 	} while (false);
 
-	m_codec = nullptr;
-	m_status = HJSTATUS_Exception;
+	releaseCodec();
 	return ret;
+}
+
+void  HJPluginCodec::releaseCodec()
+{
+	if (m_codec) {
+		m_codec->done();
+		m_codec = nullptr;
+	}
+}
+
+void HJPluginCodec::passThroughSetInput(const HJMediaFrame::Ptr& i_inFrame)
+{
+    if (i_inFrame)
+    {
+	    if (i_inFrame->haveStorage("passThroughDemuxSystemTime") && i_inFrame->haveStorage("passThroughIsKey"))
+	    {
+		    passThroughAdd(i_inFrame->getDTS(), std::move(HJCodecPassThroughInfo::Create<HJCodecPassThroughInfo>(i_inFrame->getValue<int64_t>("passThroughDemuxSystemTime"), i_inFrame->getValue<bool>("passThroughIsKey"))));
+	    }        
+    }
+}
+
+void HJPluginCodec::passThroughSetOutput(const HJMediaFrame::Ptr& i_outFrame)
+{
+    if (i_outFrame)
+    {
+  	    int64_t throughKey = i_outFrame->getDTS();
+	    HJCodecPassThroughInfo::Ptr throughInfo = passThroughGet(throughKey);
+	    if (throughInfo)
+	    {
+		    (*i_outFrame)["passThroughDemuxSystemTime"] = throughInfo->getDemuxSysTime();
+		    (*i_outFrame)["passThroughIsKey"] = throughInfo->isKey();
+		    passThroughRemove(throughKey);
+            if (throughInfo->isKey())
+            {
+                HJFLogd("{} passThroughMap after remove isKey:{} map size:{} ", getName(), throughInfo->isKey(), m_passThroughMap.size());
+            }
+	    }      
+    }
+}
+
+void HJPluginCodec::passThroughAdd(int64_t i_key, HJCodecPassThroughInfo::Ptr i_info)
+{
+	m_passThroughMap[i_key] = i_info;
+}
+
+HJCodecPassThroughInfo::Ptr HJPluginCodec::passThroughGet(int64_t i_key)
+{
+	if (m_passThroughMap.find(i_key) != m_passThroughMap.end())
+	{
+		return m_passThroughMap[i_key];
+	}
+	return nullptr;
+}
+
+void HJPluginCodec::passThroughRemove(int64_t i_key)
+{
+	if (m_passThroughMap.find(i_key) != m_passThroughMap.end())
+	{
+		m_passThroughMap.erase(i_key);
+	}
+}
+
+void HJPluginCodec::passThroughReset()
+{
+	m_passThroughMap.clear();
 }
 
 NS_HJ_END

@@ -11,18 +11,20 @@ NS_HJ_BEGIN
 typedef enum HJRTMPEEvent
 {
     HJRTMP_EVENT_NONE = 0,
-    HJRTMP_EVENT_CONNECTED,             /**< �ɹ����ӵ�������(BinaryInfo*) */
-    HJRTMP_EVENT_CONNECT_FAILED,        /**< ����ʧ��(�޲�����int*) */
-    HJRTMP_EVENT_STREAM_CONNECTED,      /**< �����ɹ�(�޲���) */
-    HJRTMP_EVENT_STREAM_CONNECT_FAIL,   /**< ����ʧ��(�޲���) */
-    HJRTMP_EVENT_DISCONNECTED,          /**< ���ӶϿ�(�޲���) */
+    HJRTMP_EVENT_CONNECTED,
+    HJRTMP_EVENT_CONNECT_FAILED,
+    HJRTMP_EVENT_STREAM_CONNECTED,
+    HJRTMP_EVENT_STREAM_CONNECT_FAIL,
+    HJRTMP_EVENT_DISCONNECTED,
     HJRTMP_EVENT_DROP_FRAME,
     HJRTMP_EVENT_AUTOADJUST_BITRATE,
     HJRTMP_EVENT_SEND_Error,
 	HJRTMP_EVENT_RECV_Error,
+	HJRTMP_EVENT_LOW_BITRATE,
 	HJRTMP_EVENT_RETRY,
 	HJRTMP_EVENT_RETRY_TIMEOUT,
 	HJRTMP_EVENT_NET_BITRATE,
+	HJRTMP_EVENT_LIVE_INFO,
 	HJRTMP_EVENT_DONE,
 } HJRTMPEEvent;
 HJEnumToStringFuncDecl(HJRTMPEEvent);
@@ -156,6 +158,10 @@ public:
 	static const std::string STORE_KEY_DROP_THRESHOLD;
 	static const std::string STORE_KEY_DROP_PFRAME_THRESHOLD;
 	static const std::string STORE_KEY_DROP_IFRAME_THRESHOLD;
+	//
+	static const std::string STORE_KEY_LOWBR_TIMEOUT_ENABLE;
+	static const std::string STORE_KEY_LOWBR_TIMEOUT_LIMITED;
+	static const std::string STORE_KEY_LOWBR_LIMITED;
 	//
 	static const std::string STORE_KEY_BITRATE;
 	static const std::string STORE_KEY_LOW_BITRATE;

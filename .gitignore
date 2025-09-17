@@ -71,7 +71,5 @@
 .idea/
 third_party/
 build/
-src/gui/
-src/core/
 build-windows-x64/
 build_harmony/

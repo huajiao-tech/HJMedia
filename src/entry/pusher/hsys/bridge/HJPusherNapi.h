@@ -20,6 +20,13 @@ public:
     static napi_value openRecorder(napi_env env, napi_callback_info info);
     static napi_value closeRecorder(napi_env env, napi_callback_info info);
     static napi_value openPngSeq(napi_env env, napi_callback_info info);
+    static napi_value setDoubleScreen(napi_env env, napi_callback_info info);
+    static napi_value setGiftPusher(napi_env env, napi_callback_info info);
+    static napi_value openSpeechRecognizer(napi_env env, napi_callback_info info);
+    static napi_value closeSpeechRecognizer(napi_env env, napi_callback_info info);
+    static napi_value openPixelMapOutput(napi_env env, napi_callback_info info);
+    static napi_value getImageReceiver(napi_env env, napi_callback_info info);
+    static napi_value closePixelMapOutput(napi_env env, napi_callback_info info);
 };
 
 NS_HJ_END

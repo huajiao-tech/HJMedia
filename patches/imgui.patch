@@ -1,0 +1,94 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..9715476
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,47 @@
++set(PROJ_NAME imgui)
++
++include_directories(${CMAKE_CURRENT_SOURCE_DIR})
++include_directories(${CMAKE_CURRENT_SOURCE_DIR}/backends)
++
++set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
++	${CMAKE_CURRENT_SOURCE_DIR}/backends)
++
++set(HEADER_FILES
++    ${CMAKE_CURRENT_SOURCE_DIR}/imconfig.h
++    ${CMAKE_CURRENT_SOURCE_DIR}/imgui_internal.h
++    ${CMAKE_CURRENT_SOURCE_DIR}/imgui.h
++    ${CMAKE_CURRENT_SOURCE_DIR}/imstb_rectpack.h
++    ${CMAKE_CURRENT_SOURCE_DIR}/imstb_textedit.h
++    ${CMAKE_CURRENT_SOURCE_DIR}/imstb_truetype.h    
++    ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_glfw.h
++    ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_opengl3.h
++    ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_opengl3_loader.h
++    ${CMAKE_CURRENT_SOURCE_DIR}/misc/cpp/imgui_stdlib.h
++)
++
++set(SOURCE_FILES
++    ${CMAKE_CURRENT_SOURCE_DIR}/imgui_draw.cpp
++    ${CMAKE_CURRENT_SOURCE_DIR}/imgui_tables.cpp
++    ${CMAKE_CURRENT_SOURCE_DIR}/imgui_widgets.cpp
++    ${CMAKE_CURRENT_SOURCE_DIR}/imgui.cpp
++    ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
++    ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
++    ${CMAKE_CURRENT_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
++)
++# message (STATUS "HEADER_FILES:${HEADER_FILES} SOURCE_FILES:${SOURCE_FILES}")
++
++MAKE_COMMON_CONFIG()
++
++add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
++
++target_link_libraries(${PROJ_NAME} PRIVATE glfw)
++target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
++
++HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
++
++set_target_properties(${PROJ_NAME} PROPERTIES
++    ARCHIVE_OUTPUT_DIRECTORY ${ARCHIVE_output}
++    LIBRARY_OUTPUT_DIRECTORY ${library_output}
++    RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
++
++ProjFolder(${PROJ_NAME} "third_party")
+\ No newline at end of file
+diff --git a/imgui_internal.h b/imgui_internal.h
+index a11d4e4..0994076 100644
+--- a/imgui_internal.h
++++ b/imgui_internal.h
+@@ -3596,7 +3596,7 @@ namespace ImGui
+     IMGUI_API bool          DataTypeIsZero(ImGuiDataType data_type, const void* p_data);
+ 
+     // InputText
+-    IMGUI_API bool          InputTextEx(const char* label, const char* hint, char* buf, int buf_size, const ImVec2& size_arg, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
++    IMGUI_API bool          InputTextEx(const char* label, const char* hint, char* buf, int buf_size, const ImVec2& size_arg, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback = NULL, void* user_data = NULL, bool showLabel = false); //CS by lzy
+     IMGUI_API void          InputTextDeactivateHook(ImGuiID id);
+     IMGUI_API bool          TempInputText(const ImRect& bb, ImGuiID id, const char* label, char* buf, int buf_size, ImGuiInputTextFlags flags);
+     IMGUI_API bool          TempInputScalar(const ImRect& bb, ImGuiID id, const char* label, ImGuiDataType data_type, void* p_data, const char* format, const void* p_clamp_min = NULL, const void* p_clamp_max = NULL);
+diff --git a/imgui_widgets.cpp b/imgui_widgets.cpp
+index 23ebf5d..3edea9e 100644
+--- a/imgui_widgets.cpp
++++ b/imgui_widgets.cpp
+@@ -4513,7 +4513,7 @@ void ImGui::InputTextDeactivateHook(ImGuiID id)
+ // - If you want to use ImGui::InputText() with std::string, see misc/cpp/imgui_stdlib.h
+ // (FIXME: Rather confusing and messy function, among the worse part of our codebase, expecting to rewrite a V2 at some point.. Partly because we are
+ //  doing UTF8 > U16 > UTF8 conversions on the go to easily interface with stb_textedit. Ideally should stay in UTF-8 all the time. See https://github.com/nothings/stb/issues/188)
+-bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_size, const ImVec2& size_arg, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* callback_user_data)
++bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_size, const ImVec2& size_arg, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* callback_user_data, bool showLabel) //CS by lzy
+ {
+     ImGuiWindow* window = GetCurrentWindow();
+     if (window->SkipItems)
+@@ -4536,7 +4536,12 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
+     const ImGuiID id = window->GetID(label);
+     const ImVec2 label_size = CalcTextSize(label, NULL, true);
+     const ImVec2 frame_size = CalcItemSize(size_arg, CalcItemWidth(), (is_multiline ? g.FontSize * 8.0f : label_size.y) + style.FramePadding.y * 2.0f); // Arbitrary default of 8 lines high for multi-line
+-    const ImVec2 total_size = ImVec2(frame_size.x + (label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f), frame_size.y);
++    //CS by lzy
++	ImVec2 total_size = frame_size;
++    if (showLabel) {
++        total_size.x += label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f;
++    }
++    //const ImVec2 total_size = ImVec2(frame_size.x + (label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f), frame_size.y);
+ 
+     const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + frame_size);
+     const ImRect total_bb(frame_bb.Min, frame_bb.Min + total_size);

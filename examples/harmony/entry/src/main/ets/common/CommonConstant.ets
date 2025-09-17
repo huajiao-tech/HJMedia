@@ -34,12 +34,12 @@ export class CommonConstant {
    * Button width.
    */
   static readonly BUTTON_WIDTH = '15%';
-
+  static readonly BUTTON_WIDTH_EX = '20%';
   /**
    * Library name.
    */
   static readonly LIBRARY_NAME: string = 'HJPusher';
-
+  static readonly LIBRARY_NAME_PLAYER: string = 'HJPlayer';
   /**
    * File name.
    */
@@ -49,7 +49,7 @@ export class CommonConstant {
    * Opengl xcomponent id.
    */
   static readonly OPENGL_XCOMPONENT_ID: string = 'opengl_xcomponent';
-
+  static readonly PLAYER_XCOMPONENT_ID: string = 'player_xcomponent';
   /**
    * Yuv xcomponent id.
    */

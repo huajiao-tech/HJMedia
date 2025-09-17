@@ -225,6 +225,7 @@ typedef enum HJRunState
     HJRun_Ready,
     HJRun_Running,
     HJRun_Pause,
+    HJRun_EOF,
     HJRun_Stop,
     HJRun_Done,
     HJRun_Error,

@@ -90,7 +90,7 @@ HJMessage::Ptr HJHandler::getPostMessage(HJRunnable r)
 
 int HJHandler::BlockingRunnable::postAndWait(HJHandler::Ptr handler, uint64_t timeout)
 {
-	if (!handler->post([=] {
+	auto msg = getPostMessage([=] {
 		try {
 			mRet = mTask();
 		}
@@ -99,7 +99,9 @@ int HJHandler::BlockingRunnable::postAndWait(HJHandler::Ptr handler, uint64_t ti
 		}
 
 		done();
-	})) {
+	});
+	msg->obj = SHARED_FROM_THIS;
+	if (!handler->sendMessageDelayed(msg, 0)) {
 		return HJErrFatal;
 	}
 

@@ -2,6 +2,14 @@
 
 NS_HJ_BEGIN
 
+HJEnumToStringFuncImplBegin(HJRenderSurfaceType)
+	HJEnumToStringItem(HJOGEGLSurfaceType_Default),
+	HJEnumToStringItem(HJOGEGLSurfaceType_UI),
+	HJEnumToStringItem(HJOGEGLSurfaceType_EncoderPusher),
+	HJEnumToStringItem(HJOGEGLSurfaceType_EncoderRecord),
+	HJEnumToStringItem(HJOGEGLSurfaceType_FaceDetect)
+HJEnumToStringFuncImplEnd(HJRenderSurfaceType);
+
 HJOGEGLSurface::HJOGEGLSurface()
 {
 

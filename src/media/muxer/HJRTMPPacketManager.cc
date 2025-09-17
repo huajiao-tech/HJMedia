@@ -52,6 +52,14 @@ int HJRTMPPacketStats::update(HJRTMPStatType statType, const HJFLVPacket::Ptr pa
                             stat->m_videoTracker->addData(tag->size());
                             stat->m_val.video_fps = stat->m_videoTracker->getFPS() + 0.5f;
                             stat->m_val.video_kbps = stat->m_videoTracker->getBPS() / 1000;
+                            // if (video_kbps > 0) 
+                            // {
+                            //     stat->m_95thStatics.addValue(video_kbps, HJCurrentSteadyMS());
+                            //     if (auto minVal = stat->m_95thStatics.get95thValue(true)) {
+                            //         stat->m_val.video_kbps = *minVal;
+                            //     }                          
+                            //     HJFLogi("bitrate adapter, video_kbps:{}, video kbps:{}", video_kbps, stat->m_val.video_kbps);
+                            // }
                         }
                     }
                     else if (packet->isAudio()) {
@@ -105,13 +113,7 @@ int HJRTMPPacketStats::update(HJRTMPStatType statType, const HJFLVPacket::Ptr pa
     }
     m_duration = now - m_startTime;
     //
-    if(m_logTime == HJ_NOTS_VALUE) {
-        m_logTime = now;
-    }
-    if(now - m_logTime > 2000) {
-        m_logTime = now;
-        HJFLogi("packet stats info:{}", formatInfo());
-    }
+    HJFPERNLogi("packet stats info:{}", formatInfo());
 
     return HJ_OK;
 }
@@ -178,6 +180,9 @@ HJRTMPPacketManager::~HJRTMPPacketManager()
 
 std::tuple<int64_t, int64_t, int64_t> HJRTMPPacketManager::getDuartion()
 {
+    if (m_packets.size() < 2) {
+        return std::make_tuple(0, 0, 0);
+    }
     HJFLVPacket::Ptr videoFront = nullptr;
     HJFLVPacket::Ptr videoBack = nullptr;
     HJFLVPacket::Ptr audioFront = nullptr;
@@ -230,127 +235,124 @@ std::tuple<int64_t, int64_t, int64_t> HJRTMPPacketManager::getDuartion()
     return std::make_tuple(duration, videoDuration, audioDuration);
 }
 
+auto HJRTMPPacketManager::getDropGuard(bool lastgop, int64_t threshold)
+{
+    //int idx = 0;
+    if(lastgop) {
+        HJList<HJFLVPacket::Ptr>::iterator dropGuard = m_packets.begin();
+        for (auto it = m_packets.begin(); it != m_packets.end(); ++it) {
+            auto& packet = *it;
+            if (packet->isKeyVFrame()) {
+                dropGuard = it;
+                //HJFLogi("dropGuard - idx:{}, size:{}", idx, m_packets.size());
+            }
+            //idx++;
+        }
+        return dropGuard;
+    } else {
+        HJList<HJFLVPacket::Ptr>::iterator dropGuard = m_packets.begin();
+        int64_t lastDTS = m_packets.back()->m_dts;
+        for (auto it = m_packets.begin(); it != m_packets.end(); ++it) {
+            auto& packet = *it;
+            const int64_t offset = lastDTS - packet->m_dts;
+            if (packet->isKeyVFrame() && offset < threshold) {
+                dropGuard = it;
+                break;
+            }
+        }
+        return dropGuard;
+    }
+}
+
 int HJRTMPPacketManager::drop(bool dropAudio)
 {
-    if (m_packets.size() < 5) {
-        m_stats.m_cacheDuration = m_packets.size() > 0 ? m_packets.back()->m_dts - m_packets.front()->m_dts : 0;
-        return HJ_OK;
-    }
     int64_t duration = 0;
     int64_t videoDuration = 0;
     int64_t audioDuration = 0;
     std::tie(duration, videoDuration, audioDuration) = getDuartion();
-    //
-    m_stats.m_cacheDuration = duration;
+    m_stats.setCacheDuration(duration);
     //
     if (!m_netParams.m_dropEnable) {
-        if (duration > m_netParams.m_dropThreshold) {
-            //HJFLogi("entry, duration:{}, videoDuration:{}, audioDuration:{}", duration, videoDuration, audioDuration);
-        }
         return HJ_OK;
     }
     if (videoDuration <= m_netParams.m_dropThreshold && duration <= m_netParams.m_dropIFrameThreshold) {
         return HJ_OK;
     }
-    HJFLogw("entry, duration:{}, videoDuration:{}, audioDuration:{}", duration, videoDuration, audioDuration);
     int dropCount = 0;
-    if (duration > m_netParams.m_dropIFrameThreshold) 
-    {
-        HJList<HJFLVPacket::Ptr>::iterator dropGuard = m_packets.begin();
-        int64_t lastDTS = m_packets.back()->m_dts;
-        for (auto it = m_packets.begin(); it != m_packets.end(); ++it) {
-            auto& packet = *it;
-            const int64_t offset = lastDTS - packet->m_dts;
-            if (packet->isKeyVFrame() && offset < m_netParams.m_dropIFrameThreshold) {
-                dropGuard = it;
-                break;
-            }
-        }
-        //
-        for (auto it = m_packets.begin(); it != dropGuard;) {
-            auto& packet = *it;
-            const int64_t offset = lastDTS - packet->m_dts;
-            if (packet->getPriority() <= HJFLV_PKT_PRIORITY_HIGH && (dropAudio || !packet->isAudio())) {
-                HJFLogw("drop packet, packet:{}, offset:{}", packet->formatInfo(), offset);
-                dropCount++;
-                m_stats.update(HJRTMP_STATTYPE_DROPPED, packet, nullptr);
-                it = m_packets.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    } 
-    else if (duration > m_netParams.m_dropPFrameThreshold) 
-    {
-        HJList<HJFLVPacket::Ptr>::iterator dropGuard = m_packets.begin();
-        int64_t lastDTS = m_packets.back()->m_dts;
-        for (auto it = m_packets.begin(); it != m_packets.end(); ++it) {
-            auto& packet = *it;
-            const int64_t offset = lastDTS - packet->m_dts;
-            if (packet->isKeyVFrame() && offset < m_netParams.m_dropPFrameThreshold) {
-                dropGuard = it;
-                break;
-            }
-        }
-        //
-        for (auto it = m_packets.begin(); it != dropGuard;) {
-            auto& packet = *it;
-            const int64_t offset = lastDTS - packet->m_dts;
-            if (packet->getPriority() <= HJFLV_PKT_PRIORITY_MEDIUM && packet->isVideo()) {
-                HJFLogw("drop packet, packet:{}, offset:{}", packet->formatInfo(), offset);
-                dropCount++;
-                m_stats.update(HJRTMP_STATTYPE_DROPPED, packet, nullptr);
-                it = m_packets.erase(it);
-            } else {
-                ++it;
-            }
-        }
+    if (duration > m_netParams.m_dropIFrameThreshold) {
+        dropCount = dropFrames(true, m_netParams.m_dropIFrameThreshold, HJFLV_PKT_PRIORITY_HIGH, dropAudio);
+    } else if (videoDuration > m_netParams.m_dropPFrameThreshold) {
+        dropCount = dropFrames(true, m_netParams.m_dropPFrameThreshold, HJFLV_PKT_PRIORITY_MEDIUM, false);
+    } else if (videoDuration > m_netParams.m_dropThreshold) {
+        dropCount = dropFrames(true, m_netParams.m_dropThreshold, HJFLV_PKT_PRIORITY_LOW, false);
     }
-    else if (duration > m_netParams.m_dropThreshold)
-    {
-        HJList<HJFLVPacket::Ptr>::iterator dropGuard = m_packets.begin();
-        int64_t lastDTS = m_packets.back()->m_dts;
-        for (auto it = m_packets.begin(); it != m_packets.end(); ++it) {
-            auto& packet = *it;
-            const int64_t offset = lastDTS - packet->m_dts;
-            if (packet->isKeyVFrame() && offset < m_netParams.m_dropThreshold) {
-                dropGuard = it;
-                break;
-            }
-        }
-        //
-        for (auto it = m_packets.begin(); it != dropGuard;) {
-            auto& packet = *it;
-            const int64_t offset = lastDTS - packet->m_dts;
-            if (packet->getPriority() <= HJFLV_PKT_PRIORITY_LOW && packet->isVideo()) {
-                HJFLogw("drop packet, packet:{}, offset:{}", packet->formatInfo(), offset);
-                dropCount++;
-                m_stats.update(HJRTMP_STATTYPE_DROPPED, packet, nullptr);
-                it = m_packets.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
+
     if (m_listener && dropCount > 0) {
         m_listener(std::move(HJMakeNotification(HJRTMP_EVENT_DROP_FRAME, HJFMT("{}", dropCount))));
         //
-        // printPackets();
+        printPackets();
+        HJFLogi("left packet size:{}", m_packets.size());
     }
 
     return dropCount;
 }
 
+int HJRTMPPacketManager::dropFrames(bool lastgop, int64_t threshold, int priority, bool dropAudio, bool isStat)
+{
+    int dropCount = 0;
+    int64_t lastDTS = m_packets.back()->m_dts;
+    auto dropGuard = getDropGuard(lastgop, threshold);
+    
+    if (m_packets.begin() != dropGuard) {
+        HJFLogw("try drop frames, priority:{}, duration:{}, size:{}", priority, lastDTS - m_packets.front()->m_dts, m_packets.size());
+    }
+    
+    for (auto it = m_packets.begin(); it != dropGuard;) {
+        auto& packet = *it;
+        const int64_t offset = lastDTS - packet->m_dts;
+        
+        bool shouldDrop = false;
+        if (priority == HJFLV_PKT_PRIORITY_HIGH) {
+            shouldDrop = packet->getPriority() <= priority && (dropAudio || !packet->isAudio());
+        } else {
+            shouldDrop = packet->getPriority() <= priority && packet->isVideo();
+        }
+        
+        if (shouldDrop) {
+            HJFLogw("drop packet, packet:{}, offset:{}", packet->formatInfo(), offset);
+            dropCount++;
+            if(isStat) {
+                m_stats.update(HJRTMP_STATTYPE_DROPPED, packet, nullptr);
+            }
+            it = m_packets.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    
+    return dropCount;
+}
+
 void HJRTMPPacketManager::printPackets()
 {
-    HJFLogi("entry");
+    //HJFLogi("entry, size:{}", m_packets.size());
     for (auto it = m_packets.begin(); it != m_packets.end(); ++it)  {
         auto& packet = *it;
         if(packet->isVideo()) {
             HJFLogi("left packet:{}", packet->formatInfo());
         }
     }
-    HJFLogi("end");
+    //HJFLogi("end");
+    return;
+}
+
+void HJRTMPPacketManager::keepLastGop()
+{
+    auto dropCount = dropFrames(true, 0, HJFLV_PKT_PRIORITY_HIGH, true, false);
+    if (dropCount > 0) {
+        printPackets();
+        HJFLogi("first drop frames:{}, left size:{}", dropCount, m_packets.size());
+    }
 }
 
 int HJRTMPPacketManager::push(HJFLVPacket::Ptr packet)
@@ -359,23 +361,26 @@ int HJRTMPPacketManager::push(HJFLVPacket::Ptr packet)
     {
         HJ_AUTOU_LOCK(m_mutex);
         m_packets.push_back(packet);
+        if(m_wrapperGoing) {
+            keepLastGop();
+        }
         //
         m_stats.update(HJRTMP_STATTYPE_QUEUED, packet, nullptr);
         //
         m_stats.m_dropCount = drop();
         m_stats.m_cacheSize = m_packets.size();
         //
-        if(m_bitrateAdapter && m_stats.getDuration() > 5000)
+        if(m_bitrateAdapter && m_stats.getDuration() > 4000)
         {
             auto targetBitrate = m_netParams.m_bitrate;
             auto inBitrate = m_stats.getInBitrate();
             auto outBitrate = m_stats.getOutBitrate();
             auto dropRatio = m_stats.getDropRatio();
-        //    int adaptiveBitrate = m_bitrateAdapter->update2(inBitrate, outBitrate, m_netBitrate, dropRatio, m_stats.m_cacheDuration);
-            int adaptiveBitrate = (int)m_bitrateAdapter->update(inBitrate, outBitrate, m_stats.m_cacheDuration, m_stats.m_dropCount, dropRatio);
+           int adaptiveBitrate = m_bitrateAdapter->evaluateBitrate(inBitrate, outBitrate, m_netBitrate, dropRatio, m_stats.m_cache95Duration);
+            // int adaptiveBitrate = (int)m_bitrateAdapter->update(inBitrate, outBitrate, m_stats.m_cacheDuration, m_stats.m_dropCount, dropRatio);
             //
-            // HJFLogi("bitrate adapter, target:{}, in:{}, out:{}, dropRatio:{}, adaptive:{}, packets - [drop count:{},  size:{}], duration:{}", 
-            //    targetBitrate, inBitrate, outBitrate, dropRatio, (int)adaptiveBitrate, m_stats.m_dropCount, m_stats.m_cacheSize, m_stats.getDuration());
+             //HJFLogi("bitrate adapter, target:{}, in:{}, out:{}, net:{}, dropRatio:{}, adaptive:{}, packets - [drop count:{},  duration:{}], run duration:{}", 
+             //   targetBitrate, inBitrate, outBitrate, m_netBitrate, dropRatio, (int)adaptiveBitrate, m_stats.m_dropCount, m_stats.m_cache95Duration, m_stats.getDuration());
             //
             if(adaptiveBitrate > 0 && (adaptiveBitrate != m_adaptiveBitrate) && m_listener) {
                 m_adaptiveBitrate = adaptiveBitrate;
@@ -401,6 +406,7 @@ HJBuffer::Ptr HJRTMPPacketManager::waitTag(int64_t timeout, bool isHeader)
     do
     {
         if (m_isQuit) {
+            HJFLogw("has quit");
             break;
         }
         tag = getTag(isHeader);
@@ -418,12 +424,8 @@ HJBuffer::Ptr HJRTMPPacketManager::waitTag(int64_t timeout, bool isHeader)
         //}
     } while (false);
 
-    if(HJ_NOTS_VALUE == m_waitTagTime) {
-        m_waitTagTime = t0;
-    }
-    if (tag && (t0 - m_waitTagTime > 1000)) {
-        m_waitTagTime = t0;
-        HJFLogi("end, tag size:{}, dts:{}, packets:{}, time:{}, delay:{}", tag->size(), tag->getTimestamp(), m_packets.size(), HJCurrentSteadyMS() - t0, m_stats.m_delay);
+    if (tag) {
+        HJFPERNLogi("end, tag size:{}, dts:{}, packets:{}, time:{}, delay:{}", tag->size(), tag->getTimestamp(), m_packets.size(), HJCurrentSteadyMS() - t0, m_stats.m_delay);
     }
     return tag;
 }
@@ -433,11 +435,14 @@ HJBuffer::Ptr HJRTMPPacketManager::getTag(bool isHeader)
     HJBuffer::Ptr tag = nullptr;
     enum HJVideoColorspace colorspace = HJ_VIDEO_CS_709; //to do //info->colorspace; send metadata only if HDR
     if (isHeader) {
-        m_packets.clear();
+        if (m_netParams.m_waitForNextGop) {
+            m_packets.clear();
+        }
         m_sentStatus = HJ_RTMP_SENT_NONE;
         m_firstKeyFrame = false;
         m_gotFirtFrame = false;
         m_startDTSOffset = HJ_NOTS_VALUE;
+        m_wrapperGoing = false;
         //
         HJFLogi("get header tag");
     }
@@ -489,42 +494,31 @@ HJBuffer::Ptr HJRTMPPacketManager::getTag(bool isHeader)
         }
         if (!m_firstKeyFrame) 
         {
+            // keepLastGop()
+            //
             for (auto it = m_packets.begin(); it != m_packets.end();) {
                 const auto& pkt = *it;
                 if (pkt->isVideo() && pkt->isKeyVFrame()) {
                     m_firstKeyFrame = true;
                     break;
                 } else {
+                    HJFLogw("drop packet, packet:{}", pkt->formatInfo());
                     it = m_packets.erase(it);
                 }
-            } 
-            //
-            // auto iframeGuard = m_packets.begin();
-            // for (auto it = m_packets.begin(); it != m_packets.end(); ++it) {
-            //     const auto& pkt = *it;
-            //     if (pkt->isVideo() && pkt->isKeyVFrame()) {
-            //         packet = pkt;
-            //         iframeGuard = it;
-            //         m_firstKeyFrame = true;
-            //     }
-            // }
-            // if (m_firstKeyFrame) {
-            //     m_packets.erase(m_packets.begin(), iframeGuard);
-            //     HJFLogi("first key packet:{}", packet->formatInfo());
-            // } else {
-            //     m_packets.clear();
-            // }
+            }
         } 
         if (m_firstKeyFrame) 
         {
             if (HJ_NOTS_VALUE == m_startDTSOffset) {
                 m_startDTSOffset = waitStartDTSOffset();
+            }
+            if (HJ_NOTS_VALUE == m_startDTSOffset) {
                 return nullptr;
             }
             packet = m_packets.front();
             if(!m_gotFirtFrame && packet) {
                 m_gotFirtFrame = true;
-                HJFLogi("got first frame:{}, m_startDTSOffset:{}", packet->formatInfo(), m_startDTSOffset);
+                HJFLogi("got first frame:{}, m_startDTSOffset:{}, packets size:{}", packet->formatInfo(), m_startDTSOffset, m_packets.size());
             }
             m_packets.pop_front();
             //
@@ -536,12 +530,12 @@ HJBuffer::Ptr HJRTMPPacketManager::getTag(bool isHeader)
     if (tag) {
         m_stats.update(HJRTMP_STATTYPE_SENT, packet, tag);
         //
-        if (packet && HJ_NOTS_VALUE != packet->m_extraTS) {
+        if (packet && packet->isVideo() && HJ_NOTS_VALUE != packet->m_extraTS) {
             m_stats.m_delay = HJCurrentSteadyMS() - packet->m_extraTS;
             //
-            // if (m_stats.m_delay > 100) {
-            //     HJFLogi("packet tag delay:{}", m_stats.m_delay);
-            // }
+            //if (m_stats.m_delay > 100) {
+            //    HJFLogi("packet tag delay:{}, m_packets:{}", m_stats.m_delay, m_packets.size());
+            //}
         }
     }
 

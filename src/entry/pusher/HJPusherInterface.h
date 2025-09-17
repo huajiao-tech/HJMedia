@@ -1,8 +1,8 @@
 #pragma once
 
 #include <string>
-
-using HJNAPIPusherNotify = std::function<void(int i_type, const std::string& i_msgInfo)>;
+#include <functional>
+#include "HJCommonInterface.h"
 
 typedef enum HJPusherCodecType
 {
@@ -31,34 +31,6 @@ typedef enum HJPusherAudioSampleFormat
 
     AudioSampleFormat_NB   = 12           ///< Number of sample formats. DO NOT USE if linking dynamically
 } HJPusherAudioSampleFormat;
-
-
-typedef enum HJPusherLogMode {
-    HJLogMode_NONE = (1 << 0),
-    HJLogLMode_CONSOLE = (1 << 1),
-    HJLLogMode_FILE = (1 << 2),
-    HJLLogMode_CALLBACK = (1 << 3),
-} HJPusherLogMode;
-
-typedef enum HJPusherLogLevel {
-	HJLOGLevel_TRACE = 0,
-	HJLOGLevel_DEBUG = 1,
-	HJLOGLevel_INFO  = 2,
-	HJLOGLevel_WARN  = 3,
-	HJLOGLevel_ERROR = 4,
-	HJLOGLevel_ALARM = 5,
-	HHJLOGLevel_FATAL = 6,
-} HJPusherLogLevel;
-
-typedef struct HJPusherContextInfo
-{
-    bool logIsValid = true;
-    std::string logDir = "";
-    int  logLevel = HJLOGLevel_INFO;
-    int  logMode = HJLogLMode_CONSOLE | HJLLogMode_FILE;
-    int  logMaxFileSize = 0;
-    int  logMaxFileNum = 0;
-} HJPusherContextInfo;
 
 typedef struct HJPusherPreviewInfo
 {
@@ -117,6 +89,7 @@ typedef enum HJPusherNofityType
     HJ_PUSHER_NOTIFY_ERROR = 5,
     HJ_PUSHER_NOTIFY_DROP_FRAME = 6,
     HJ_PUSHER_NOTIFY_AUTOADJUST_BITRATE = 7,
+    HJ_PUSHER_NOTIFY_LIVE_INFO = 8,
 
     HJ_PUSHER_NOTIFY_ERROR_MUXER_INIT = 11,
     HJ_PUSHER_NOTIFY_ERROR_MUXER_WRITEFRAME = 12,
@@ -131,8 +104,6 @@ typedef enum HJPusherNofityType
     HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT = 103,
     HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT = 104,
     HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE = 105,
-
-
 
 } HJPusherNofityType;
 

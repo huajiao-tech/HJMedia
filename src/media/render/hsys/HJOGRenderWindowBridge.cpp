@@ -26,12 +26,21 @@ HJOGRenderWindowBridge::~HJOGRenderWindowBridge()
 {
     HJFLogi("{}, ~HJOGRenderWindowBridge enter, {}", m_insName, size_t(this));
 }
-
-void static pri_OH_OnFrameAvailable(void *context)
+void HJOGRenderWindowBridge::priOnFrameAvailable(void *context)
 {
-    HJOGRenderWindowBridge*the = (HJOGRenderWindowBridge*)context;
-    the->m_bRead = true;
+    HJOGRenderWindowBridge* the = static_cast<HJOGRenderWindowBridge *>(context);
+    the->priSetAvailable();
 }
+
+void HJOGRenderWindowBridge::priSetAvailable()
+{
+    if (!m_bAvaiableFlag)
+    {
+        m_state = HJOGRenderWindowBridgeState_Avaiable;
+        m_bAvaiableFlag = true;
+    }
+}
+
 int HJOGRenderWindowBridge::getSurfaceId(uint64_t &o_surfaceId) const
 {
     int i_err = 0;
@@ -54,7 +63,7 @@ int HJOGRenderWindowBridge::getSurfaceId(uint64_t &o_surfaceId) const
     return i_err;
 
 }
-int HJOGRenderWindowBridge::init(const std::string &i_renderModeInfo)
+int HJOGRenderWindowBridge::init()
 {
     int i_err = 0;
     do          
@@ -81,15 +90,10 @@ int HJOGRenderWindowBridge::init(const std::string &i_renderModeInfo)
         
         OH_OnFrameAvailableListener listener;
         listener.context = this;
-        listener.onFrameAvailable = pri_OH_OnFrameAvailable;
+        listener.onFrameAvailable = priOnFrameAvailable;
         OH_NativeImage_SetOnFrameAvailableListener(m_nativeImage, listener);
         m_nativeWindow = OH_NativeImage_AcquireNativeWindow(m_nativeImage);
 #endif
-        i_err = m_renderModeInfo.init(i_renderModeInfo);
-        if (i_err < 0)
-        {
-            break;
-        }
     } while (false);
     return i_err;
 }
@@ -117,7 +121,7 @@ void HJOGRenderWindowBridge::done()
 #endif
     HJFLogi("{}, done end", m_insName);
 }
-int HJOGRenderWindowBridge::priDraw(int i_targetWidth, int i_targetHeight)
+int HJOGRenderWindowBridge::priDraw(HJTransferRenderModeInfo::Ptr i_renderModeInfo, int i_targetWidth, int i_targetHeight)
 {
     int i_err = 0;
     do
@@ -128,22 +132,26 @@ int HJOGRenderWindowBridge::priDraw(int i_targetWidth, int i_targetHeight)
 			m_draw = HJOGCopyShaderStrip::Create();
 
             int nFlag = OGCopyShaderStripFlag_OES;
-            if (m_renderModeInfo.bAlphaVideoLeftRight)
-            {
-                nFlag |= OGCopyShaderStripFlag_AlphaLeftRight;
-            }
 			i_err = m_draw->init(nFlag);
-			HJFLogi("Draw init i_err:{}", i_err);
+            if (i_err < 0)
+            {
+                HJFLogi("Draw init i_err:{}", i_err);
+                break;
+            }
 		}
 		//HJFLogi("priShaderDraw draw");
         
         int srcWidth = m_srcWidth;
         int srcHeight = m_srcHeight;
-        if (m_renderModeInfo.bAlphaVideoLeftRight)
+        if (i_renderModeInfo->bAlphaVideoLeftRight)
         {
             srcWidth /= 2;
         }
-		i_err = m_draw->draw(m_texture, m_renderModeInfo.cropMode, srcWidth, srcHeight, i_targetWidth, i_targetHeight, m_matrix, false);
+		i_err = m_draw->draw(m_texture, i_renderModeInfo->cropMode, srcWidth, srcHeight, i_targetWidth, i_targetHeight, m_matrix, false);
+        if (i_err < 0)
+        {
+            break;
+        }    
 #endif
     } while (false);
     return i_err;
@@ -163,8 +171,8 @@ int HJOGRenderWindowBridge::priUpdate()
 			}
 			else
 			{
+                HJFLoge("Update surface image this:{} error:{} m_texture:{}", size_t(this), i_err, m_texture);
 				i_err = -1;
-				HJFLoge("Update surface image error:{} m_texture:{}", i_err, m_texture);
 				break;
 			}
 		}
@@ -185,20 +193,38 @@ int HJOGRenderWindowBridge::priUpdate()
             {
                 HJFLoge("OH_NativeWindow_NativeWindowHandleOpt getwh w:{} h:{} error <producer, pixel, hwdecode, camera must SET_BUFFER_GEOMETRY > timestamp:{} ", m_srcWidth, m_srcHeight, timeStamp);
             }
+            //HJFLogi("Update surface image sucess this:{} m_texture:{}", size_t(this), m_texture);
             //HJFLogi("mmap Update surface timestamp:{} w:{} h:{}", timeStamp, m_srcWidth, m_srcHeight);
 		}
+        m_state = HJOGRenderWindowBridgeState_Ready;
 #endif
     } while (false);
     return i_err;
 }
-
+int HJOGRenderWindowBridge::width()
+{
+    return m_srcWidth;
+}
+int HJOGRenderWindowBridge::height()
+{
+    return m_srcHeight;
+}
+bool HJOGRenderWindowBridge::IsStateAvaiable()
+{
+    return (m_state >= HJOGRenderWindowBridgeState_Avaiable);
+}
+bool HJOGRenderWindowBridge::IsStateReady()
+{
+    return (m_state >= HJOGRenderWindowBridgeState_Ready);
+}
 int HJOGRenderWindowBridge::update()
 {
     int i_err = 0;
     do
     {
-		if (!m_bRead)
+		if (m_state == HJOGRenderWindowBridgeState_Idle)
 		{
+            i_err = HJ_WOULD_BLOCK;
 			break;
 		}
         i_err = priUpdate();
@@ -210,26 +236,28 @@ int HJOGRenderWindowBridge::update()
     return i_err;
     
 }
-int HJOGRenderWindowBridge::draw(int i_targetWidth, int i_targetHeight)
+//bool HJOGRenderWindowBridge::IsReady()
+//{
+//    return m_bReady;
+//}
+int HJOGRenderWindowBridge::draw(HJTransferRenderModeInfo::Ptr i_renderModeInfo, int i_targetWidth, int i_targetHeight)
 {
     int i_err = 0;
     do
     {
-        if (!m_bRead)
+        if (m_state != HJOGRenderWindowBridgeState_Ready)
         {
+            i_err = HJ_WOULD_BLOCK;
             break;
         }
 
-        int x = i_targetWidth * m_renderModeInfo.viewOffx;
-        int y = (1.f - m_renderModeInfo.viewHeight - m_renderModeInfo.viewOffy) * i_targetHeight;
-        int w = i_targetWidth * m_renderModeInfo.viewWidth;
-        int h = i_targetHeight * m_renderModeInfo.viewHeight;
+        HJTransferRenderViewPortInfo::Ptr viewpotInfo = HJTransferRenderModeInfo::compute(i_renderModeInfo, i_targetWidth, i_targetHeight);
 
 #if defined(HarmonyOS)
-        glViewport(x, y, w, h);
+        glViewport(viewpotInfo->x, viewpotInfo->y, viewpotInfo->width, viewpotInfo->height);
 #endif
         //i_err = priDraw(i_targetWidth, i_targetHeight);
-        i_err = priDraw(w, h);
+        i_err = priDraw(i_renderModeInfo, viewpotInfo->width, viewpotInfo->height);
         if (i_err < 0)
         {
             break;
@@ -237,7 +265,8 @@ int HJOGRenderWindowBridge::draw(int i_targetWidth, int i_targetHeight)
     } while (false);
     return i_err;
 }
-int HJOGRenderWindowBridge::produceFromPixel(uint8_t* i_pData[3], int i_size[3], int i_width, int i_height)
+
+int HJOGRenderWindowBridge::produceFromPixel(HJTransferRenderModeInfo::Ptr i_renderModeInfo, uint8_t* i_pData[3], int i_size[3], int i_width, int i_height)
 {
 	int i_err = 0;
 	do
@@ -275,7 +304,7 @@ int HJOGRenderWindowBridge::produceFromPixel(uint8_t* i_pData[3], int i_size[3],
 					// {
 					//     m_changeState = CHANGE_STATE_SET_END;
 					// }    
-                    if (m_renderModeInfo.color == "BT601")
+                    if (i_renderModeInfo->color == "BT601")
                     {
 	                  i_err = libyuv::I420ToABGR(
 							i_pData[0], i_size[0],

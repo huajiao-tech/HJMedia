@@ -1,12 +1,12 @@
-#pragma once
-
 #include "HJPluginFFMuxer.h"
 #include "HJFLog.h"
+#include "HJMuxers.h"
 
 NS_HJ_BEGIN
 
-HJPluginFFMuxer::HJPluginFFMuxer(const std::string& i_name, size_t i_identify)
-	: HJPluginMuxer(i_name, i_identify) { 
+HJPluginFFMuxer::HJPluginFFMuxer(const std::string& i_name, HJKeyStorage::Ptr i_graphInfo)
+	: HJPluginMuxer(i_name, i_graphInfo)
+{
 	m_muxer = std::make_shared<HJFFMuxer>();
 	m_muxer->setName(getName());
 }

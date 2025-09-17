@@ -309,4 +309,44 @@ struct HJAllocator
 //std::vector<float, std::aligned_allocator<float, 64>> alignedVec;
 //std::pmr::vector<int> vec{ std::pmr::get_default_resource() };
 
+//***********************************************************************************//
+template<typename T>
+class HJAudioBuffers : public HJObject
+{
+public:
+    using Ptr = std::shared_ptr<HJAudioBuffers<T>>;
+    HJAudioBuffers(int capacity, int channel)
+        : m_capacity(capacity)
+        , m_channel(channel)
+    {
+        for (size_t i = 0; i < channel; i++)
+        {
+            T* p = new T[capacity];
+            m_datas.emplace_back(p);
+        }
+    }
+    virtual ~HJAudioBuffers() {
+        for (T* p : m_datas) {
+            delete p;
+        }
+        m_datas.clear();
+    }
+    T** data() {
+        return m_datas.data();
+    }
+    int getsamples() {
+        return m_samples;
+    }
+    void setsamples(int samples) {
+        m_samples = samples;
+    }
+private:
+    int m_capacity{0};
+    int m_channel{0};
+    std::vector<T*> m_datas;
+    int m_samples{0};
+};
+using HJAudioFBuffers = HJAudioBuffers<float>;
+using HJAudioIBuffers = HJAudioBuffers<int16_t>;
+
 NS_HJ_END

@@ -1,11 +1,12 @@
 import { AudioCodecType, AudioConfig, PusherConfig, VideoCodecType, VideoConfig } from "hjpusher"
 
+@ObservedV2
 export class VideoStateData {
-  name: string = ''
-  value: string = ''
-  unit: string = ''
+  name: string
+  @Trace value: number
+  @Trace unit: string = ''
 
-  constructor(name: string, value: string, unit: string) {
+  constructor(name: string, value: number, unit: string) {
     this.name = name
     this.value = value
     this.unit = unit
@@ -54,10 +55,15 @@ export const pusherPreset = new PusherConfigPreset(
   },
   {
     codecID: AudioCodecType.HJCodecAAC,
-    bitrate: 164 * 1024,
+    bitrate: 164 * 1000,
     sampleFmt: 1,
     samplesRate: 48000,
     channels: 2
   },
   ""
 )
+
+@ObservedV2
+export class PreviewAndPusherSelector {
+  @Trace currentIndex: number = 0
+}

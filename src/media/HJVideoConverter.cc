@@ -174,7 +174,7 @@ int HJVideoConverter::getFrame(HJMediaFrame::Ptr& frame)
             }
             mvf->m_pts = avf->best_effort_timestamp;
             mvf->m_dts = avf->best_effort_timestamp;
-            if((avf->key_frame && avf->pict_type && (avf->pict_type == AV_PICTURE_TYPE_I))) {
+            if((/*avf->key_frame*/(avf->flags & AV_FRAME_FLAG_KEY) && avf->pict_type && (avf->pict_type == AV_PICTURE_TYPE_I))) {
                 mvf->setFrameType(HJFRAME_KEY);
             }
             //

@@ -1,0 +1,66 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index dfddd26..d1dbfd3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,15 +1,30 @@
+-cmake_minimum_required(VERSION 3.20)
++set(PROJ_NAME ImGuiFileDialog)
+ 
+-project(ImGuiFileDialog)
++include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+ 
+-add_library(ImGuiFileDialog STATIC
+-    ImGuiFileDialog.cpp
+-    ImGuiFileDialog.h
+-    ImGuiFileDialogConfig.h
++set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
++
++set(HEADER_FILES
++    ${CMAKE_CURRENT_SOURCE_DIR}/ImGuiFileDialog.h
++)
++
++set(SOURCE_FILES
++    ${CMAKE_CURRENT_SOURCE_DIR}/ImGuiFileDialog.cpp
+ )
++# message (STATUS "HEADER_FILES:${HEADER_FILES} SOURCE_FILES:${SOURCE_FILES}")
++
++MAKE_COMMON_CONFIG()
++
++add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
++
++target_link_libraries(${PROJ_NAME} PRIVATE imgui glfw LIBSTB)
++target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
++
++HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
+ 
+-target_include_directories(ImGuiFileDialog PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
++set_target_properties(${PROJ_NAME} PROPERTIES
++    ARCHIVE_OUTPUT_DIRECTORY ${ARCHIVE_output}
++    LIBRARY_OUTPUT_DIRECTORY ${library_output}
++    RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
+ 
+-if(UNIX)
+-    target_compile_options(ImGuiFileDialog PUBLIC -Wno-unknown-pragmas)
+-endif()
++ProjFolder(${PROJ_NAME} "third_party")
+diff --git a/CMakeLists_bak.txt b/CMakeLists_bak.txt
+new file mode 100644
+index 0000000..dfddd26
+--- /dev/null
++++ b/CMakeLists_bak.txt
+@@ -0,0 +1,15 @@
++cmake_minimum_required(VERSION 3.20)
++
++project(ImGuiFileDialog)
++
++add_library(ImGuiFileDialog STATIC
++    ImGuiFileDialog.cpp
++    ImGuiFileDialog.h
++    ImGuiFileDialogConfig.h
++)
++
++target_include_directories(ImGuiFileDialog PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
++
++if(UNIX)
++    target_compile_options(ImGuiFileDialog PUBLIC -Wno-unknown-pragmas)
++endif()

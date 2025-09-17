@@ -126,22 +126,38 @@ add_subdirectory(third_party/soundtouch)
 add_subdirectory(third_party/librtmp)
 add_subdirectory(third_party/yyjson)
 add_subdirectory(third_party/fdk-aac)
+add_subdirectory(third_party/zlib)
+if(WINDOWS OR MACOSX)
+	add_subdirectory(third_party/glfw)
+	add_subdirectory(third_party/imgui)
+	add_subdirectory(third_party/implot)
+	add_subdirectory(third_party/ImFileDialog)
+	add_subdirectory(third_party/ImGuiFileDialog)
+endif()
 
 #***subdirectories*******************************************************************************#
 add_subdirectory(src/utils)
 # add_subdirectory(src/platform)
 add_subdirectory(src/media)
+add_subdirectory(src/links)
+add_subdirectory(src/core)
 add_subdirectory(src/plugins)
 add_subdirectory(src/graphs)
-
+add_subdirectory(src/stat)
+add_subdirectory(src/comp)
 add_subdirectory(src/entry/pusher)
 add_subdirectory(src/entry/player)
 
-# add_subdirectory(src/core)
-# if(WINDOWS OR MACOSX)
-# 	add_subdirectory(src/gui)
-# 	add_subdirectory(examples/windows/XMediaTools)
-# endif()
+if(WINDOWS)
+	add_subdirectory(examples/windows/HJMediaUI)
+	add_subdirectory(examples/windows/HJMainUI)
+endif()
+
+if(WINDOWS OR MACOSX)
+	add_subdirectory(src/gui)
+	add_subdirectory(examples/windows/XMediaTools)
+endif()
+
 
 
 

@@ -51,7 +51,7 @@ try {
 ```
 
 2. 初始化推流器日志输出
-   
+
 ```typescript
 let logLevel = 2;
 let logMode = LogMode.CONSOLE | LogMode.FILE;
@@ -63,7 +63,7 @@ Pusher.contextInit(bLog, logPath, logLevel, logMode, logSize, logCount);
 ```
 
 3. 创建推流器，并绑定相机预览输出流
-   
+
 ```typescript
 // 创建一个HJPusher实例
 hjPusher: HJPusher = new HJPusher()
@@ -82,6 +82,7 @@ cameraService.startPreview(0)
 ```
 
 4.预览
+
 ```typescript
 // 给底层渲染线程增加一个输出目的，此处增加一个XComponent用于预览
 XComponent({
@@ -124,7 +125,7 @@ class PusherXComponentController extends XComponentController {
 ```
 
 5. 推流
-   
+
 ```typescript
 // 参数配置
 export const pusherPreset = new PusherConfigPreset(
@@ -145,13 +146,15 @@ channels: 2
 },
 ""
 )
-  
+
 // 推流  
 this.state.hjPusher.openPusher(this.state.config)
 ```
+
 具体推流流程可详见Demo代码  [Demo源码](https://github.com/huajiao-tech/HJMedia)
 
 ## 效果演示
+
 ![预览](preview.png)
 
 ## 注意事项
@@ -160,6 +163,7 @@ this.state.hjPusher.openPusher(this.state.config)
 当前推流器接收相机采集的视频数据，通过接收相机的预览输出流（此处不能使用相机的视频输出流，实测发现视频输出流会存在卡顿和延迟）
 
 保证setWindow()调用时机问题：保证setWindow()在createPusher()之后调用，注意setWindow()中state参数有三种状态，确保正确传递（可参考demo中使用方式）
+
 ```typescript
 export enum SetWindowState {
   TARGET_CREATE = 0, // 创建，增加surface时使用
@@ -167,6 +171,7 @@ export enum SetWindowState {
   TARGET_DESTROY = 2 //  销毁，surface销毁时使用 
 }
 ```
+
 相机开启和释放：鸿蒙中的aboutToDisappear()生命周期并不是组件在屏幕上不可见立即调用的，当快速进出预览页面时，会导致预览页第一次的aboutToDisappear()在预览页第二次aboutToAppear()调用后
 再调用导致错误释放相机资源会出现预览黑屏，可参考demo中cameraService的处理方式，或者使用onPageHide()可以保证页面在屏幕上不可见时立马调用（仍需注意生命周期时序）
 

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include "HJVerifyRender.h"
 #include "HJNAPITestLive.h"
+#include "HJThreadPool.h"
 
 NS_HJ_USING
 
@@ -29,6 +30,10 @@ public:
     static napi_value tryClosePreview(napi_env env, napi_callback_info info);
     static napi_value tryOpenRecord(napi_env env, napi_callback_info info);
     static napi_value tryCloseRecord(napi_env env, napi_callback_info info);
+
+    static napi_value tryGiftOpen(napi_env env, napi_callback_info info);
+    static napi_value tryDoubleScreen(napi_env env, napi_callback_info info);
+    static napi_value tryGiftPusher(napi_env env, napi_callback_info info);
     
     void SetNativeXComponent(std::string& id, OH_NativeXComponent* nativeXComponent);
     HJVerifyRender* GetRender(const std::string& id);

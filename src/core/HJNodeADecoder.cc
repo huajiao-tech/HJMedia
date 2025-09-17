@@ -1,0 +1,240 @@
+
+//***********************************************************************************//
+//HJMedia FRAMEWORK SOURCE;
+//AUTHOR:
+//CREATE TIME:
+//***********************************************************************************//
+#include "HJNodeADecoder.h"
+#include "HJContext.h"
+#include "HJADecFFMpeg.h"
+#include "HJFLog.h"
+
+NS_HJ_BEGIN
+//***********************************************************************************//
+HJNodeADecoder::HJNodeADecoder(const HJEnvironment::Ptr& env/* = nullptr*/, const HJScheduler::Ptr& scheduler/* = nullptr*/, const bool isAuto/* = true*/)
+    : HJMediaNode(env, scheduler, isAuto)
+{
+    m_mediaType = HJMEDIA_TYPE_AUDIO;
+    setName(HJMakeGlobalName(HJ_TYPE_NAME(HJNodeADecoder)));
+}
+
+HJNodeADecoder::HJNodeADecoder(const HJEnvironment::Ptr& env, const HJExecutor::Ptr& executor, const bool isAuto/* = true*/)
+    : HJMediaNode(env, executor, isAuto)
+{
+    m_mediaType = HJMEDIA_TYPE_AUDIO;
+    setName(HJMakeGlobalName(HJ_TYPE_NAME(HJNodeADecoder)));
+}
+
+HJNodeADecoder::~HJNodeADecoder()
+{
+    done();
+}
+
+int HJNodeADecoder::init(const HJAudioInfo::Ptr& info)
+{
+    HJLogi("init entry");
+    int res = HJMediaNode::init(HJ_ADEC_STOREAGE_CAPACITY);
+    if (HJ_OK != res) {
+        HJLoge("init error:" + HJ2String(res));
+        return res;
+    }
+    m_info = info;
+    
+    HJADecFFMpeg::Ptr decoder = std::make_shared<HJADecFFMpeg>();
+    if (!decoder) {
+        return HJErrNewObj;
+    }
+    res = decoder->init(m_info);
+    if (HJ_OK != res) {
+        return res;
+    }
+    m_dec = decoder;
+    m_runState = HJRun_Init;
+    HJFLogi("init end, res:{}", res);
+    
+    return res;
+}
+
+void HJNodeADecoder::done()
+{
+    if (!m_scheduler) {
+        return;
+    }
+    m_scheduler->sync([&] {
+        HJLogi("done entry");
+        m_runState = HJRun_Done;
+        m_outFrame = nullptr;
+        m_dec = nullptr;
+
+        HJMediaNode::done();
+        HJLogi("done end");
+    });
+    m_scheduler = nullptr;
+
+    return;
+}
+
+int HJNodeADecoder::flush(const HJSeekInfo::Ptr info/* = nullptr*/)
+{
+    auto running = [=]()
+    {
+        if (!m_dec) {
+            return;
+        }
+        HJLogi("audio decoder sync flush start");
+        int res = HJ_OK;
+        do {
+            res = m_dec->flush();
+            if (HJ_OK != res) {
+                HJLoge("flush error:" + HJ2String(res));
+                break;
+            }
+            if(getEOF()) {
+                setEOF(false);
+                m_runState = HJRun_Running;
+            }
+            m_outFrame = nullptr;
+            
+            res = tryAsyncSelf();
+            if (HJ_OK != res) {
+                HJLoge("error, try async self" + HJ2String(res));
+                break;
+            }
+            res = HJMediaNode::flush(info);
+            if (HJ_OK != res) {
+                HJFLogi("error, flush next failed res:{}", res);
+                break;
+            }
+        } while (false);
+        //
+        if (HJ_OK != res) {
+            notify(HJMakeNotification(HJNotify_Error, res, std::string("audio decoder flush error")));
+        }
+        HJLogi("audio decoder sync flush end");
+    };
+    m_scheduler->sync(running);
+    
+    return HJ_OK;
+}
+
+int HJNodeADecoder::proRun()
+{
+    HJOnceToken token(nullptr, [&] {
+        setIsBusy(false);
+        //HJFLogi("proRun] end, name:{}, proc run done, is busy:{}", getName(), isBusy());
+    });
+    if (!m_dec || !m_scheduler) {
+        HJLoge("not ready");
+        return HJErrNotAlready;
+    }
+    //HJFLogi("entry, name:{}, m_runState:{}", getName(), HJRunStateToString(m_runState));
+    if (isEndOfRun()) {
+        HJLogw("warning, is end of run");
+        return HJ_EOF;
+    }
+    int res = HJ_OK;
+    do
+    {
+        if (!m_outFrame)
+        {
+            HJMediaFrame::Ptr outFrame = nullptr;
+            res = m_dec->getFrame(outFrame);
+            if (res < HJ_OK) {
+                HJLoge("audio decoder get frame error:" + HJ2String(res));
+                break;
+            }
+            if (!outFrame)
+            {
+                HJMediaFrame::Ptr inFrame = pop();
+                if (!inFrame) {
+                    res = HJ_IDLE;
+                    //HJLogw("warning, pop frame is null");
+                    break;
+                }
+                res = m_dec->run(std::move(inFrame));
+                if (res < HJ_OK) {
+                    HJLoge("audio decoder run frame error:" + HJ2String(res));
+                    break;
+                }
+                res = m_dec->getFrame(outFrame);
+                if (res < HJ_OK) {
+                    HJLoge("audio decoder get frame error:" + HJ2String(res));
+                    break;
+                }
+            }
+            m_outFrame = outFrame;
+        }
+        if (!m_outFrame) {
+            //HJLoge("get out frame null");
+            res = HJ_WOULD_BLOCK;
+            break;
+        }
+        //HJLogi("have frame type:" + HJMediaType2String(m_outFrame->getType()) + ", dts:" + HJ2String(m_outFrame->getDTS()) + ", pts:" + HJ2String(m_outFrame->getPTS()) + ", frame type:" + m_outFrame->getFrameTypeStr());
+        if (HJFRAME_EOF == m_outFrame->getFrameType())
+        {
+            auto nextNode = getNext();
+            if (nextNode && !nextNode->isFull()) {
+                res = nextNode->deliver(m_outFrame);
+                if (res < HJ_OK) {
+                    HJLoge("decoder deliver error:" + HJ2String(res));
+                    break;
+                }
+            }
+            if (getNextsEOF()) {
+                setEOF(true);
+                clearInOutStorage();
+                m_outFrame = nullptr;
+                m_runState = HJRun_Stop;
+                HJLogi("decoder end, eof");
+                return HJ_EOF;
+            }
+        }
+        else
+        {
+            m_runState = HJRun_Running;
+            //
+            auto nextNode = getNext();
+            if (!nextNode) {
+                //HJFLogw("warning, has no next node, drop frame:", m_outFrame->formatInfo());
+                m_outFrame = nullptr;            //drop
+                break;
+            }
+            if (nextNode->isFull()) {
+                //HJLogw("warning, next node:" + HJMediaType2String(nextNode->getMediaType()) + " storage is full:" + HJ2STR(nextNode->getInStorageSize()));
+                res = HJ_IDLE;
+                break;
+            }
+            if (m_outFrame->isFlushFrame()) {
+                const auto minfo = m_outFrame->getInfo()->dup();
+                HJNotification::Ptr ntf = HJMakeNotification(HJNotify_MediaChanged, res, std::string("video changed"));
+                (*ntf)[HJStreamInfo::KEY_WORLDS] = minfo;
+                notify(ntf);
+            }
+            res = nextNode->deliver(std::move(m_outFrame));
+            if (res < HJ_OK) {
+                HJLoge("deoder deliver error:" + HJ2String(res));
+                break;
+            }
+        }
+
+    } while (false);
+//    HJLogi("end");
+
+    return res;
+}
+
+void HJNodeADecoder::run()
+{
+    int res = proRun();
+    if (res < HJ_OK) {
+        notify(HJMakeNotification(HJNotify_Error, res, getName() + "error"));
+        return;
+    }
+    if (HJ_EOF == res || HJ_IDLE == res) {
+        return;
+    }
+    tryAsyncSelf();
+    return;
+}
+
+NS_HJ_END

@@ -6,6 +6,7 @@
 #pragma once
 #include <any>
 #include "HJCommons.h"
+#include "HJDefaultValue.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -42,7 +43,8 @@ public:
         if(anyObj) {
             return std::any_cast<T>(*anyObj);
         }
-        return (T)0;
+        return HJDefaultValue::get<T>();
+        //return (T)0;
     }
     //
     bool haveValue(const std::string& key) {
@@ -58,7 +60,26 @@ public:
         if (anyObj) {
             return std::any_cast<T>(*anyObj);
         }
-        return (T)0;
+        return HJDefaultValue::get<T>();
+    }
+    //template<typename T>
+    //T operator[](const std::string& key) {
+    //    const std::any* anyObj = getStorage(key);
+    //    if (anyObj) {
+    //        return std::any_cast<T>(*anyObj);
+    //    }
+    //    return HJDefaultValue::get<T>();
+    //}
+    /** 
+    * std::weak_ptr<obj> 
+    */
+    template<typename T>
+    T getValueObj(const std::string& key) {
+        const std::any* anyObj = getStorage(key);
+        if (anyObj) {
+            return std::any_cast<T>(*anyObj);
+        }
+        return T();
     }
     bool getBool(const std::string& key) {
         const std::any* anyObj = getStorage(key);
@@ -127,11 +148,17 @@ public:
             cb(it);
         }
     }
+    static HJKeyStorage::Ptr dupFrom(const HJKeyStorage::Ptr& other) {
+        HJKeyStorage::Ptr newObj = std::make_shared<HJKeyStorage>();
+        newObj->clone(other);
+        return newObj;
+    }
 private:
     std::list<std::string>    m_keyOrder;
 };
 using HJSettings = HJKeyStorage;
 using HJOptions = HJKeyStorage;
+using HJParams = HJKeyStorage;
 using HJDictionary = std::unordered_map<std::string, std::any>;
 using HJDictionaryPtr = std::shared_ptr<HJDictionary>;
 

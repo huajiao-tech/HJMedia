@@ -9,7 +9,7 @@
 NS_HJ_BEGIN
    
 class HJOGRenderWindowBridge;
-class HJGraphComVideoCapture;
+class HJPrioGraphProc;
 class HJGraphComPusher;
 
 class HJNAPITestLive
@@ -20,9 +20,9 @@ public:
     HJNAPITestLive();
     virtual ~HJNAPITestLive();
 
-    static int contextInit(const HJPusherContextInfo& i_contextInfo);
+    static int contextInit(const HJEntryContextInfo& i_contextInfo);
     
-    int openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIPusherNotify i_notify, uint64_t &o_surfaceId);
+    int openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIEntryNotify i_notify, uint64_t &o_surfaceId);
     int setNativeWindow(void* window, int i_width, int i_height, int i_state);
     void closePreview();
     
@@ -45,9 +45,9 @@ private:
     int priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps);
         
     std::shared_ptr<HJOGRenderWindowBridge> m_bridge = nullptr;
-    std::shared_ptr<HJGraphComVideoCapture> m_graphVideoCapture = nullptr;
+    std::shared_ptr<HJPrioGraphProc> m_prioGraphProc = nullptr;
     std::shared_ptr<HJGraphComPusher> m_graphPusher = nullptr;
-    HJNAPIPusherNotify m_notify = nullptr;
+    HJNAPIEntryNotify m_notify = nullptr;
     static bool s_bContextInit;
     std::unique_ptr<ThreadSafeFunctionWrapper> m_tsf = nullptr;
     

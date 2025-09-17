@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
     "vars": {
-        "HJ_GROUP": "https://git.huajiao.com/hjmedia"
+        "HJ_GROUP": "https://github.com/huajiao-tech/HJMedia"
     },
     "repos": {
         "common": [
@@ -16,8 +16,8 @@
                 "dir": "third_party/minicoro"
             },
             {
-                "url": "https://github.com/waywardgeek/sonic.git",
-                "commit": "fda30fba867c08c82dbbecbcc72120652e40d5cb",
+                "url": "https://android.googlesource.com/platform/external/sonic",
+                "commit": "a09959c311150ae1fe42c4d0fd6960e995d4d7b2",
                 "dir": "third_party/sonic"
             },
             {
@@ -49,8 +49,38 @@
                 "url": "https://github.com/mstorsjo/fdk-aac.git",
                 "commit": "801f67f671929311e0c9952c5f92d6e147c7b003",
                 "dir": "third_party/fdk-aac"
-            }
-            
+            },
+			{
+				"url": "https://github.com/ocornut/imgui.git",
+				"commit": "45acd5e0e82f4c954432533ae9985ff0e1aad6d5",
+				"dir": "third_party/imgui"
+			},
+			{
+				"url": "https://github.com/epezent/implot.git",
+				"commit": "3da8bd34299965d3b0ab124df743fe3e076fa222",
+				"dir": "third_party/implot"
+			},
+            {
+				"url": "https://github.com/dfranx/ImFileDialog.git",
+				"commit": "0a74b0566e556b1a1f2fa0998cc4309e66f5d36c",
+				"dir": "third_party/ImFileDialog"
+			},
+            {
+				"url": "https://github.com/aiekick/ImGuiFileDialog.git",
+				"commit": "58292701b8224e58703d15811b69a39444185e30",
+				"dir": "third_party/ImGuiFileDialog"
+			},            
+			{
+				"url": "https://github.com/glfw/glfw.git",
+				"commit": "768e81a0eb3ae411d108168fdff7cd3335f2a34a",
+				"dir": "third_party/glfw"
+			},            
+			{
+				"url": "https://github.com/madler/zlib.git",
+				"commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+				"dir": "third_party/zlib"
+			}
+			
         ]
     },
     "actions": {

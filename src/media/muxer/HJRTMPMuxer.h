@@ -10,6 +10,7 @@
 #include "HJRTMPAsyncWrapper.h"
 #include "HJXIOFile.h"
 #include "HJRTMPPacketManager.h"
+#include "HJStatContext.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -39,6 +40,7 @@ public:
 		return HJRTMPStreamStats();
 	}
 	void setNetBlock(const bool block);
+	void setNetSimulater(int bitrate);
 private:
 	/**
 	* HJRTMPWrapperDelegate
@@ -49,6 +51,10 @@ private:
 	int addRTMPPacket(HJMediaFrame::Ptr frame, int64_t tsOffset = 0);
 	int gatherMediaInfo(const HJMediaFrame::Ptr& frame);
 	int64_t waitStartDTSOffset(HJMediaFrame::Ptr frame);
+	// stats
+	void notifyStatInfo();
+	void notifyStatLiveInfo();
+	void notifyStatDoneInfo();
 private:
 	HJListener						m_listener = nullptr;
 	std::string						m_url{ "rtmp://localhost/live" };
@@ -71,5 +77,9 @@ private:
 	
 	HJTrackHolderMap				m_tracks;
 	HJNipMuster::Ptr				m_nipMuster = nullptr;
+	//
+	std::weak_ptr<HJStatContext>	m_statCtx;
+	HJPeriodicRunner				m_periodicRunner;
+	//int64_t							m_lastStatTime = HJ_NOTS_VALUE;
 };
 NS_HJ_END

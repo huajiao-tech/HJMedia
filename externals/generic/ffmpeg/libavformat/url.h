@@ -32,6 +32,9 @@
 #define URL_PROTOCOL_FLAG_NESTED_SCHEME 1 /*< The protocol name can be the first part of a nested protocol scheme */
 #define URL_PROTOCOL_FLAG_NETWORK       2 /*< The protocol uses network */
 
+ //CS by lzy
+#define AV_HAS_PROTOCOL_EX 1
+
 typedef struct URLContext {
     const AVClass *av_class;    /**< information for av_log(). Set by url_open(). */
     const struct URLProtocol *prot;
@@ -95,6 +98,10 @@ typedef struct URLProtocol {
     int (*url_move)(URLContext *h_src, URLContext *h_dst);
     const char *default_whitelist;
 } URLProtocol;
+
+#if defined(AV_HAS_PROTOCOL_EX)
+void av_register_protocol(const URLProtocol* p);
+#endif
 
 /**
  * Create a URLContext for accessing to the resource indicated by

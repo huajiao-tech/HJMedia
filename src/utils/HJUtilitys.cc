@@ -10,6 +10,7 @@
 #include <string>
 #include <algorithm>
 #include <random>
+#include <filesystem>
 #include "HJUtilitys.h"
 #if defined(HJ_OS_HARMONY)
 #include <unistd.h> //Harmonyos readlink need this head file
@@ -252,6 +253,19 @@ std::string HJUtilitys::concateString(const std::string& pre, const std::string&
         return pre.substr(0, pre.size() - 1) + suf;
     }
     return pre + suf;
+}
+
+std::string HJUtilitys::convertBackslashesToForward(const std::string& dir)
+{
+    std::string result = dir;
+    std::replace(result.begin(), result.end(), '\\', '/');
+    return result;
+}
+
+std::string HJUtilitys::getDirectory(const std::string& dir)
+{
+    std::filesystem::path pathName = HJUtilitys::convertBackslashesToForward(dir);
+    return pathName.parent_path().string() + "/";
 }
 
 void HJUtilitys::setWorkDir(const std::string& dir)

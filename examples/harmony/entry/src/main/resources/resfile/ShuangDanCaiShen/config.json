@@ -1,6 +1,6 @@
 {
 	"prefix": "ShuangDanCaiShen",
-	"loops": 1,
+	"loops": 20,
 	"fps": 30,
 	"position": {
 		"topx": 0.0,

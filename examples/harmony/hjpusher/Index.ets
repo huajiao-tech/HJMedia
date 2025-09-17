@@ -1,15 +1,14 @@
 export { HJPusher } from './src/main/ets/native/HJPusher';
 
-export { LogMode,
+export {
   PreviewInfo,
   PusherConfig,
   RecorderInfo,
-  SetWindowInfo,
-  SetWindowState,
   PusherStateType,
-  PusherStateCall,
   VideoCodecType,
   AudioCodecType,
   VideoConfig,
   AudioConfig
 } from './src/main/ets/native/HJPusherTypes';
+
+export { SetWindowState, SetWindowInfo, LogMode } from './src/main/ets/native/HJCommTypes';

@@ -48,7 +48,7 @@ int HJFFDemuxerEx::getFrame(HJMediaFrame::Ptr& frame)
         return res;
     }
     res = checkFrame(frame);
-    //HJLogi("name:" + getName() + ", " + frame->formatInfo());
+    //HJFNLogi(frame->formatInfo());
 
     return res;
 }

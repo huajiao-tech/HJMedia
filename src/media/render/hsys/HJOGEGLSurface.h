@@ -2,14 +2,9 @@
 
 #include "HJPrerequisites.h"
 #include "HJOGEGLCore.h"
+#include "HJTransferInfo.h"
 
 NS_HJ_BEGIN
-
-typedef enum HJOGEGLSurfaceType
-{
-    HJOGEGLSurfaceType_Default   = 0,
-    HJOGEGLSurfaceType_Encoder   = 1,
-} HJOGEGLSurfaceType;
 
 class HJOGEGLSurface
 {
@@ -21,6 +16,10 @@ public:
     void setInsName(const std::string& i_insName)
     { 
         m_insName = i_insName;
+    }
+    const std::string &getInsName() const 
+    {
+        return m_insName;
     }
 
     void setTargetWidth(int i_width);
@@ -54,7 +53,7 @@ private:
     int m_fps = 30;
 };
 
-using OGEGLSurfaceQueue = std::deque<HJOGEGLSurface::Ptr>;
-using OGEGLSurfaceQueueIt = OGEGLSurfaceQueue::iterator;
+using HJOGEGLSurfaceQueue = std::deque<HJOGEGLSurface::Ptr>;
+using HJOGEGLSurfaceQueueIt = HJOGEGLSurfaceQueue::iterator;
 
 NS_HJ_END

@@ -8,6 +8,8 @@
 
 NS_HJ_BEGIN
 
+int64_t HJThreadPool::s_defaultTimeOut = 100;
+
 HJThreadPool::HJThreadPool()
 {
 }
@@ -90,10 +92,10 @@ int HJThreadPool::priProcTask()
 }
 void HJThreadPool::setPause(bool i_bPause)
 {
-    HJFLogi("{} tryreplace set pause :{} ", m_threadName, i_bPause);
+    HJFLogi("{} tryreplace set pause :{} ", m_insName, i_bPause);
     if (i_bPause == m_bPaused)
     {
-        HJFLogi("{} set pause :{} match not proc return ", m_threadName, i_bPause);
+        HJFLogi("{} set pause :{} match not proc return ", m_insName, i_bPause);
         return;
     }
 
@@ -117,12 +119,6 @@ void HJThreadPool::priWaitFor()
 					bWaitUtil = true;
 					break;
 				}
-				//if (m_bQuit)
-				//{
-				//	bWaitUtil = true;
-				//	break;
-				//}
-				//bWaitUtil = !m_task_queue.empty();
 			} while (false);
 			return bWaitUtil; });
 	m_bSignaled = false;
@@ -138,7 +134,7 @@ int HJThreadPool::priProcess()
 			i_err = priProcTask();
 			if (i_err < 0)
 			{
-                HJFLoge("proc task err:{}", i_err);
+                HJFLoge("{} proc task err:{}", getInsName(), i_err);
 				break;
 			}
 
@@ -147,13 +143,22 @@ int HJThreadPool::priProcess()
 				i_err = m_run_func();
 				if (i_err < 0)
 				{
-                    HJFLoge("run func err:{}", i_err);
+                    HJFLoge("{} run func err:{}", getInsName(), i_err);
 					break;
 				}
 			}
 		}
 	} while (false);
 	return i_err;
+}
+
+void HJThreadPool::priResetTimeout()
+{
+	m_time_out = s_defaultTimeOut;
+}
+bool HJThreadPool::priIsTimeout()
+{
+	return (m_time_out > 0);
 }
 int HJThreadPool::threadFun()
 {
@@ -166,13 +171,16 @@ int HJThreadPool::threadFun()
 		}
 		while (true)
 		{
+			priResetTimeout();
+
             i_err = priProcess();
             if (i_err < 0)
             {
                 HJFLoge("priProcess err:{}", i_err);
                 break;
             }
-			if (m_time_out > 0)
+
+			if (priIsTimeout())
 			{
 				priWaitFor();
 			}
@@ -232,7 +240,7 @@ int HJThreadPool::start()
     {
         if (m_bThreadRunning)
         {
-            HJFLogi("{} thread is running ,not start, return", m_threadName);
+            HJFLogi("{} thread is running ,not start, return", m_insName);
             return i_err;
         }
         i_err = priStart();
@@ -258,7 +266,7 @@ void HJThreadPool::priDone()
     {
         if (!m_bThreadRunning)
         {
-            //HJFLogi("{} thread is not running, so not join, return", m_threadName);
+            //HJFLogi("{} thread is not running, so not join, return", m_insName);
             return;
         }
 	    if (m_worker_thread.joinable())
@@ -333,7 +341,7 @@ int HJThreadPool::asyncClear(HJThreadTaskFunc task, int i_id)
     {
         if (!m_bThreadRunning)
         {
-            HJFLogi("{} asyncClear proc the thread is already joined, not proc in thread, direct proc task", m_threadName);
+            HJFLogi("{} asyncClear proc the thread is already joined, not proc in thread, direct proc task", m_insName);
             i_err = -1;
             break;
         }
@@ -351,7 +359,7 @@ int HJThreadPool::async(HJThreadTaskFunc task, int64_t i_delayTime)
     {
         if (!m_bThreadRunning)
         {
-            HJFLogi("{} sync proc the thread is already joined, not proc in thread, direct proc task", m_threadName);
+            HJFLogi("{} sync proc the thread is already joined, not proc in thread, direct proc task", m_insName);
             i_err = -1;
             break;
         }
@@ -368,7 +376,7 @@ int HJThreadPool::sync(HJThreadTaskFunc task)
     {
         if (!m_bThreadRunning)
         {
-            HJFLogi("{} sync proc the thread is already joined, not proc in thread, direct proc task", m_threadName);
+            HJFLogi("{} sync proc the thread is already joined, not proc in thread, direct proc task", m_insName);
             i_err = task();
             return i_err;
         }
@@ -497,7 +505,7 @@ int HJTimerThreadPool::startTimer(int64_t i_intervalMs, RunFunc i_func)
 		}
 		m_timer = HJThreadTimer::Create();
 		m_timer->startSchedule(i_intervalMs, [this, i_func]()
-							   {
+		{
 				HJThreadPool::asyncClear([this, i_func] {
 					if (i_func)
 					{
@@ -505,7 +513,8 @@ int HJTimerThreadPool::startTimer(int64_t i_intervalMs, RunFunc i_func)
 					}
 					return 0;
 				}, s_timerId);
-				return 0; });
+				return 0;
+        });
 	} while (false);
 	return i_err;
 }

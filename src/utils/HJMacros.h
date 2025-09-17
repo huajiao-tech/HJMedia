@@ -19,6 +19,7 @@
 
 #define HJ_AUTO_LOCK(mtx)    std::lock_guard<decltype(mtx)> lock(mtx);
 #define HJ_AUTOU_LOCK(mtx)   std::unique_lock<decltype(mtx)> lock(mtx);
+#define HJ_AUTOS_LOCK(mtx)   std::shared_lock<decltype(mtx)> lock(mtx);
 
 #define HJ_INSTANCE_IMP(class_name, ...) \
 class_name& class_name::Instance() { \
@@ -53,15 +54,16 @@ void ClassName::destoryInstance() { \
     }
 
 #define HJDeclareVariable(type, variable, defaultValue) \
-    type m_##variable = defaultValue;
+    type m_##variable{ defaultValue };
 
 #define HJDeclareFunction(type, variable) \
-    void set##variable(const type value) { \
+    void variable(const type value) { \
         m_##variable = value;\
     } \
-    const type get##variable() { \
+    const type variable() const { \
         return m_##variable; \
     }
+
 
 #define HJ_DECLARE_PUWTR(class) \
     using Ptr = std::shared_ptr<class>; \

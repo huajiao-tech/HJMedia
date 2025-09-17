@@ -10,6 +10,7 @@
 NS_HJ_BEGIN
 const int64_t HJRTMPAsyncWrapper::ACQU_TIMEOUT_DEFAULT = 100;  //ms
 const int64_t HJRTMPAsyncWrapper::RETRY_INTERVAL_DEFAULT = 100;
+const int64_t HJRTMPAsyncWrapper::LOW_BITRATE_LIMITED = 30 * 1000;
 //***********************************************************************************//
 HJRTMPAsyncWrapper::HJRTMPAsyncWrapper(HJRTMPWrapperDelegate::Wtr delegate)
 	: m_delegate(delegate)
@@ -31,8 +32,17 @@ int HJRTMPAsyncWrapper::init(const std::string& url, HJOptions::Ptr opts)
 		if (m_opts->haveValue(HJRTMPUtils::STORE_KEY_RETRY_TIME_LIMITED)) {
 			m_retryTimeLimited = m_opts->getInt64(HJRTMPUtils::STORE_KEY_RETRY_TIME_LIMITED);
 		}
+		if (m_opts->haveValue(HJRTMPUtils::STORE_KEY_LOWBR_TIMEOUT_ENABLE)) {
+			m_lowBRTimeoutEnable = m_opts->getBool(HJRTMPUtils::STORE_KEY_LOWBR_TIMEOUT_ENABLE);
+		}
+		if (m_opts->haveValue(HJRTMPUtils::STORE_KEY_LOWBR_TIMEOUT_LIMITED)) {
+			m_lowBRTimeoutLimited = m_opts->getInt(HJRTMPUtils::STORE_KEY_LOWBR_TIMEOUT_LIMITED);
+		}
+		if (m_opts->haveValue(HJRTMPUtils::STORE_KEY_LOWBR_LIMITED)) {
+			m_lowBRLimited = m_opts->getInt(HJRTMPUtils::STORE_KEY_LOWBR_LIMITED);
+		}
 	}
-	HJFLogi("entry, url:{}, m_retryTimeLimited:{}", url, m_retryTimeLimited);
+	HJFLogi("entry, url:{}, retryTimeLimited:{}, lowBRTimeoutEnable:{}, lowBRTimeoutLimited:{}, lowBRLimited:{}", url, m_retryTimeLimited, m_lowBRTimeoutEnable, m_lowBRTimeoutLimited, m_lowBRLimited);
 	auto running = [&]() {
 		return createAVIO();
 	};
@@ -87,6 +97,10 @@ void HJRTMPAsyncWrapper::done()
 int HJRTMPAsyncWrapper::start()
 {
 	HJLogi("entry");
+	m_acquireHeader = true;
+	m_isQuit = false;
+	m_netBitTracker = HJCreateu<HJNetBitrateTracker>(500);
+	//
 	auto running = [&]() {
 		return run();
 	};
@@ -133,6 +147,9 @@ int HJRTMPAsyncWrapper::run()
 				HJFLoge("error, rtmp socket write:{}", res);
 				break;
 			}
+#if defined(HJ_HAVE_NETWORK_LIMITED)
+			tryNetSimulate(tag->size());
+#endif
 			auto t2 = HJCurrentSteadyUS();
 			if(HJ_NOTS_VALUE == m_runTime) {
 				m_runTime = t2;
@@ -140,7 +157,8 @@ int HJRTMPAsyncWrapper::run()
 			auto netkbps = m_netBitTracker->addData(tag->size(), t2 - t1);
             if(netkbps > 0) {
 				m_valueStatistics.addValue(netkbps, HJCurrentSteadyMS());
-				if (auto minVal = m_valueStatistics.getMin()) {
+				if (auto minVal = m_valueStatistics.get95thValue(true)) {
+//					HJFLogi("sent net kbps:{}, minVal:{}", netkbps, *minVal);
 					netkbps = *minVal;
 				}
             }
@@ -149,6 +167,14 @@ int HJRTMPAsyncWrapper::run()
                 m_runTime = t2;
 				notify(std::move(HJMakeNotification(HJRTMP_EVENT_NET_BITRATE, netkbps, "net kbps")));
 				HJFLogw("send end, recv time:{}, send time:{}, netkbps:{}", (t1 - t0)/1000, (t2 - t1)/1000, (int)netkbps);
+			}
+			//
+			if (m_lowBRTimeoutEnable) {
+				res = checkNetBitrate(netkbps);
+				if (HJ_OK != res) {
+					HJFLoge("error, check low net bitrate:{}", netkbps);
+					break;
+				}
 			}
 		}
 	} while (!m_isQuit);
@@ -176,9 +202,6 @@ int HJRTMPAsyncWrapper::createAVIO()
 		HJLoge("error, rtmp wrapper init failed");
 		return res;
 	}
-	m_acquireHeader = true;
-	m_isQuit = false;
-	m_netBitTracker = HJCreateu<HJNetBitrateTracker>(500);
 
 	return HJ_OK;
 }
@@ -233,7 +256,7 @@ int HJRTMPAsyncWrapper::onRTMPWrapperNotify(HJNotification::Ptr ntf)
 		case HJRTMP_EVENT_SEND_Error:
 		case HJRTMP_EVENT_RECV_Error:
 		{
-			auto running = [=]() {
+			auto running = [&]() {
 				destroyAVIO();
 				//
 				return retryAVIO();
@@ -244,6 +267,7 @@ int HJRTMPAsyncWrapper::onRTMPWrapperNotify(HJNotification::Ptr ntf)
 		}
 		case HJRTMP_EVENT_STREAM_CONNECTED:
 		{
+			m_retryInterval = RETRY_INTERVAL_DEFAULT;
 			m_retryTime = HJ_NOTS_VALUE;
 			break;
 		}
@@ -270,6 +294,63 @@ double HJRTMPAsyncWrapper::getRetryInterval(int n) {
     double interval = pow(1.4933043, n);
     //
     return std::min(interval, 50.0) * HJRTMPAsyncWrapper::RETRY_INTERVAL_DEFAULT;
+}
+
+int HJRTMPAsyncWrapper::checkNetBitrate(int netkbps)
+{
+	if (netkbps <= 0) {
+		return HJ_OK;
+	}
+	//HJFLogi("netkbps:{}", netkbps);
+	if (netkbps < m_lowBRLimited)
+	{
+		if (HJ_NOTS_VALUE == m_lowBitrateTime) {
+			m_lowBitrateTime = HJCurrentSteadyMS();
+		}
+		if (HJ_NOTS_VALUE != m_lowBitrateTime) 
+		{
+			auto lowBRDuration = HJCurrentSteadyMS() - m_lowBitrateTime;
+			if (lowBRDuration > m_lowBRTimeoutLimited)
+			{
+				m_lowBitrateTime = HJ_NOTS_VALUE;
+				notify(std::move(HJMakeNotification(HJRTMP_EVENT_LOW_BITRATE, netkbps, HJFMT("low bitrate:{}", netkbps))));
+				HJLogw("warning , low bitrate beyond limited");
+				//
+				auto running = [&]() {
+					destroyAVIO();
+					//
+					return retryAVIO();
+				};
+				m_executor->async(running, 0, false);
+
+				return HJErrNetUnkown;
+			}
+		}
+	}
+	else {
+		m_lowBitrateTime = HJ_NOTS_VALUE;
+	}
+	return HJ_OK;
+}
+
+void HJRTMPAsyncWrapper::tryNetSimulate(int size)
+{
+#if defined(HJ_HAVE_NETWORK_LIMITED)
+	if (m_newSimulator)
+	{
+		m_newSimulator = false;
+		if (m_simulaBitrate > 0) {
+			HJFLogi("HJNetworkSimulator m_simulaBitrate:{}", m_simulaBitrate);
+			m_simulator = HJCreateu<HJNetworkSimulator>(m_simulaBitrate);
+		} else {
+			HJFLogi("HJNetworkSimulator m_simulaBitrate:{} close", m_simulaBitrate);
+			m_simulator = nullptr;
+		}
+	}
+	if (m_simulator && size > 0) {
+		m_simulator->waitData(size);
+	}
+#endif
 }
 
 

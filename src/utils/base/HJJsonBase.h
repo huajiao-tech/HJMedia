@@ -98,6 +98,7 @@ public:
         }
 
         std::string key = vec.front();
+        key = HJUtilitys::trim(key);
         do
         {
             int i_err = obj->getMember(key, value);
@@ -149,6 +150,7 @@ public:
         }
 
         std::string key = vec.front();
+        key = HJUtilitys::trim(key);
         do
         {
             int i_err = obj->setMember(key, value);

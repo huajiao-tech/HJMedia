@@ -42,7 +42,6 @@ export struct PusherXComponent{
 
   build() {
     XComponent({
-      id: 'PusherXComponent',
       type: XComponentType.SURFACE,
       controller: this.pusherXComponentController
     })

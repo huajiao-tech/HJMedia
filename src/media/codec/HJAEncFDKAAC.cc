@@ -33,25 +33,25 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
     int i_err = HJ_OK;
     do
     {
-        HJLogi("init begin");
+        HJFNLogi("init begin");
         i_err = HJBaseCodec::init(info);
         if (HJ_OK != i_err)
         {
-            HJLoge("init error");
+            HJFNLoge("init error");
             return i_err;
         }
         HJAudioInfo::Ptr audioInfo = std::dynamic_pointer_cast<HJAudioInfo>(m_info);
         if (!HJMediaFrame::isCodecMatchAAC(audioInfo->m_codecID))
         {
-            HJLoge("isCodecMatchAAC error");
+            HJFNLoge("isCodecMatchAAC error");
             i_err = HJErrInvalidParams;
             break;
         }
-        HJFLogi("init begin channels:{} samplerate:{}", audioInfo->getChannels(), audioInfo->getSampleRate());
+        HJFNLogi("init begin channels:{} samplerate:{}", audioInfo->getChannels(), audioInfo->getSampleRate());
         i_err = aacEncOpen(&m_aacHandle, 0, audioInfo->getChannels());
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncOpen error:{}", i_err);
+            HJFNLoge("aacEncOpen error:{}", i_err);
             i_err = HJErrCodecCreate;
             break;
         }
@@ -62,14 +62,14 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
         i_err = aacEncoder_SetParam(m_aacHandle, AACENC_AOT, type);
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncoder_SetParam aot error:{}", i_err);
+            HJFNLoge("aacEncoder_SetParam aot error:{}", i_err);
             i_err = HJErrCodecInit;
             break;
         }
         i_err = aacEncoder_SetParam(m_aacHandle, AACENC_SAMPLERATE, audioInfo->getSampleRate());
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncoder_SetParam samplerate error:{}", i_err);
+            HJFNLoge("aacEncoder_SetParam samplerate error:{}", i_err);
             i_err = HJErrCodecInit;
             break;
         }
@@ -96,7 +96,7 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
             mode = MODE_1_2_2_1;
             break;
         default:
-            HJFLoge("channel is not support:{}", audioInfo->getChannels());
+            HJFNLoge("channel is not support:{}", audioInfo->getChannels());
             i_err = HJErrCodecInit;
             break;
         }
@@ -104,28 +104,28 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
         i_err = aacEncoder_SetParam(m_aacHandle, AACENC_CHANNELMODE, mode);
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncoder_SetParam channelmode error:{}", i_err);
+            HJFNLoge("aacEncoder_SetParam channelmode error:{}", i_err);
             i_err = HJErrInvalidParams;
             break;
         }
         i_err = aacEncoder_SetParam(m_aacHandle, AACENC_CHANNELORDER, 0);
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncoder_SetParam AACENC_CHANNELORDER error {}", i_err);
+            HJFNLoge("aacEncoder_SetParam AACENC_CHANNELORDER error {}", i_err);
             i_err = HJErrInvalidParams;
             break;
         }
         i_err = aacEncoder_SetParam(m_aacHandle, AACENC_BITRATEMODE, 0);
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncoder_SetParam AACENC_BITRATEMODE error {}", i_err);
+            HJFNLoge("aacEncoder_SetParam AACENC_BITRATEMODE error {}", i_err);
             i_err = HJErrInvalidParams;
             break;
         }
         i_err = aacEncoder_SetParam(m_aacHandle, AACENC_BITRATE, audioInfo->getBitrate());
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncoder_SetParam AACENC_BITRATE error {}", i_err);
+            HJFNLoge("aacEncoder_SetParam AACENC_BITRATE error {}", i_err);
             i_err = HJErrInvalidParams;
             break;
         }
@@ -134,11 +134,11 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
         //- 1: ADIF bitstream format
         //- 2: ADTS bitstream format
         UINT tansMuxVal = m_bADTS ? 2 : 0;
-         HJFLoge("aac use adts {}", m_bADTS);
+         HJFNLogi("aac use adts {}", m_bADTS);
         i_err = aacEncoder_SetParam(m_aacHandle, AACENC_TRANSMUX, tansMuxVal);
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncoder_SetParam AACENC_TRANSMUX error {}", i_err);
+            HJFNLoge("aacEncoder_SetParam AACENC_TRANSMUX error {}", i_err);
             i_err = HJErrInvalidParams;
             break;
         }
@@ -146,7 +146,7 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
         i_err = aacEncEncode(m_aacHandle, NULL, NULL, NULL, NULL);
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncEncode error {}", i_err);
+            HJFNLoge("aacEncEncode error {}", i_err);
             i_err = HJErrCodecInit;
             break;
         }
@@ -156,20 +156,20 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
         i_err = aacEncInfo(m_aacHandle, &info);
         if (i_err != AACENC_OK)
         {
-            HJFLoge("aacEncInfo error {}", i_err);
+            HJFNLoge("aacEncInfo error {}", i_err);
             i_err = HJErrCodecInit;
             break;
         }
         if (0 == info.confSize)
         {
-            HJFLoge("info.confSize error {}");
+            HJFNLoge("info.confSize error {}");
             i_err = HJErrCodecInit;
             break;
         }
         
         for (int i = 0; i < info.confSize; i++)
         {
-            HJFLogi("header i:{} size:{} value:{}", i, info.confSize, info.confBuf[i]);
+            HJFNLogi("header i:{} size:{} value:{}", i, info.confSize, info.confBuf[i]);
         }    
         
         m_headerBuffer = std::make_shared<HJBuffer>(info.confBuf, info.confSize);
@@ -181,7 +181,7 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
         m_outElemSize = sizeof(unsigned char);
 
     } while (false);
-    HJFLogi("init end ret:{}", i_err);
+    HJFNLogi("init end ret:{}", i_err);
     return i_err;
 }
 
@@ -217,7 +217,7 @@ int HJAEncFDKAAC::run(const HJMediaFrame::Ptr i_frame)
         i_err = HJMediaFrame::getDataFromAVFrame(i_frame, data, m_inSize);
         if (i_err < 0)
         {
-            HJFLoge("getDataFromAVFrame error {}", i_err);
+            HJFNLoge("getDataFromAVFrame error {}", i_err);
             break;
         }
 
@@ -245,7 +245,7 @@ int HJAEncFDKAAC::run(const HJMediaFrame::Ptr i_frame)
             m_statIdx++;
             int64_t diff = HJCurrentSteadyMS() - t0;
             m_statSum += diff;
-            HJFLogd("aac Encoder time idx:{} curDiff:{} avgDiff:{}", m_statIdx, diff, (m_statSum / m_statIdx));
+            HJFNLogd("aac Encoder time idx:{} curDiff:{} avgDiff:{}", m_statIdx, diff, (m_statSum / m_statIdx));
             HJAudioInfo::Ptr info = std::make_shared<HJAudioInfo>();
             info->clone(m_info);
             info->setSampleCnt(m_samplePerFrame);
@@ -257,7 +257,7 @@ int HJAEncFDKAAC::run(const HJMediaFrame::Ptr i_frame)
         //fixme after proc
         else if (i_err == AACENC_ENCODE_EOF)
         {
-            HJFLogi("eof");
+            HJFNLogi("eof");
             break;
         }
         else

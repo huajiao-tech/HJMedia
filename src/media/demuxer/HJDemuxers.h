@@ -9,3 +9,6 @@
 #include "HJFFDemuxer.h"
 #include "HJFFDemuxerEx.h"
 #include "HJHLSParser.h"
+#if defined(HJ_OS_HARMONY)
+#include "hsys/HJOHDemuxer.h"
+#endif

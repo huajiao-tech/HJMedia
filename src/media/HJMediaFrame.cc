@@ -675,7 +675,7 @@ const std::string HJMediaFrame::formatInfo(bool trace)
     if (!m_info) {
         return "";
     }
-    std::string fmtStr = "type:" + HJStreamInfo::type2String(m_info->getType()) + ", pts:" + HJ2STR(m_pts) + ", dts:" + HJ2STR(m_dts) + ", time base:" + HJ2STR(m_timeBase.num) + "/" + HJ2STR(m_timeBase.den);
+    std::string fmtStr = "type:" + HJStreamInfo::type2String(m_info->getType()) + ", pts:" + HJ2STR(m_pts) + ", dts:" + HJ2STR(m_dts) + ", time base:" + HJ2STR(m_timeBase.num) + "/" + HJ2STR(m_timeBase.den) + ", stream id:" + HJ2STR(m_streamIndex);
 //    fmtStr += ", mpts:" + HJ2STR(m_mts.getPTSMS()) + ", mdts:" + HJ2STR(m_mts.getDTSMS()) + ", duration:" + HJ2STR(m_mts.getDurationMS());
     AVFrame* avf = (AVFrame *)getAVFrame();
     if (avf) {
@@ -716,14 +716,17 @@ void HJMediaFrame::clone(const HJMediaFrame::Ptr& other)
     m_duration = other->m_duration;
     m_timeBase = other->m_timeBase;
     m_mts = other->m_mts;
+    m_extraTS = other->m_extraTS;
     m_speed = other->m_speed;
     m_frameType = other->m_frameType;
     m_vesfType = other->m_vesfType;
     //m_Buffer = other->m_Buffer;
     m_info = other->m_info;
     //
+    m_trackIndex = other->m_trackIndex;
     m_streamIndex = other->m_streamIndex;
     m_flag = other->m_flag;
+    m_bufferPos = other->m_bufferPos;
     //m_tracker = other->m_tracker;
     //
     HJKeyStorage::clone(other);
@@ -903,9 +906,15 @@ HJAVPacket::Ptr HJAVPacket::dup()
     if (!m_pkt) {
         return nullptr;
     }
+    if (AV_NOPTS_VALUE == m_pkt->dts || AV_NOPTS_VALUE == m_pkt->pts) {
+        HJFNLogw("checkFrame dts pts invalid before");
+    }
     AVPacket* pkt = av_packet_clone(m_pkt);
     if (!pkt) {
         return nullptr;
+    }
+    if (AV_NOPTS_VALUE == m_pkt->dts || AV_NOPTS_VALUE == m_pkt->pts) {
+        HJFNLogw("checkFrame dts pts invalid end");
     }
     return std::make_shared<HJAVPacket>(pkt);
 }

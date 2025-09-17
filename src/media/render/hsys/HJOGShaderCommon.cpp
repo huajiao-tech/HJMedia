@@ -48,31 +48,6 @@ void main()
 }
 )"; 
 
-const std::string HJOGShaderCommon::s_fragmentCopyShaderAlphaLeftRight = R"(
-precision mediump float;
-varying vec2  v_texcood; 
-uniform sampler2D sTexture;
-void main()
-{
-    vec4 planeAlpha = texture2D(sTexture,vec2(v_texcood.x * 0.5, v_texcood.y));
-    vec4 planeColor = texture2D(sTexture,vec2(v_texcood.x * 0.5 + 0.5, v_texcood.y));
-    gl_FragColor = vec4(planeColor.rgb * planeAlpha.r, planeAlpha.r);    
-}
-)";
-
-const std::string HJOGShaderCommon::s_fragmentCopyShaderAlphaLeftRightOES = R"(
-#extension GL_OES_EGL_image_external : require
-precision mediump float;
-varying vec2  v_texcood;    
-uniform samplerExternalOES sTexture;
-void main() 
-{
-    vec4 planeAlpha = texture2D(sTexture,vec2(v_texcood.x * 0.5, v_texcood.y));
-    vec4 planeColor = texture2D(sTexture,vec2(v_texcood.x * 0.5 + 0.5, v_texcood.y));
-    gl_FragColor = vec4(planeColor.rgb * planeAlpha.r, planeAlpha.r);    
-}
-)"; 
-
 const GLfloat HJOGShaderCommon::s_rectangleSTRIPVertexs[] = {
     1.0f, -1.0f, 0.f, 1.f, 0.f,   
     -1.0f, -1.0f,0.f, 0.f, 0.f,  

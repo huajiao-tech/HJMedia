@@ -1,0 +1,200 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e66494c..1bd7c33 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,68 +1,30 @@
+-cmake_minimum_required(VERSION 3.1)
+-set(CMAKE_CXX_STANDARD 17)
+-project(ImFileDialogExample)
++set(PROJ_NAME ImFileDialog)
+ 
+-# source code
+-set(SOURCES
+-	example.cpp
+-	ImFileDialog.cpp
++include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+ 
+-	libs/imgui/imgui.cpp
+-	libs/imgui/imgui_widgets.cpp
+-	libs/imgui/imgui_draw.cpp
+-	libs/imgui/imgui_tables.cpp
+-	libs/imgui/backends/imgui_impl_opengl3.cpp
+-	libs/imgui/backends/imgui_impl_sdl.cpp
+-)
+-
+-# cmake toolchain
+-if(CMAKE_TOOLCHAIN_FILE)
+-    include(${CMAKE_TOOLCHAIN_FILE})
+-endif(CMAKE_TOOLCHAIN_FILE)
+-
+-# pkg
+-if (UNIX)
+-  find_package(PkgConfig REQUIRED)
+-endif()
+-
+-# sdl2
+-if(WIN32 OR APPLE OR NOT ${USE_PKG_CHECK_SDL})
+-  find_package(SDL2 REQUIRED)
+-else()
+-  pkg_check_modules(SDL2 REQUIRED sdl2)
+-endif()
++set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
+ 
+-# opengl
+-set(OpenGL_GL_PREFERENCE GLVND CACHE STRING "Linux only: if GLVND, use the vendor-neutral GL libraries (default). If LEGACY, use the legacy ones (might be necessary to have working optirun/primusrun)")
+-set_property(CACHE OpenGL_GL_PREFERENCE PROPERTY STRINGS GLVND LEGACY)
+-find_package(OpenGL REQUIRED)
++set(HEADER_FILES
++    ${CMAKE_CURRENT_SOURCE_DIR}/ImFileDialog.h
++)
+ 
+-# glew
+-find_package(GLEW REQUIRED)
++set(SOURCE_FILES
++    ${CMAKE_CURRENT_SOURCE_DIR}/ImFileDialog.cpp
++)
++# message (STATUS "HEADER_FILES:${HEADER_FILES} SOURCE_FILES:${SOURCE_FILES}")
+ 
+-# create executable
+-add_executable(ImFileDialogExample ${SOURCES})
++MAKE_COMMON_CONFIG()
+ 
+-# properties
+-set_target_properties(ImFileDialogExample PROPERTIES
+-    CXX_STANDARD 17
+-    CXX_STANDARD_REQUIRED YES
+-)
++add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
+ 
+-# include directories
+-target_include_directories(ImFileDialogExample PRIVATE ${SDL2_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS})
+-target_include_directories(ImFileDialogExample PRIVATE libs libs/imgui)
++target_link_libraries(${PROJ_NAME} PRIVATE imgui glfw LIBSTB)
++target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
+ 
+-# link libraries
+-target_link_libraries(ImFileDialogExample ${OPENGL_LIBRARIES})
++HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
+ 
+-if(WIN32)
+-	# link specific win32 libraries
+-	target_link_libraries(ImFileDialogExample GLEW::GLEW SDL2::SDL2 SDL2::SDL2main)
++set_target_properties(${PROJ_NAME} PROPERTIES
++    ARCHIVE_OUTPUT_DIRECTORY ${ARCHIVE_output}
++    LIBRARY_OUTPUT_DIRECTORY ${library_output}
++    RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
+ 
+-elseif(UNIX AND NOT APPLE)
+-	# link linux libraries
+-	target_link_libraries(ImFileDialogExample ${GLEW_LIBRARIES} ${SDL2_LIBRARIES} ${CMAKE_DL_LIBS} stdc++fs pthread)
+-elseif(APPLE)
+-	target_link_libraries(ImFileDialogExample GLEW::GLEW ${SDL2_LIBRARIES} ${CMAKE_DL_LIBS})
+-endif()
++ProjFolder(${PROJ_NAME} "third_party")
+diff --git a/CMakeLists_bak.txt b/CMakeLists_bak.txt
+new file mode 100644
+index 0000000..e66494c
+--- /dev/null
++++ b/CMakeLists_bak.txt
+@@ -0,0 +1,68 @@
++cmake_minimum_required(VERSION 3.1)
++set(CMAKE_CXX_STANDARD 17)
++project(ImFileDialogExample)
++
++# source code
++set(SOURCES
++	example.cpp
++	ImFileDialog.cpp
++
++	libs/imgui/imgui.cpp
++	libs/imgui/imgui_widgets.cpp
++	libs/imgui/imgui_draw.cpp
++	libs/imgui/imgui_tables.cpp
++	libs/imgui/backends/imgui_impl_opengl3.cpp
++	libs/imgui/backends/imgui_impl_sdl.cpp
++)
++
++# cmake toolchain
++if(CMAKE_TOOLCHAIN_FILE)
++    include(${CMAKE_TOOLCHAIN_FILE})
++endif(CMAKE_TOOLCHAIN_FILE)
++
++# pkg
++if (UNIX)
++  find_package(PkgConfig REQUIRED)
++endif()
++
++# sdl2
++if(WIN32 OR APPLE OR NOT ${USE_PKG_CHECK_SDL})
++  find_package(SDL2 REQUIRED)
++else()
++  pkg_check_modules(SDL2 REQUIRED sdl2)
++endif()
++
++# opengl
++set(OpenGL_GL_PREFERENCE GLVND CACHE STRING "Linux only: if GLVND, use the vendor-neutral GL libraries (default). If LEGACY, use the legacy ones (might be necessary to have working optirun/primusrun)")
++set_property(CACHE OpenGL_GL_PREFERENCE PROPERTY STRINGS GLVND LEGACY)
++find_package(OpenGL REQUIRED)
++
++# glew
++find_package(GLEW REQUIRED)
++
++# create executable
++add_executable(ImFileDialogExample ${SOURCES})
++
++# properties
++set_target_properties(ImFileDialogExample PROPERTIES
++    CXX_STANDARD 17
++    CXX_STANDARD_REQUIRED YES
++)
++
++# include directories
++target_include_directories(ImFileDialogExample PRIVATE ${SDL2_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS})
++target_include_directories(ImFileDialogExample PRIVATE libs libs/imgui)
++
++# link libraries
++target_link_libraries(ImFileDialogExample ${OPENGL_LIBRARIES})
++
++if(WIN32)
++	# link specific win32 libraries
++	target_link_libraries(ImFileDialogExample GLEW::GLEW SDL2::SDL2 SDL2::SDL2main)
++
++elseif(UNIX AND NOT APPLE)
++	# link linux libraries
++	target_link_libraries(ImFileDialogExample ${GLEW_LIBRARIES} ${SDL2_LIBRARIES} ${CMAKE_DL_LIBS} stdc++fs pthread)
++elseif(APPLE)
++	target_link_libraries(ImFileDialogExample GLEW::GLEW ${SDL2_LIBRARIES} ${CMAKE_DL_LIBS})
++endif()
+diff --git a/ImFileDialog.cpp b/ImFileDialog.cpp
+index 81e04b1..eb00f4e 100644
+--- a/ImFileDialog.cpp
++++ b/ImFileDialog.cpp
+@@ -7,8 +7,8 @@
+ #include <algorithm>
+ #include <sys/stat.h>
+ #define IMGUI_DEFINE_MATH_OPERATORS
+-#include <imgui/imgui.h>
+-#include <imgui/imgui_internal.h>
++#include <imgui.h>
++#include <imgui_internal.h>
+ 
+ #define STB_IMAGE_IMPLEMENTATION
+ #include "stb_image.h"
+@@ -24,7 +24,7 @@
+ #include <pwd.h>
+ #endif
+ 
+-#define ICON_SIZE ImGui::GetFont()->FontSize + 3
++#define ICON_SIZE ImGui::GetFontSize() + 3 //ImGui::GetFont()->FontSize + 3
+ #define GUI_ELEMENT_SIZE std::max(GImGui->FontSize + 10.f, 24.f)
+ #define DEFAULT_ICON_SIZE 32
+ #define PI 3.141592f
+@@ -1177,7 +1177,7 @@ namespace ifd {
+ 
+ 				bool isSelected = std::count(m_selections.begin(), m_selections.end(), entry.Path);
+ 
+-				if (FileIcon(filename.c_str(), isSelected, entry.HasIconPreview ? entry.IconPreview : (ImTextureID)m_getIcon(entry.Path), ImVec2(32 + 16 * m_zoom, 32 + 16 * m_zoom), entry.HasIconPreview, entry.IconPreviewWidth, entry.IconPreviewHeight)) {
++				if (FileIcon(filename.c_str(), isSelected, entry.HasIconPreview ? (ImTextureID)entry.IconPreview : (ImTextureID)m_getIcon(entry.Path), ImVec2(32 + 16 * m_zoom, 32 + 16 * m_zoom), entry.HasIconPreview, entry.IconPreviewWidth, entry.IconPreviewHeight)) {
+ 					std::error_code ec;
+ 					bool isDir = std::filesystem::is_directory(entry.Path, ec);
+ 

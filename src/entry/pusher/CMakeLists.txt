@@ -1,11 +1,11 @@
 set(PROJ_NAME HJPusher)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${HJ_EXTERNALS_PATH}/generic/ffmpeg)
 
 if (HarmonyOS)
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/hsys/verify/com)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/hsys/bridge)
 endif()
 
@@ -19,7 +19,7 @@ HJ_RETRIEVE_XFILES(SUBPROJ_SOURCE_FILES ${subdir_names})
 HJ_RETRIEVE_HFILES(SUBPROJ_HEADER_FILES ${subdir_names})
 
 file(GLOB HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
-file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../*.cc")
 list(APPEND HEADER_FILES ${SUBPROJ_HEADER_FILES})
 list(APPEND SOURCE_FILES ${SUBPROJ_SOURCE_FILES})
 
@@ -34,7 +34,7 @@ if (HarmonyOS)
     libace_napi.z.so libEGL.so libGLESv3.so libace_ndk.z.so libuv.so libhilog_ndk.z.so
     libnative_media_codecbase.so libnative_media_core.so libnative_media_vdec.so libnative_window.so
     libnative_media_venc.so libnative_media_acodec.so libnative_media_avdemuxer.so libnative_media_avsource.so libnative_media_avmuxer.so
-    libohaudio.so libnative_image.so libnative_buffer.so)
+    libohaudio.so libnative_image.so libnative_buffer.so libimage_source.so libpixelmap.so libimage_receiver.so libohimage.so)
     target_link_libraries(${PROJ_NAME} PRIVATE ${Harmony_Native_LIBRARY})
 
     target_link_libraries(${PROJ_NAME} PRIVATE LIBX264)
@@ -42,7 +42,7 @@ if (HarmonyOS)
     target_link_options(${PROJ_NAME} PRIVATE "-Wl,-Bsymbolic")  #ld.lld: error: relocation R_AARCH64_ADR_PREL_PG_HI21 cannot be used against symbol 'ff_tx_tab_2048_float'; recompile with -fPIC
 endif()
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJGraphs HJPlugins HJMedia yyjson libfdkaac LIBFFMPEG LIBSTB LIBSPDLOG LIBMINICORO HJUtils)
+target_link_libraries(${PROJ_NAME} PRIVATE HJLinks HJGraphs HJPlugins HJComp HJMedia yyjson libfdkaac HJStat LIBFFMPEG LIBSTB LIBSPDLOG LIBMINICORO HJUtils)
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

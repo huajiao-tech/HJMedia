@@ -7,7 +7,7 @@
     },
     {
       "name": "PlayerPage",
-      "pageSourceFile": "src/main/ets/pages/PlayerPage.ets",
+      "pageSourceFile": "src/main/ets/player/pages/PlayerPage.ets",
       "buildFunction": "PageBuilder"
     },
     {
@@ -23,6 +23,16 @@
     {
       "name": "SettingsPage",
       "pageSourceFile": "src/main/ets/pusher/pages/SettingsPage.ets",
+      "buildFunction": "PageBuilder"
+    },
+    {
+      "name": "PlayerSettingPage",
+      "pageSourceFile": "src/main/ets/player/pages/PlayerSettingPage.ets",
+      "buildFunction": "PageBuilder"
+    },
+    {
+      "name": "LivePlayerPage",
+      "pageSourceFile": "src/main/ets/player/pages/LivePlayerPage.ets",
       "buildFunction": "PageBuilder"
     }
   ]

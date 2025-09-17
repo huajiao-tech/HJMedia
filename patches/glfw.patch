@@ -1,0 +1,119 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 398b36e..9036e03 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -127,14 +127,16 @@ if (GLFW_INSTALL)
+             DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+ 
+     # Only generate this target if no higher-level project already has
+-    if (NOT TARGET uninstall)
+-        configure_file(CMake/cmake_uninstall.cmake.in
+-                       cmake_uninstall.cmake IMMEDIATE @ONLY)
+-
+-        add_custom_target(uninstall
+-                          "${CMAKE_COMMAND}" -P
+-                          "${GLFW_BINARY_DIR}/cmake_uninstall.cmake")
+-        set_target_properties(uninstall PROPERTIES FOLDER "GLFW3")
+-    endif()
++    #if (NOT TARGET uninstall)
++    #    configure_file(CMake/cmake_uninstall.cmake.in
++    #                   cmake_uninstall.cmake IMMEDIATE @ONLY)
++
++    #    add_custom_target(uninstall
++    #                      "${CMAKE_COMMAND}" -P
++    #                      "${GLFW_BINARY_DIR}/cmake_uninstall.cmake")
++    #   set_target_properties(uninstall PROPERTIES FOLDER "third_party/glfw")
++    #endif()
+ endif()
+ 
++set(PROJ_NAME glfw)
++ProjFolder(${PROJ_NAME} "third_party")
+\ No newline at end of file
+diff --git a/docs/CMakeLists.txt b/docs/CMakeLists.txt
+index 5052217..af12a98 100644
+--- a/docs/CMakeLists.txt
++++ b/docs/CMakeLists.txt
+@@ -34,24 +34,24 @@ endforeach()
+ set(DOXYGEN_SKIP_DOT TRUE)
+ find_package(Doxygen)
+ 
+-if (NOT DOXYGEN_FOUND OR DOXYGEN_VERSION VERSION_LESS "1.9.8")
+-    message(STATUS "Documentation generation requires Doxygen 1.9.8 or later")
+-else()
+-    configure_file(Doxyfile.in Doxyfile @ONLY)
+-    add_custom_command(OUTPUT "html/index.html"
+-                       COMMAND "${DOXYGEN_EXECUTABLE}"
+-                       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+-                       MAIN_DEPENDENCY Doxyfile
+-                       DEPENDS ${header_paths} ${source_files} ${extra_files}
+-                       COMMENT "Generating HTML documentation"
+-                       VERBATIM)
+-
+-    add_custom_target(docs ALL SOURCES "html/index.html")
+-    set_target_properties(docs PROPERTIES FOLDER "GLFW3")
+-
+-    if (GLFW_INSTALL)
+-        install(DIRECTORY "${GLFW_BINARY_DIR}/docs/html"
+-                DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+-    endif()
+-endif()
++# if (NOT DOXYGEN_FOUND OR DOXYGEN_VERSION VERSION_LESS "1.9.8")
++#     message(STATUS "Documentation generation requires Doxygen 1.9.8 or later")
++# else()
++#     configure_file(Doxyfile.in Doxyfile @ONLY)
++#     add_custom_command(OUTPUT "html/index.html"
++#                        COMMAND "${DOXYGEN_EXECUTABLE}"
++#                        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
++#                        MAIN_DEPENDENCY Doxyfile
++#                        DEPENDS ${header_paths} ${source_files} ${extra_files}
++#                        COMMENT "Generating HTML documentation"
++#                        VERBATIM)
++
++#     add_custom_target(docs ALL SOURCES "html/index.html")
++#     set_target_properties(docs PROPERTIES FOLDER "GLFW3")
++
++#     if (GLFW_INSTALL)
++#         install(DIRECTORY "${GLFW_BINARY_DIR}/docs/html"
++#                 DESTINATION "${CMAKE_INSTALL_DOCDIR}")
++#     endif()
++# endif()
+ 
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 2cbe8a7..bbfd1ba 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -20,14 +20,14 @@ else()
+                                 posix_time.c posix_thread.c)
+ endif()
+ 
+-add_custom_target(update_mappings
+-    COMMAND "${CMAKE_COMMAND}" -P "${GLFW_SOURCE_DIR}/CMake/GenerateMappings.cmake" mappings.h.in mappings.h
+-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+-    COMMENT "Updating gamepad mappings from upstream repository"
+-    SOURCES mappings.h.in "${GLFW_SOURCE_DIR}/CMake/GenerateMappings.cmake"
+-    VERBATIM)
++#add_custom_target(update_mappings
++#    COMMAND "${CMAKE_COMMAND}" -P "${GLFW_SOURCE_DIR}/CMake/GenerateMappings.cmake" mappings.h.in mappings.h
++#    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
++#    COMMENT "Updating gamepad mappings from upstream repository"
++#    SOURCES mappings.h.in "${GLFW_SOURCE_DIR}/CMake/GenerateMappings.cmake"
++#    VERBATIM)
+ 
+-set_target_properties(update_mappings PROPERTIES FOLDER "GLFW3")
++#set_target_properties(update_mappings PROPERTIES FOLDER "GLFW3")
+ 
+ if (GLFW_BUILD_COCOA)
+     enable_language(OBJC)
+@@ -136,6 +136,12 @@ target_include_directories(glfw PUBLIC
+ target_include_directories(glfw PRIVATE
+                            "${GLFW_SOURCE_DIR}/src"
+                            "${GLFW_BINARY_DIR}/src")
++
++#lfs
++target_include_directories(glfw PUBLIC
++                           "$<BUILD_INTERFACE:${GLFW_SOURCE_DIR}/deps>"
++                           "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
++
+ target_link_libraries(glfw PRIVATE Threads::Threads)
+ 
+ if (GLFW_BUILD_WIN32)

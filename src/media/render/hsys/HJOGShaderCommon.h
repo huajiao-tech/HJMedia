@@ -26,10 +26,7 @@ public:
     const static std::string s_vertexCopyShader;
     const static std::string s_fragmentCopyShader;
     const static std::string s_fragmentCopyShaderOES;
-    
-    const static std::string s_fragmentCopyShaderAlphaLeftRight;
-    const static std::string s_fragmentCopyShaderAlphaLeftRightOES;
-    
+            
     const static GLfloat s_rectangleSTRIPVertexs[];
     
     static std::string s_render_mode_fit;

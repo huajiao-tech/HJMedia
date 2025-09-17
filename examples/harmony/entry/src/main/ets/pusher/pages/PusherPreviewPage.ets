@@ -1,19 +1,19 @@
-import { VideoConstant } from '../../common/VideoConstant';
 import { PusherXComponent } from '../component/PusherXComponent';
-import { PusherConfigPreset, pusherPreset, VideoStateData } from '../model/PusherPreviewModel';
+import { VideoStateData } from '../model/PusherPreviewModel';
+import {
+  PusherPreviewState, PusherPreviewStore,
+} from '../store/PusherPreviewStore';
 import {
   CameraAction,
+  DoubleScreenAction,
   GiftAction,
   MicrophoneAction,
   PusherAction,
-  PusherPreviewState,
-  PusherPreviewStore,
   RecorderAction,
   RecorderActionPayLoad,
+  SelectorAction,
   TimerAction
-} from '../store/PusherPreviewStore';
-import { WindowUtils } from '../../util/WindowUtils';
-import { AppStorageV2, window } from '@kit.ArkUI';
+} from '../store/action/PusherPreviewAction';
 
 @Builder
 export function PageBuilder() {
@@ -26,12 +26,8 @@ const TAG = 'PusherPreviewPage'
 struct PusherPreviewPage {
   pusherStore: PusherPreviewStore = new PusherPreviewStore()
   state: PusherPreviewState = this.pusherStore.getState()
-  config = AppStorageV2.connect(PusherConfigPreset, () => pusherPreset)!
 
   aboutToAppear(): void {
-    // VideoConstant.VIDEO_STATE_LIST.forEach((name) => {
-    //   this.state.videoStateData.push(new VideoStateData(name, '1.0.0', ''))
-    // })
     this.pusherStore.aboutToAppear()
   }
 
@@ -40,41 +36,46 @@ struct PusherPreviewPage {
   }
 
   onPageShow(): void {
-    WindowUtils.setWindowLayoutFullScreen(true)
-    if (this.config.isLandScape) {
-      WindowUtils.setOrientation(window.Orientation.LANDSCAPE)
-    }
+    this.pusherStore.onPageShow()
   }
 
   onPageHide(): void {
-    WindowUtils.setWindowLayoutFullScreen(false)
-    if (this.config.isLandScape) {
-      WindowUtils.setOrientation(window.Orientation.UNSPECIFIED)
-    }
+    this.pusherStore.onPageHide()
   }
 
   build() {
     NavDestination() {
-      Column() {
-        Stack({ alignContent: Alignment.Bottom }) {
-          RelativeContainer() {
-            PusherXComponent({hjPusher: this.state.hjPusher})
-          }
-          .size({ width: "100%", height: "100%" })
+      RelativeContainer() {
+        PusherXComponent({ hjPusher: this.state.hjPusher })
+        Repeat([0, 1])
+          .each(item => {
+            Column()
+              .width(this.state.config.isLandScape ? "50%" : "100%")
+              .height(this.state.config.isLandScape ? "100%" : "50%")
+              .position({ x: item.index == 0 ? 0 : this.state.selectorX, y: item.index == 0 ? 0 : this.state.selectorY })
+              .border({
+                color: "#7CFC00",
+                width: item.index === this.state.previewAndPusherSelector.currentIndex ? 4 : 0
+              })
+              .onClick(() => {
+                this.pusherStore.dispatch(new SelectorAction(item.index))
+              })
+              .visibility(this.state.doubleScreen ? Visibility.Visible : Visibility.None)
+          })
 
+        Column() {
+          this.PusherTimer()
           Column() {
-            this.PusherTimer()
-            Column() {
-              // this.PusherDetail()
-              this.BottomSetting()
-            }
+            this.PusherDetail()
+            this.BottomSetting()
           }
-          .justifyContent(FlexAlign.SpaceBetween)
-          .size({ width: "100%", height: "100%" })
         }
+        .justifyContent(FlexAlign.SpaceBetween)
         .size({ width: "100%", height: "100%" })
+        .hitTestBehavior(HitTestMode.None)
       }
       .size({ width: "100%", height: "100%" })
+
     }
     .onShown(() => {
       this.onPageShow();
@@ -114,14 +115,17 @@ struct PusherPreviewPage {
   @Builder
   PusherDetail() {
     Column() {
-      ForEach(this.state.videoStateData, (item: VideoStateData) => {
+      ForEach(this.state.pusherLiveInfo, (item: VideoStateData) => {
         if (item) {
-          Text(`${item.name}：${item.value} ${item.unit}`)
+          Text(`${item.name}：${item.value == 0 ? "--" : item.value} ${item.unit}`)
+            .fontSize(10)
+            .fontColor(Color.White)
             .margin({ bottom: 10 })
         }
       })
     }
     .width("100%")
+    .padding({ left: 20 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -165,6 +169,12 @@ struct PusherPreviewPage {
               this.pusherStore.dispatch(new CameraAction(item.index))
             } else if (item.item.type == "gift") {
               this.pusherStore.dispatch(new GiftAction(this.getUIContext().getHostContext()?.resourceDir + "/ShuangDanCaiShen"))
+              this.pusherStore.dispatch(new SelectorAction(1))
+            } else if (item.item.type == "gift_self") {
+              this.pusherStore.dispatch(new GiftAction(this.getUIContext().getHostContext()?.resourceDir + "/ShuangDanCaiShen"))
+              this.pusherStore.dispatch(new SelectorAction(0))
+            } else if (item.item.type == "doubleScreen") {
+              this.pusherStore.dispatch(new DoubleScreenAction())
             }
           })
       })

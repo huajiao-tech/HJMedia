@@ -8,9 +8,12 @@
 #include "HJVDecFFMpeg.h"
 #include "HJAEncFFMpeg.h"
 #include "HJVEncFFMpeg.h"
+
 #if defined(HJ_OS_HARMONY)
-#include "hsys/HJVEncOHCodec.h"
+    #include "hsys/HJVEncOHCodec.h"
+    #include "hsys/HJVDecOHCodec.h"
 #endif
+
 //#if defined(HJ_OS_DARWIN)
 //#   include "isys/HJVEncVTB.h"
 //#endif
@@ -29,6 +32,9 @@ int HJBaseCodec::init(const HJStreamInfo::Ptr& info)
     }
     m_info = info->dup();
     m_nipMuster = std::make_shared<HJNipMuster>();
+    if (info->getBool("pop_front_frame")) {
+        m_popFrontFrame = info->getBool("pop_front_frame");
+    }
     
     return HJ_OK;
 }
@@ -53,9 +59,14 @@ HJBaseCodec::Ptr HJBaseCodec::createVDecoder(HJDeviceType type/* = HJDEVICE_TYPE
         case HJDEVICE_TYPE_QSV:
         case HJDEVICE_TYPE_VIDEOTOOLBOX:
         case HJDEVICE_TYPE_MEDIACODEC:{
-            decoder = std::make_shared<HJVDecFFMpeg>();
+            decoder = std::make_shared<HJVDecFFMpegPlus>();
             break;
         }
+    case HJDEVICE_TYPE_OHCODEC:
+#if defined (HarmonyOS)
+            decoder = std::make_shared<HJVDecOHCodec>();
+#endif
+            break;
         default: {
             HJLoge("create decoder not support, type:" + HJ2STR(type));
             break;

@@ -3,8 +3,8 @@
 
 NS_HJ_BEGIN
 
-HJPluginRTMPMuxer::HJPluginRTMPMuxer(const std::string& i_name, size_t i_identify)
-	: HJPluginMuxer(i_name, i_identify)
+HJPluginRTMPMuxer::HJPluginRTMPMuxer(const std::string& i_name, HJKeyStorage::Ptr i_graphInfo)
+	: HJPluginMuxer(i_name, i_graphInfo)
 {
 	m_muxer = std::make_shared<HJRTMPMuxer>([&](const HJNotification::Ptr ntf) -> int {
 		if (m_listener) {
@@ -16,17 +16,19 @@ HJPluginRTMPMuxer::HJPluginRTMPMuxer(const std::string& i_name, size_t i_identif
     m_muxer->setTimestampZero(true);
 }
 
-int HJPluginRTMPMuxer::internalInit(HJKeyStorage::Ptr i_param)
+int HJPluginRTMPMuxer::done()
 {
-	// TODO ÖØ¸´µ÷ÓÃinternalInit£¬Ê§°ÜµÄ»°m_listenerÓÐÒþ»¼£»ÍË³öÐèÒªm_listener = nullptrÂð£¿
-	m_listener = i_param->getValue<HJListener>("rtmpListener");
-	return HJPluginMuxer::internalInit(i_param);
+	m_quitting.store(true);
+	m_muxer->setQuit(true);
+	return HJPluginMuxer::done();
 }
 
-void HJPluginRTMPMuxer::beforeDone()
+int HJPluginRTMPMuxer::internalInit(HJKeyStorage::Ptr i_param)
 {
-	HJPluginMuxer::beforeDone();
-	m_muxer->setQuit(true);
+	// TODO Ã–Ã˜Â¸Â´ÂµÃ·Ã“ÃƒinternalInitÂ£Â¬ÃŠÂ§Â°ÃœÂµÃ„Â»Â°m_listenerÃ“ÃÃ’Ã¾Â»Â¼Â£Â»ÃÃ‹Â³Ã¶ÃÃ¨Ã’Âªm_listener = nullptrÃ‚Ã°Â£Â¿
+	m_listener = i_param->getValue<HJListener>("rtmpListener");
+	i_param->erase("rtmpListener");
+	return HJPluginMuxer::internalInit(i_param);
 }
 
 void HJPluginRTMPMuxer::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
@@ -60,25 +62,31 @@ void HJPluginRTMPMuxer::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 	}
 }
 
-int HJPluginRTMPMuxer::initMuxer(std::string i_url, int i_mediaTypes)
+int HJPluginRTMPMuxer::initMuxer(std::string i_url, int i_mediaTypes, std::weak_ptr<HJStatContext> statCtx)
 {
-	if (m_handler->async([=] {
-		SYNC_PROD_LOCK([=] {
-			CHECK_DONE_STATUS();
-			auto ret = HJPluginMuxer::initMuxer(i_url, i_mediaTypes);
-			if (ret < 0) {
-				if (m_pluginListener) {
-					m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_MUXER_INIT)));
-				}
-			}
-			if (ret == HJ_OK) {
-				m_status = HJSTATUS_Ready;
-			}
-		});
+	auto muxer = SHARED_FROM_THIS;
+	if (m_handler->async([muxer, i_url, i_mediaTypes, statCtx] {
+		muxer->asyncInitMuxer(i_url, i_mediaTypes, statCtx);
 	})) {
 		return HJ_OK;
 	}
 	return HJErrFatal;
+}
+
+void HJPluginRTMPMuxer::asyncInitMuxer(std::string i_url, int i_mediaTypes, std::weak_ptr<HJStatContext> statCtx)
+{
+	SYNC_PROD_LOCK([=] {
+		CHECK_DONE_STATUS();
+		auto ret = HJPluginMuxer::initMuxer(i_url, i_mediaTypes, statCtx);
+		if (ret < 0) {
+			if (m_pluginListener) {
+				m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_MUXER_INIT)));
+			}
+		}
+		if (ret == HJ_OK) {
+			m_status = HJSTATUS_Ready;
+		}
+	});
 }
 
 NS_HJ_END

@@ -14,6 +14,10 @@ typedef struct H264ParamSets H264ParamSets;
 typedef struct HEVCParamSets HEVCParamSets;
 typedef struct HEVCSEI HEVCSEI;
 
+typedef struct HEVCVPS HEVCVPS;
+typedef struct HEVCPPS HEVCPPS;
+typedef struct HEVCSPS HEVCSPS;
+
 NS_HJ_BEGIN
 //***********************************************************************************//
 /*
@@ -63,6 +67,10 @@ protected:
     int                 m_profile = 0;
     int                 m_level = 0;
     bool                m_reboot = false;
+    //
+    HEVCVPS* m_vps = NULL;
+    HEVCPPS* m_pps = NULL;
+    HEVCSPS* m_sps = NULL;
 };
 
 //***********************************************************************************//

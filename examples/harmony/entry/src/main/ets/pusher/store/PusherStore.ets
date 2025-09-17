@@ -1,5 +1,5 @@
 import { State, Store, Action } from '../../interface/Store';
-import { PusherConfig } from '../model/PusherModel';
+import { MediaConfig } from '../model/PusherModel';
 import { AppStorageV2 } from '@kit.ArkUI';
 import { PusherConfigPreset, pusherPreset } from '../model/PusherPreviewModel';
 import { NavStackUtil } from '../../util/NavStackUitl';
@@ -9,10 +9,11 @@ import { ToastUtils } from '../../util/ToastUtils';
 
 @ObservedV2
 export class PusherState implements State {
-  @Trace pusherConfigArray: PusherConfig[] = [
-    new PusherConfig("string", 'URL 推流地址', 'rtmp://live-push-1.huajiao.com/main/wks?auth_key=1754964140-0-0-2f615395421ef1b23d22589feee3ef5d'),
-    new PusherConfig("boolean", '是否横屏', false),
-    new PusherConfig("boolean", '是否保持屏幕常亮', false),
+  @Trace pusherConfigArray: MediaConfig[] = [
+    new MediaConfig("string", 'URL 推流地址', 'rtmp://live-push-0.test.huajiao.com/main/ljk979?auth_key=1755763018-0-0-c00ad68d9199388a9cd200c214e52fc1'),
+    new MediaConfig("boolean", '是否横屏', false),
+    new MediaConfig("boolean", '是否保持屏幕常亮', false),
+    new MediaConfig("boolean", '是否双屏预览', false),
   ]
   config: PusherConfigPreset = AppStorageV2.connect(PusherConfigPreset, () => pusherPreset)!
 }
@@ -42,7 +43,7 @@ export class PusherStore implements Store<PusherState> {
           .then((data) => {
             if (data.authResults) {
               if (data.authResults.every(item => item == 0)) {
-                NavStackUtil.jumpPush({ name: "PusherPreviewPage" })
+                NavStackUtil.jumpPush({ name: "PusherPreviewPage", param: this.state.pusherConfigArray[3].value as boolean })
               } else {
                 ToastUtils.showToast("请进入设置中允许相机和麦克风权限后重新进入!")
               }

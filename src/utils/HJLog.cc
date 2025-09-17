@@ -23,6 +23,7 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/rotating_file_sink.h"
 #include "spdlog/sinks/daily_file_sink.h"
+#include "HJTime.h"
 
 #define HJ_LOG_BUFFER_CACHE        1024 * 1024
 //#define HJ_HAVE_ASYNC_LOG          1
@@ -115,7 +116,7 @@ void HJLog::done()
     m_valid = false;
 }
 
-inline void HJLog::log(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const std::string& msg)
+void HJLog::log(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const std::string& msg)
 {
     if (!m_valid) {
         return;
@@ -125,20 +126,35 @@ inline void HJLog::log(HJLLevel level, const char* file, int line, const char* f
     return;
 }
 
-//template <typename... Args>
-//inline void HJLog::fmtLog(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const char* msg, const Args &... args)
-//{
-//    if (!m_valid) {
-//        return;
-//    }
-//    /*std::string massage = "<" + tag + ">: " + fmt::vformat(msg, fmt::make_format_args(args...));*/
-//    //log(level, file, line, function, tag, massage);
-//    std::string massage = fmt::vformat(msg, fmt::make_format_args(args...));
-//    spdlog::log(spdlog::source_loc{ file, line, function }, (spdlog::level::level_enum)level, massage.c_str());
-//    return;
-//}
+void HJLog::perLog(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const std::string& msg, int64_t interval)
+{
+    if (!m_valid) {
+        return;
+    }
+    HJ_AUTOU_LOCK(m_mutex);
+    size_t key = getHashKey(file, line, function);
+    auto it = m_entrys.find(key);
+    if (it != m_entrys.end()) 
+    {
+        auto& entry = it->second;
+        auto now = HJCurrentSteadyUS();
+        if (now >= entry->m_runtime + entry->m_interval) {
+            entry->setRuntime(now);
+            //
+            log(level, file, line, function, tag, msg);
+        }
+    } else {
+        auto entry = HJCreates<HJLogEntry>(key);
+        entry->m_runtime = HJCurrentSteadyUS();
+        entry->m_interval = HJ_MS_TO_US(interval);
+        m_entrys[key] = entry;
+        //
+        log(level, file, line, function, tag, msg);
+    }
+    return;
+}
 
-inline void HJLog::vaprintf(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const char* fmt, va_list args)
+void HJLog::vaprintf(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const char* fmt, va_list args)
 {
     if (!m_valid) {
         return;
@@ -154,7 +170,7 @@ inline void HJLog::vaprintf(HJLLevel level, const char* file, int line, const ch
     return;
 }
 
-inline void HJLog::mprintf(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const char* fmt, ...)
+void HJLog::mprintf(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -162,12 +178,6 @@ inline void HJLog::mprintf(HJLLevel level, const char* file, int line, const cha
     va_end(args);
     return;
 }
-
-//template <typename... Args>
-//inline std::string HJLog::formatString(const char* msg, const Args &... args)
-//{ 
-//    return fmt::vformat(msg, fmt::make_format_args(args...));
-//}
 
 //***********************************************************************************//
 HJLogStream::HJLogStream(HJLLevel level, const char *file, int line, const char *function, const std::string& tag)

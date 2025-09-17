@@ -15,7 +15,7 @@ public:
     HJFFDemuxerEx();
     HJFFDemuxerEx(const HJMediaUrl::Ptr& mediaUrl);
 
-    virtual int init();
+    virtual int init() override;
     virtual int init(const HJMediaUrl::Ptr& mediaUrl) override;
     virtual int getFrame(HJMediaFrame::Ptr& frame) override;
 private:

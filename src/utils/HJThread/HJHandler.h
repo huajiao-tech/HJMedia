@@ -10,7 +10,7 @@ public:
 	using Ptr = std::shared_ptr<HJHandler>;
 	using Run = std::function<int(void)>;
 
-	virtual void handleMessage(HJMessage::Ptr msg) {};
+	virtual void handleMessage(HJMessage::Ptr msg) { };
 	virtual void dispatchMessage(HJMessage::Ptr msg);
 
 	HJHandler(HJLooper::Ptr looper);
@@ -38,7 +38,10 @@ private:
 	public:
 		using Ptr = std::shared_ptr<BlockingRunnable>;
 
-		BlockingRunnable(Run task) : mTask(task) {};
+		BlockingRunnable(Run task) : HJSyncObject("BlockingRunnable"), mTask(task) { };
+		virtual ~BlockingRunnable() {
+			BlockingRunnable::done();
+		}
 		int postAndWait(HJHandler::Ptr handler, uint64_t timeout);
 
 	private:

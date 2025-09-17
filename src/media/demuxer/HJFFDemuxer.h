@@ -6,6 +6,7 @@
 #pragma once
 #include "HJMediaFrame.h"
 #include "HJBaseDemuxer.h"
+//#include "HJPacketChecker.h"
 //#include "HJFrameParser.h"
 
 typedef struct AVFormatContext AVFormatContext;
@@ -22,14 +23,14 @@ public:
     HJFFDemuxer(const HJMediaUrl::Ptr& mediaUrl);
     virtual ~HJFFDemuxer();
     
-    virtual int init();
-    virtual int init(const HJMediaUrl::Ptr& mediaUrl);
-    virtual void done();
-    virtual int seek(int64_t pos);     //ms
-    virtual int getFrame(HJMediaFrame::Ptr& frame);
-    virtual void reset();
+    virtual int init() override;
+    virtual int init(const HJMediaUrl::Ptr& mediaUrl) override;
+    virtual void done() override;
+    virtual int seek(int64_t pos) override;     //ms
+    virtual int getFrame(HJMediaFrame::Ptr& frame) override;
+    virtual void reset() override;
     
-    virtual int64_t getDuration();  //ms
+    virtual int64_t getDuration() override;  //ms
 private:
     AVDictionary* getFormatOptions();
     int makeMediaInfo();
@@ -38,7 +39,10 @@ private:
     int analyzeProtocol();
 private:
     AVFormatContext*    m_ic = NULL;
+    int64_t			    m_lastAudioDTS{ HJ_NOTS_VALUE };   //ms
+    int64_t			    m_gapThreshold{ 1000 };
 	//HJFrameParser::Ptr m_parser = nullptr;
+    //HJPacketChecker     m_packetChecker;
 };
 using HJFFDemuxerList = HJList<HJFFDemuxer::Ptr>;
 

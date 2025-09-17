@@ -3,32 +3,31 @@
 
 NS_HJ_BEGIN
 
-#define RUNTASKLog		//HJFLogi
+#define RUNTASKLog		HJFLogi
 
 int HJPluginAudioResampler::internalInit(HJKeyStorage::Ptr i_param)
 {
-	GET_PARAMETER(HJAudioInfo::Ptr, audioInfo);
-	if (!audioInfo) {
-		return HJErrInvalidParams;
-	}
+	MUST_HAVE_PARAMETERS;
+	MUST_GET_PARAMETER(HJAudioInfo::Ptr, audioInfo);
 	GET_PARAMETER(HJLooperThread::Ptr, thread);
-	GET_PARAMETER(HJListener, pluginListener);
-	auto param = std::make_shared<HJKeyStorage>();
-	(*param)["thread"] = thread;
-	(*param)["createThread"] = static_cast<bool>(thread == nullptr);
-	if (pluginListener) {
-		(*param)["pluginListener"] = pluginListener;
-	}
+	GET_PARAMETER(bool, fifo);
+
+	auto param = HJKeyStorage::dupFrom(i_param);
+	(*param)["createThread"] = (thread == nullptr);
 	int ret = HJPlugin::internalInit(param);
 	if (ret < 0) {
 		return ret;
 	}
 
 	do {
-		m_fifo = std::make_shared<HJAudioFifo>(audioInfo->m_channels, audioInfo->m_sampleFmt, audioInfo->m_samplesRate);
-		ret = m_fifo->init(audioInfo->m_sampleCnt);
-		if (HJ_OK != ret) {
-			break;
+		m_converter = std::make_shared<HJAudioConverter>(audioInfo);
+
+		if (fifo) {
+			m_fifo = std::make_shared<HJAudioFifo>(audioInfo->m_channels, audioInfo->m_sampleFmt, audioInfo->m_samplesRate);
+			ret = m_fifo->init(audioInfo->m_sampleCnt);
+			if (ret != HJ_OK) {
+				break;
+			}
 		}
 
 		m_audioInfo = audioInfo;
@@ -41,11 +40,26 @@ int HJPluginAudioResampler::internalInit(HJKeyStorage::Ptr i_param)
 
 void HJPluginAudioResampler::internalRelease()
 {
+	HJFLogi("{}, internalRelease() begin", getName());
+
 	m_audioInfo = nullptr;
 	m_converter = nullptr;
 	m_fifo = nullptr;
 
 	HJPlugin::internalRelease();
+
+	HJFLogi("{}, internalRelease() end", getName());
+}
+
+void HJPluginAudioResampler::onOutputUpdated()
+{
+	auto input = getInput(m_inputKeyHash.load());
+	if (input) {
+		auto plugin = input->plugin.lock();
+		if (plugin) {
+			plugin->onOutputUpdated();
+		}
+	}
 }
 
 void HJPluginAudioResampler::onInputAdded(size_t i_srcKeyHash, HJMediaType i_type)
@@ -53,72 +67,78 @@ void HJPluginAudioResampler::onInputAdded(size_t i_srcKeyHash, HJMediaType i_typ
 	m_inputKeyHash.store(i_srcKeyHash);
 }
 
-int HJPluginAudioResampler::runTask()
+void HJPluginAudioResampler::onOutputAdded(size_t i_dstKeyHash, HJMediaType i_type)
 {
-	RUNTASKLog("{}, enter", getName());
+	m_outputKeyHash.store(i_dstKeyHash);
+}
+
+int HJPluginAudioResampler::runTask(int64_t* o_delay)
+{
+    addInIdx();
 	int64_t enter = HJCurrentSteadyMS();
-	std::string route = "0";
+	bool log = false;
+	if (m_lastEnterTimestamp < 0 || enter >= m_lastEnterTimestamp + LOG_INTERNAL) {
+		m_lastEnterTimestamp = enter;
+		log = true;
+	}
+	if (log) {
+		RUNTASKLog("{}, enter", getName());
+	}
+
+	std::string route{};
 	size_t size = -1;
 	int ret = HJ_OK;
 	do {
-		auto inFrame = receive(m_inputKeyHash.load(), size);
+		auto inFrame = receive(m_inputKeyHash.load(), &size);
 		if (inFrame == nullptr) {
 			route += "_1";
 			ret = HJ_WOULD_BLOCK;
 			break;
 		}
 
-		auto err = SYNC_CONS_LOCK([&route, &inFrame, this] {
+		HJMediaFrame::Ptr outFrame{};
+		auto err = SYNC_CONS_LOCK([&route, &inFrame, &outFrame, this] {
 			if (m_status == HJSTATUS_Done) {
 				route += "_2";
 				return HJErrAlreadyDone;
 			}
 			if (m_status < HJSTATUS_Inited) {
 				route += "_3";
-				return HJErrNotInited;
+				return HJ_WOULD_BLOCK;
 			}
 			if (m_status >= HJSTATUS_Stoped) {
 				route += "_4";
-				return HJErrFatal;
+				return HJ_WOULD_BLOCK;
 			}
 
-			if (m_status < HJSTATUS_Ready) {
-				route += "_5";
-				auto audioInfo = inFrame->getAudioInfo();
-				if (audioInfo == nullptr) {
-					route += "_6";
-					HJFLoge("{}, (audioInfo == nullptr)", getName());
-					return HJErrFatal;
-				}
-				if (audioInfo->m_samplesRate != m_audioInfo->m_samplesRate ||
-					audioInfo->m_channels != m_audioInfo->m_channels) {
-					route += "_7";
-					m_converter = std::make_shared<HJAudioConverter>(m_audioInfo);
-				}
-
-				m_status = HJSTATUS_Ready;
-			}
-
-			if (m_converter != nullptr) {
-				route += "_8";
+			if (!inFrame->isEofFrame()) {
+				m_streamIndex = inFrame->m_streamIndex;
 				inFrame = m_converter->convert(std::move(inFrame));
 				if (inFrame == nullptr) {
 					route += "_9";
 					HJFLogi("{}, (inFrame == nullptr)", getName());
 					return HJ_WOULD_BLOCK;
 				}
+				inFrame->m_streamIndex = m_streamIndex;
+			}
+			else {
+				int a = 0;
 			}
 
-			inFrame->setAVTimeBase(HJTimeBase{ 1, m_audioInfo->m_samplesRate });
-			auto err = m_fifo->addFrame(std::move(inFrame));
-			if (err < 0) {
+			if (m_fifo != nullptr) {
 				route += "_10";
-				HJFLoge("{}, m_fifo->addFrame() error({})", getName(), err);
-				if (m_pluginListener) {
-					m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_AUDIOFIFO_ADDFRAME)));
+				inFrame->setAVTimeBase(HJTimeBase{ 1, m_audioInfo->m_samplesRate });
+				m_streamIndex = inFrame->m_streamIndex;
+				auto err = m_fifo->addFrame(std::move(inFrame));
+				if (err < 0) {
+					route += "_11";
+					HJFLoge("{}, m_fifo->addFrame() error({})", getName(), err);
+					return HJErrFatal;
 				}
-				m_status = HJSTATUS_Exception;
-				return HJErrFatal;
+			}
+			else {
+				route += "_12";
+				outFrame = inFrame;
 			}
 			return HJ_OK;
 		});
@@ -126,56 +146,51 @@ int HJPluginAudioResampler::runTask()
 			if (err == HJErrAlreadyDone) {
 				ret = HJErrAlreadyDone;
 			}
+			else if (err == HJErrFatal) {
+				setStatus(HJSTATUS_Exception);
+				if (m_pluginListener) {
+					m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_AUDIOFIFO_ADDFRAME)));
+				}
+			}
 			break;
 		}
 
-		for (;;) {
-			route += "_11";
-			HJMediaFrame::Ptr outFrame{};
-			err = SYNC_CONS_LOCK([&route, &outFrame, this] {
-				if (m_status == HJSTATUS_Done) {
-					route += "_12";
-					return HJErrAlreadyDone;
-				}
-				outFrame = m_fifo->getFrame();
-				return HJ_OK;
-			});
-			if (err == HJErrAlreadyDone) {
-				ret = HJErrAlreadyDone;
-				break;
-			}
-			if (outFrame == nullptr) {
-				route += "_13";
-				break;
-			}
-
-			route += "_14";
+		if (outFrame != nullptr) {
+			route += "_13";
 			deliverToOutputs(outFrame);
 		}
-	} while (false);
+		else {
+			for (;;) {
+				route += "_14";
+				HJMediaFrame::Ptr outFrame{};
+				err = SYNC_CONS_LOCK([&route, &outFrame, this] {
+					if (m_status == HJSTATUS_Done) {
+						route += "_15";
+						return HJErrAlreadyDone;
+					}
+					outFrame = m_fifo->getFrame();
+					return HJ_OK;
+				});
+				if (err == HJErrAlreadyDone) {
+					ret = HJErrAlreadyDone;
+					break;
+				}
+				if (outFrame == nullptr) {
+					route += "_16";
+					break;
+				}
 
-	RUNTASKLog("{}, leave, route({}), size({}), duration({}), ret({})", getName(), route, size, (HJCurrentSteadyMS() - enter), ret);
-	return ret;
-}
-
-void HJPluginAudioResampler::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
-{
-	auto info = i_mediaFrame->getAudioInfo();
-	sample_size += info->getSampleCnt();
-	auto now = HJCurrentSteadyMS();
-	if (start_time > 0) {
-		if ((now - start_time) / 1000 >= duration_count * 5) {
-			auto samples = duration_count * 5 * info->getSampleRate();
-			HJFLogi("{}, ({})s, samples({}), sample_size diff({}), delay({})",
-				getName(), duration_count * 5, samples, sample_size - samples, now - i_mediaFrame->getPTS());
-			duration_count++;
+				route += "_17";
+				outFrame->m_streamIndex = m_streamIndex;
+				deliverToOutputs(outFrame);
+			}
 		}
+	} while (false);
+    addOutIdx();
+	if (log) {
+		RUNTASKLog("{}, leave, route({}), size({}), task duration({}), ret({})", getName(), route, size, (HJCurrentSteadyMS() - enter), ret);
 	}
-	else {
-		start_time  = now;
-	}
-
-	HJPlugin::deliverToOutputs(i_mediaFrame);
+	return ret;
 }
 
 NS_HJ_END

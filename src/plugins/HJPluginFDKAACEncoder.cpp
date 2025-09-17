@@ -23,7 +23,7 @@ int HJPluginFDKAACEncoder::internalInit(HJKeyStorage::Ptr i_param)
 	return HJPluginCodec::internalInit(param);
 }
 
-int HJPluginFDKAACEncoder::runTask()
+int HJPluginFDKAACEncoder::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	int64_t enter = HJCurrentSteadyMS();
@@ -31,7 +31,7 @@ int HJPluginFDKAACEncoder::runTask()
 	size_t size = -1;
 	int ret = HJ_OK;
 	do {
-		auto inFrame = receive(m_inputKeyHash.load(), size);
+		auto inFrame = receive(m_inputKeyHash.load(), &size);
 		if (inFrame == nullptr) {
 			route += "_1";
 			ret = HJ_WOULD_BLOCK;

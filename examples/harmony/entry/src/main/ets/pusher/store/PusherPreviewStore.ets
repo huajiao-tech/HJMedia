@@ -1,83 +1,70 @@
-import { AudioCodecType, LogMode, PreviewInfo, HJPusher, RecorderInfo, VideoCodecType } from 'hjpusher';
+import { AudioCodecType, LogMode, PreviewInfo, HJPusher, RecorderInfo, VideoCodecType, SetWindowState } from 'hjpusher';
 import { cameraService } from '../../camera/service/CameraService';
 import { State, Store, Action } from '../../interface/Store';
 import DateTimeUtil from '../../util/DateTimeUtils';
 import { applySaveVideo } from '../../util/RecorderVideoUtils';
-import { pusherPreset, PusherConfigPreset, PusherSetting, VideoStateData } from '../model/PusherPreviewModel';
-import { AppStorageV2 } from '@kit.ArkUI';
+import {
+  pusherPreset,
+  PusherConfigPreset,
+  PusherSetting,
+  VideoStateData,
+  PreviewAndPusherSelector
+} from '../model/PusherPreviewModel';
+import { AppStorageV2, window } from '@kit.ArkUI';
 import { WindowUtils } from '../../util/WindowUtils';
 import { ToastUtils } from '../../util/ToastUtils';
+import { PusherLiveInfo } from '../../common/VideoConstant';
+import {
+  CameraAction,
+  DoubleScreenAction,
+  GiftAction,
+  MicrophoneAction,
+  PusherAction,
+  RecorderAction,
+  SelectorAction,
+  TimerAction
+} from './action/PusherPreviewAction';
+import { NavStackUtil } from '../../util/NavStackUitl';
+import { ImageReceiverService } from '../../common/ImageReceiverService';
 
 @ObservedV2
 export class PusherPreviewState implements State {
-  @Trace videoStateData: VideoStateData[] = []
+  @Trace kbps: VideoStateData = new VideoStateData("实时码率", 0, 'kbps')
+  @Trace fps: VideoStateData = new VideoStateData("实时帧率", 0, 'fps')
+  @Trace delay: VideoStateData = new VideoStateData("实时延迟", 0, 'ms')
+  @Trace videoFormat: VideoStateData = new VideoStateData("视频编码格式", 0, 'H265')
+  @Trace audioFormat: VideoStateData = new VideoStateData("音频编码格式", 0, 'AAC')
   @Trace playState: boolean = false
   @Trace live_time: number = 0
   @Trace hour: number = 0;
+  @Trace doubleScreen: boolean = false
+  @Trace selectorX: number | string = "50%"
+  @Trace selectorY: number | string = 0
   path: string = ""
   src: string = ""
   ext: string = "mp4"
   pusherSettings: PusherSetting[] = [
     new PusherSetting("microphone", "left", $r("app.media.microphone_1_icon"), $r("app.media.microphone_0_icon"),  false),
     new PusherSetting("recorder", "left", $r("app.media.video_recorder_1_icon"), $r("app.media.video_recorder_0_icon"),  false),
-    new PusherSetting("camera", "right", $r("app.media.camera_front"), $r("app.media.camera_rear"),  false),
+    new PusherSetting("doubleScreen", "left", $r("app.media.double_screen_icon"), $r("app.media.double_screen_icon"),  false),
+    new PusherSetting("camera", "right", $r("app.media.camera_front"), $r("app.media.camera_rear"),  true),
     new PusherSetting("gift", "right", $r("app.media.gift_icon"), $r("app.media.gift_icon"),  false),
+    new PusherSetting("gift_self", "right", $r("app.media.gift_icon_1"), $r("app.media.gift_icon_1"),  false),
   ]
   textTimerController: TextTimerController = new TextTimerController()
   hjPusher: HJPusher = new HJPusher()
   config: PusherConfigPreset = AppStorageV2.connect(PusherConfigPreset, () => pusherPreset)!
-}
+  previewAndPusherSelector: PreviewAndPusherSelector = new PreviewAndPusherSelector()
+  enableFaceDetector: boolean = false
+  imageReceiverService: ImageReceiverService = new ImageReceiverService(getContext() as Context)
 
-export class MicrophoneAction implements Action<PusherPreviewState> {
-  payload: number
-
-  constructor(payload: number) {
-    this.payload = payload
+  get pusherLiveInfo() {
+    return [this.videoFormat, this.audioFormat, this.kbps, this.fps, this.delay]
   }
-}
 
-export class RecorderActionPayLoad {
-  index: number
-  recordUrl: string
-
-  constructor(index: number, recordUrl: string) {
-    this.index = index
-    this.recordUrl = recordUrl
-  }
-}
-
-export class RecorderAction implements Action<PusherPreviewState> {
-  payload: RecorderActionPayLoad
-
-  constructor(payload: RecorderActionPayLoad) {
-    this.payload = payload
-  }
-}
-
-export class PusherAction implements Action<PusherPreviewState> {
-}
-
-export class CameraAction implements Action<PusherPreviewState> {
-  payload: number
-
-  constructor(payload: number) {
-    this.payload = payload
-  }
-}
-
-export class GiftAction implements Action<PusherPreviewState> {
-  payload: string
-
-  constructor(payload: string) {
-    this.payload = payload
-  }
-}
-
-export class TimerAction implements Action<PusherPreviewState> {
-  payload: number
-
-  constructor(payload: number) {
-    this.payload = payload
+  @Monitor("doubleScreen")
+  doubleScreenChange() {
+    this.hjPusher.setDoubleScreen(this.doubleScreen)
   }
 }
 
@@ -86,6 +73,12 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
   getState = () => this.state
 
   aboutToAppear() {
+    this.state.videoFormat.unit = this.state.config.videoConfig.codecID == VideoCodecType.HJCodecH264 ? "H264" : "H265"
+    if (!this.state.config.isLandScape) {
+      this.state.selectorX = 0
+      this.state.selectorY = "50%"
+    }
+    this.state.doubleScreen = NavStackUtil.getParams<boolean>()
     if (this.state.config.isScreenOn) {
       WindowUtils.setWindowKeepScreenOn(true)
     }
@@ -102,12 +95,29 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
     previewInfo.realWidth = this.state.config.videoConfig.width
     previewInfo.realHeight = this.state.config.videoConfig.height
     let previewSurfaceId: bigint = this.state.hjPusher.openPreview(previewInfo, (str: string) => {
-      // JSON.parse(str) as PusherStateCall;
-      console.info("### receivecallbak #type is ", str);
+      const strJson: ESObject = JSON.parse(str)
+      console.info("### receivecallbak #type is ", strJson.type, strJson.msgInfo);
+      if (strJson.type == 8) {
+        const liveInfo = JSON.parse(strJson.msgInfo) as PusherLiveInfo
+        this.state.kbps.value = liveInfo.kbps
+        this.state.fps.value = liveInfo.fps
+        this.state.delay.value = liveInfo.delay
+      }
     });
     cameraService.initCamera(getContext() as Context);
     cameraService.bindSurfaceId(previewSurfaceId.toString());
-    cameraService.startPreview(0)
+    cameraService.startPreview(this.state.pusherSettings[3].value ? 1 : 0)
+
+    if (this.state.enableFaceDetector) {
+      this.state.imageReceiverService.getReceivingSurfaceId().then((surfaceId) => {
+        this.state.hjPusher.setWindow({
+          surfaceId: surfaceId,
+          width: this.state.config.videoConfig.width,
+          height: this.state.config.videoConfig.height,
+          state: SetWindowState.TARGET_CREATE
+        })
+      })
+    }
   }
 
   aboutToDisappear() {
@@ -118,6 +128,23 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
     this.state.hjPusher.closePusher()
     this.state.hjPusher.closePreview()
     this.state.hjPusher.destroyPusher()
+    if (this.state.enableFaceDetector) {
+      this.state.imageReceiverService.release()
+    }
+  }
+
+  onPageShow(): void {
+    WindowUtils.setWindowLayoutFullScreen(true)
+    if (this.state.config.isLandScape) {
+      WindowUtils.setOrientation(window.Orientation.LANDSCAPE)
+    }
+  }
+
+  onPageHide(): void {
+    WindowUtils.setWindowLayoutFullScreen(false)
+    if (this.state.config.isLandScape) {
+      WindowUtils.setOrientation(window.Orientation.UNSPECIFIED)
+    }
   }
 
   dispatch(action: Action<PusherPreviewState>): void {
@@ -145,6 +172,19 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
       this.state.live_time = action.payload
     } else if (action instanceof RecorderAction) {
       this.recorder(action)
+    } else if (action instanceof SelectorAction) {
+      this.state.previewAndPusherSelector.currentIndex = action.payload
+      if (action.payload == 1) {
+        // 推礼物
+        this.state.doubleScreenChange()
+        this.state.hjPusher.setGiftPusher(true)
+      } else {
+        // 不推礼物
+        this.state.doubleScreenChange()
+        this.state.hjPusher.setGiftPusher(false)
+      }
+    } else if (action instanceof DoubleScreenAction) {
+      this.state.doubleScreen = !this.state.doubleScreen
     }
   }
 
@@ -172,7 +212,9 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
   }
 
   private openPusher() {
-    this.state.hjPusher.openPusher(this.state.config)
+    this.state.hjPusher.openPusher(this.state.config, {uid: 2342, device: "Harmony", sn: "HJPusher"}, (str: string) => {
+      console.log("wkshhh", str)
+    })
     this.startTimer();
   }
 

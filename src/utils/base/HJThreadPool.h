@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HJPrerequisites.h"
+#include "HJComUtils.h"
 #include <future>
 #include <deque>
 
@@ -17,7 +18,7 @@ public:
 	std::shared_ptr<std::promise<int>> m_promise = nullptr;
 };
 
-class HJThreadPool : public std::enable_shared_from_this<HJThreadPool>
+class HJThreadPool : public HJBaseSharedObject
 {
 public:
 	
@@ -31,7 +32,7 @@ public:
 	virtual ~HJThreadPool();
     
     HJThreadPool::Ptr getThreadPtr() {
-        return shared_from_this();
+        return getSharedFrom(this);
     }
 	//before start, or thread kernal call modify
 	void setTimeout(int64_t i_time_out);
@@ -50,22 +51,15 @@ public:
 	void signal();
 
     void setPause(bool i_bPause);
-    
-    void setThreadName(const std::string & i_name)
-    {
-        m_threadName = i_name;
-    }
-    const std::string& getThreadName() const 
-    {
-        return m_threadName;
-    }
-    
+        
 protected:
 	bool isQuit();
 
 private:
 	static void priThreadFun(void* argc, std::shared_ptr<std::promise<void>> i_promise);
 	int threadFun();
+	void priResetTimeout();
+	bool priIsTimeout();
     int priStart();
     int priProcess();
 	void priClearTask(int i_id);
@@ -77,7 +71,10 @@ private:
 	HJTaskWrapper::Ptr priGetTaskWrapper();
 	int priProcTask();
 	std::deque<HJTaskWrapper::Ptr> m_task_queue;
-	int64_t m_time_out = 100;
+
+	static int64_t s_defaultTimeOut;
+	 
+	int64_t m_time_out = 0;
 
 	bool m_bSignaled = false;
     
@@ -94,9 +91,7 @@ private:
     bool m_bPaused = false;
 
 	std::thread::id m_threadId;
-    
-    std::string m_threadName = "";
-    
+        
     std::mutex m_mutex_run;
     bool m_bThreadRunning = false;
 };

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-projs=("sonic" "soundtouch" "librtmp" "yyjson" "fdk-aac" "spdlog")
+projs=("sonic" "soundtouch" "librtmp" "yyjson" "fdk-aac" "spdlog" "imgui" "implot" "glfw" "ImFileDialog" "ImGuiFileDialog" "zlib")
 
 for i in "${!projs[@]}"; do
     target_dir="third_party/${projs[$i]}"

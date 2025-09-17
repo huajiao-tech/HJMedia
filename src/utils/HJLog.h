@@ -16,6 +16,25 @@ typedef enum HJLMode {
     HJLMode_CALLBACK = (1 << 3),
 } HJLMode;
 
+class HJLogEntry : public HJObject
+{
+public:
+    HJ_DECLARE_PUWTR(HJLogEntry);
+    HJLogEntry(const size_t& key) {
+        setID(key);
+    }
+    virtual ~HJLogEntry() {};
+
+    void setRuntime(int64_t nowtime)
+    {
+        int64_t n = (nowtime - m_runtime) / m_interval;
+        m_runtime = m_runtime + n * m_interval;
+    }
+public:
+    uint64_t m_runtime = 0;          //us
+    uint64_t m_interval = 1000;      //ms
+};
+
 class HJLog final {
 public:
     static HJLog& Instance();
@@ -26,8 +45,7 @@ public:
 
     void log(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const std::string& msg);
 
-    //template <typename... Args>
-    //void fmtLog(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const char* msg, const Args &... args);
+    void perLog(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const std::string& msg, int64_t interval);
 
     void vaprintf(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const char* fmt, va_list args);
     void mprintf(HJLLevel level, const char* file, int line, const char* function, const std::string& tag, const char* fmt, ...);
@@ -41,15 +59,30 @@ public:
     std::string getLogDir() const {
         return m_logDir;
     }
-
-    //template <typename... Args>
-    //static std::string formatString(const char* msg, const Args &... args);
+    void reset() {
+        HJ_AUTOU_LOCK(m_mutex);
+        m_entrys.clear();
+    }
 private:
     static const std::string getFunctionName(const char* func);
     
+    static size_t getHashKey(const char* file, int line, const char* function) {
+        const char* safeFile = (file != nullptr) ? file : "";
+        const char* safeFunction = (function != nullptr) ? function : "";
+
+        std::string combined = std::string(safeFile) + ":" +
+            std::to_string(line) + ":" +
+            std::string(safeFunction);
+
+        std::hash<std::string> hasher;
+        return hasher(combined);
+    }
 private:
     std::atomic<bool>   m_valid = { true };
 	std::string         m_logDir = { "" };
+    //
+    std::mutex          m_mutex;
+    std::map<size_t, HJLogEntry::Ptr> m_entrys;
 };
 //***********************************************************************************//
 #define HJLogL(level, msg, ...) ::HJ::HJLog::Instance().log(level, __FILENAME__, __LINE__, __FUNCTION__, HJ_LTAG, msg)
@@ -61,16 +94,18 @@ private:
 #define HJLoga(msg, ...) HJLogL(HJLOG_ALARM, msg, ##__VA_ARGS__)
 #define HJLogf(msg, ...) HJLogL(HJLOG_FATAL, msg, ##__VA_ARGS__)
 
-//#define HJFMTLogL(level, msg, ...) ::HJ::HJLog::Instance().fmtLog(level, __FILENAME__, __LINE__, __FUNCTION__, HJ_LTAG, msg, ##__VA_ARGS__)
-//#define HJFLogt(msg, ...) HJFMTLogL(HJLOG_TRACE, msg, ##__VA_ARGS__)
-//#define HJFLogd(msg, ...) HJFMTLogL(HJLOG_DEBUG, msg, ##__VA_ARGS__)
-//#define HJFLogi(msg, ...) HJFMTLogL(HJLOG_INFO, msg, ##__VA_ARGS__)
-//#define HJFLogw(msg, ...) HJFMTLogL(HJLOG_WARN, msg, ##__VA_ARGS__)
-//#define HJFLoge(msg, ...) HJFMTLogL(HJLOG_ERROR, msg, ##__VA_ARGS__)
-//#define HJFLoga(msg, ...) HJFMTLogL(HJLOG_ALARM, msg, ##__VA_ARGS__)
-//#define HJFLogf(msg, ...) HJFMTLogL(HJLOG_FATAL, msg, ##__VA_ARGS__)
+#define HJPERLogL(level, interval, msg) ::HJ::HJLog::Instance().perLog(level, __FILENAME__, __LINE__, __FUNCTION__, HJ_LTAG, msg, interval)
+#define HJPERLogt(interval, msg) HJPERLogL(HJLOG_TRACE, interval, msg)
+#define HJPERLogd(interval, msg) HJPERLogL(HJLOG_DEBUG, interval, msg)
+#define HJPERLogi(interval, msg) HJPERLogL(HJLOG_INFO,  interval, msg)
+#define HJPERLogw(interval, msg) HJPERLogL(HJLOG_WARN,  interval, msg)
+#define HJPERLoge(interval, msg) HJPERLogL(HJLOG_ERROR, interval, msg)
+#define HJPERLoga(interval, msg) HJPERLogL(HJLOG_ALARM, interval, msg)
+#define HJPERLogf(interval, msg) HJPERLogL(HJLOG_FATAL, interval, msg)
 
-//#define HJFMT(msg, ...) ::HJ::HJLog::formatString(msg, ##__VA_ARGS__)
+#define HJPER1Logi(msg) HJPERLogi(1000, msg)
+#define HJPER2Logi(msg) HJPERLogi(2000, msg)
+#define HJPER5Logi(msg) HJPERLogi(5000, msg)
 
 //***********************************************************************************//
 class HJLogStream : public std::ostringstream, public HJObject {

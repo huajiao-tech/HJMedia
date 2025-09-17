@@ -108,8 +108,9 @@ private:
     bool setPriority(HJPriority priority = HJ_PRIORITY_NORMAL, std::thread::native_handle_type threadId = 0);
     void runLoop(bool regSelf = true);
 private:
-    bool                            m_isExitFlag = false;
+    bool                           m_isExitFlag = false;
     HJPriority                     m_priority = HJ_PRIORITY_NORMAL;
+    HJCondition                    m_runStarted;
     HJThreadID                     m_loopThreadID;
     HJThreadPtr                    m_thread = nullptr;
 #if HJ_THREAD_LOCK_CPU
@@ -117,8 +118,8 @@ private:
 #endif
     HJTaskMap::Ptr                 m_taskMap = nullptr;
     HJObjectHolder<HJTask::Ptr>    m_curTask;
-    std::atomic<size_t>             m_schedulerIDCounter = {0};
-    std::atomic<size_t>             m_taskIDCounter = {0};
+    std::atomic<size_t>            m_schedulerIDCounter = {0};
+    std::atomic<size_t>            m_taskIDCounter = {0};
 };
 #define HJGetCurTask() HJExecutor::getCurrentExecutor()->getCurTask()
 using HJExecutorMap = std::map<std::string, HJExecutor::Ptr>;

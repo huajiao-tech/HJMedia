@@ -10,19 +10,21 @@
 #include "HJStatisticalTools.h"
 #include "HJNotify.h"
 #include "HJRTMPBitrateAdapter.h"
+#include "HJPeriodicRunner.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
 typedef struct HJRTMPNetParams
 {
     bool m_dropEnable = true;
-    int m_dropThreshold = 1500;            //700 ms  B
-    int m_dropPFrameThreshold = 2000;      //900 ms  P  
+    int m_dropThreshold = 2500;            //gop ms  B
+    int m_dropPFrameThreshold = 3500;      //900 ms  P  
     int m_dropIFrameThreshold = 5000;      //3000 ms  I
+    bool m_waitForNextGop = false;
     //
     int m_bitrate = 2200;                   //kbps
     int m_lowBitrate = 300;                 //kbps
-    int m_adjustInterval = 5000;            //ms
+    int m_adjustInterval = 4000;            //ms
 } HJRTMPNetParams;
 
 typedef enum HJRTMPStatType
@@ -69,11 +71,23 @@ public:
         m_audioTracker = HJCreates<HJBitrateTracker>(5 * HJ_MS_PER_SEC);
     }
     virtual ~HJRTMPStatsInfo() {};
+
+    void reset() {
+        m_val = HJRTMPStatsValue();
+        if(m_videoTracker) {
+            m_videoTracker->reset();
+		}
+        if (m_audioTracker) {
+            m_audioTracker->reset();
+        }
+//        m_95thStatics.reset();
+	}
 public:
     HJRTMPStatsValue      m_val;
     //
     HJBitrateTracker::Ptr m_videoTracker = nullptr;
     HJBitrateTracker::Ptr m_audioTracker = nullptr;
+    // HJValueStatisticsInt64 m_95thStatics;
 };
 
 class HJRTMPPacketStats : public HJObject
@@ -83,6 +97,23 @@ public:
     virtual ~HJRTMPPacketStats();
 
     int update(HJRTMPStatType statType, const HJFLVPacket::Ptr packet, const HJBuffer::Ptr tag);
+
+    void reset() {
+        m_stats.clear();
+        m_cacheDuration = 0;
+        m_cacheSize = 0;
+        m_delay = 0;
+        //m_startTime = HJ_NOTS_VALUE;
+        //m_duration = 0;
+        m_dropCount = 0;
+        m_lossTracker.reset();
+        m_dropRatio = 0.0f;
+        //
+        //m_cache95Duration = 0;
+        //m_cacheSatics.reset();
+        //
+        //m_logTime = HJ_NOTS_VALUE;
+	}
 
     std::string formatInfo();
 
@@ -134,13 +165,23 @@ public:
         }
         return 0;
     }
-    const float getDropRatio() {
+    const float getDropRatio() const {
         return m_dropRatio;
         // auto stat = getStats(HJRTMP_STATTYPE_DROPPED);
         // if(stat) {
         //     return stat->m_val.dropRatio;
         // }
         // return 0.0f;
+    }
+    void setCacheDuration(int64_t duration) 
+    {
+        m_cacheDuration = duration;
+        if (m_cacheDuration > 0) {
+            m_cacheSatics.addValue(duration, HJCurrentSteadyMS());
+            if (auto val = m_cacheSatics.get95thValue()) {
+                m_cache95Duration = *val;
+            }
+        }
     }
 public:
     std::map<HJRTMPStatType, HJRTMPStatsInfo::Ptr> m_stats;
@@ -153,7 +194,10 @@ public:
     HJLossRatioTracker m_lossTracker;
     float       m_dropRatio = 0.0f;
     //
-    int64_t     m_logTime = HJ_NOTS_VALUE;
+    int64_t     m_cache95Duration = 0;
+    HJValueStatisticsInt64 m_cacheSatics;
+    //
+    //HJPeriodicRunner m_periodicRunner;
 };
 
 //***********************************************************************************//
@@ -181,15 +225,24 @@ public:
         HJ_AUTOU_LOCK(m_mutex);
         return m_stats.getStreamStats();
     }
+    void setSentStatus(int status = HJ_RTMP_SENT_NONE) {
+        m_sentStatus = status;
+    }
     void setNetBitrate(int bitrate) {
         m_netBitrate = bitrate;
     }
     void setNetBlock(const bool block) {
         m_isNetBlocking = block;
     }
+    void setWrapperGoing(const bool going) {
+        m_wrapperGoing = going;
+    }
 private:
     int drop(bool dropAudio = true);
+    int dropFrames(bool lastgop, int64_t threshold, int priority, bool dropAudio, bool isStat = true);
+    auto getDropGuard(bool lastgop = true, int64_t threshold = 0);
     void printPackets();
+    void keepLastGop();
     std::tuple<int64_t, int64_t, int64_t> getDuartion();
     //
     HJBuffer::Ptr buildTagA(HJFLVPacket::Ptr packet, bool isHeader = false);
@@ -241,6 +294,7 @@ private:
     std::condition_variable m_cv;
     size_t                  m_count = 0;
     bool                    m_isQuit{ false };
+    bool                    m_wrapperGoing = true;
     //
     HJRTMPNetParams         m_netParams;
     int64_t                 m_netBitrate = 0; //kbps
@@ -249,7 +303,7 @@ private:
     HJRTMPBitrateAdapter::Utr    m_bitrateAdapter = nullptr;
     int                     m_adaptiveBitrate = 0;
     //
-    int64_t                 m_waitTagTime = HJ_NOTS_VALUE;
+    //HJPeriodicRunner        m_periodicRunner;
 };
 
 NS_HJ_END

@@ -290,6 +290,25 @@ AVFrame* hj_make_avframe(int width, int height, enum AVPixelFormat format)
     return avf;
 }
 
+bool hj_has_protocol(char* protoName)
+{
+    const URLProtocol** protocols = ffurl_get_protocols(NULL, NULL);
+    if (!protocols)
+        return false;
+    for (int i = 0; protocols[i]; i++)
+    {
+        const URLProtocol* up = protocols[i];
+        if (!strcmp(protoName, up->name))
+        {
+            av_freep(&protocols);
+            return true;
+        }
+    }
+    av_freep(&protocols);
+    return false;
+
+}
+
 NS_HJ_BEGIN
 //***********************************************************************************//
 AVHWDeviceType hj_device_type_by_codec_name(const std::string& codecName)
@@ -666,6 +685,16 @@ HJBuffer::Ptr hj_make_adts_header(size_t dataSize, const HJ_AMPEG_ID mpegID/* = 
 	adtsHeader->setSize(HJ_ADTS_HEADER_SIZE);
 
 	return adtsHeader;
+}
+
+std::string hj_replace_fasthttp(const std::string& url) {
+    if ((url.compare(0, 8, "https://") == 0) && hj_has_protocol("fasthttps")) {
+        return "fasthttps://" + url.substr(8);
+    }
+    else if ((url.compare(0, 7, "http://") == 0) && hj_has_protocol("fasthttp")) {
+        return "fasthttp://" + url.substr(7);
+    }
+    return url;
 }
 
 NS_HJ_END

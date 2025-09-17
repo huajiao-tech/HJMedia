@@ -2,15 +2,16 @@
 #include "HJFLog.h"
 #include "HJMediaInfo.h"
 #include "HJTransferInfo.h"
-#include "HJGraphComVideoCapture.h"
+#include "HJPrioGraphProc.h"
 #include "HJMediaUtils.h"
 #include "HJComEvent.h"
 #include "HJGraphPusher.h"
 #include "HJOGRenderWindowBridge.h"
+#include "HJStatContext.h"
+#include "HJPrioUtils.h"
+#include "HJEntryContext.h"
 
 NS_HJ_BEGIN
-
-bool HJNAPILiveStream::s_bContextInit = false;
 
 HJNAPILiveStream::HJNAPILiveStream()
 {
@@ -20,20 +21,16 @@ HJNAPILiveStream::~HJNAPILiveStream()
 {
     HJFLogi("~HJNAPILiveStream {}", size_t(this));
 }
-int HJNAPILiveStream::contextInit(const HJPusherContextInfo &i_contextInfo)
+int HJNAPILiveStream::contextInit(const HJEntryContextInfo &i_contextInfo)
 {
     int i_err = 0;
     do
     {
-        if (!s_bContextInit)
+        i_err = HJ::HJEntryContext::init(HJEntryType_Pusher, i_contextInfo);
+        if (i_err < 0)
         {
-            i_err = HJ::HJLog::Instance().init(i_contextInfo.logIsValid, i_contextInfo.logDir, i_contextInfo.logLevel, i_contextInfo.logMode, true, i_contextInfo.logMaxFileSize, i_contextInfo.logMaxFileNum);
-            if (i_err == HJ_OK)
-            {
-                s_bContextInit = true;
-                HJFLogi("log create success");
-            }
-        }
+            break;
+        }    
     } while (false);
     return i_err;
 }
@@ -42,11 +39,11 @@ int HJNAPILiveStream::openPngSeq(const HJPusherPNGSegInfo &i_pngseqInfo)
     int i_err = 0;
     do
     {
-        if (m_graphVideoCapture)
+        if (m_prioGraphProc)
         {
             HJ::HJBaseParam::Ptr param = HJ::HJBaseParam::Create();
             (*param)["pngsequrl"] = std::string(i_pngseqInfo.pngSeqUrl);
-            i_err = m_graphVideoCapture->openPNGSeq(param);
+            i_err = m_prioGraphProc->openPNGSeq(param);
             if (i_err < 0)
             {
                 break;
@@ -74,12 +71,28 @@ void HJNAPILiveStream::setMute(bool i_mute)
     }
 }
 
-int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJPusherAudioInfo &i_audioInfo, const HJPusherRTMPInfo &i_rtmpInfo)
+int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJPusherAudioInfo &i_audioInfo, const HJPusherRTMPInfo &i_rtmpInfo, const HJEntryStatInfo& i_statInfo)
 {
     int i_err = 0;
     HJFLogi("openPush enter");
     do
     {
+        if (i_statInfo.bUseStat)
+        {
+            m_statCtx = HJStatContext::Create();
+            i_err = m_statCtx->init(i_statInfo.uid, i_statInfo.device, i_statInfo.sn, i_statInfo.interval, 0, [i_statInfo](const std::string & i_name, int i_nType, const std::string & i_info)
+            {
+                HJFLogi("StatStart callback name:{}, type:{}, info:{}", i_name, i_nType, i_info);
+                i_statInfo.statNotify(i_name, i_nType, i_info);
+            });
+            if (i_err < 0)
+            {
+                i_err = -1;
+                HJFLoge("m_statCtx init error");
+                break;
+            }
+        }
+
         if (m_graphPusher)
         {
             i_err = -1;
@@ -103,7 +116,7 @@ int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJP
             }
             int64_t t0 = HJCurrentSteadyMS();
             HJFLogi("setwindow enter {}", i_bCreate ? "create" : "detroy");
-            int ret = priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_Encoder, m_encoderFps);
+            int ret = priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_EncoderPusher, m_encoderFps);
             HJFLogi("setwindow state:{} timediff:{}", state, (HJCurrentSteadyMS() - t0));
             return ret;
         };
@@ -188,6 +201,27 @@ int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJP
                 type = HJ_PUSHER_NOTIFY_ERROR;
                 break;
             }
+            case HJRTMP_EVENT_LIVE_INFO:
+            {
+                type = HJ_PUSHER_NOTIFY_LIVE_INFO;
+                auto kbps = ntf->getInt("kbps");
+                auto fps = ntf->getInt("fps");
+                auto delay = ntf->getInt("delay");
+                HJFLogi("live stream HJRTMP_EVENT_LIVE_INFO -- kbps:{}, fps:{}, delay:{}", kbps, fps, delay);
+                //
+                if(fps > 0 && kbps > 0) {
+                    auto json = HJYJsonDocument::create();
+                    (*json)["kbps"] = kbps;
+                    (*json)["fps"] = fps;
+                    (*json)["delay"] = delay;
+                    msg = json->getSerialInfo();
+                    HJFLogi("live stream HJRTMP_EVENT_LIVE_INFO -- msg{}:", msg);
+                } else {
+                    type = HJ_PUSHER_NOTIFY_NONE;
+                    HJFLogi("live stream HJRTMP_EVENT_LIVE_INFO -- msg[] {}:", msg);
+                }
+                break;
+            }
             default:
             {
                 break;
@@ -238,6 +272,11 @@ int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJP
         };
         (*param)["pusherListener"] = pusherListener;
 
+        //
+        if(m_statCtx) {
+            std::weak_ptr<HJStatContext> statCtx = m_statCtx;
+            (*param)["HJStatContext"] = statCtx;
+        }
         i_err = m_graphPusher->init(param);
         if (i_err < 0)
         {
@@ -259,10 +298,10 @@ void HJNAPILiveStream::closePreview()
         m_graphPusher = nullptr;
     }
     HJFLogi("m_graphVideoCapture done enter");
-    if (m_graphVideoCapture)
+    if (m_prioGraphProc)
     {
-        m_graphVideoCapture->done();
-        m_graphVideoCapture = nullptr;
+        m_prioGraphProc->done();
+        m_prioGraphProc = nullptr;
     }
     HJFLogi("m_graphVideoCapture done end time:{}", (HJCurrentSteadyMS() - t0));
 }
@@ -297,7 +336,27 @@ void HJNAPILiveStream::closeRecorder()
     }
     HJFLogi("closeRecorder end");
 }
-int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIPusherNotify i_notify, uint64_t &o_surfaceId)
+void HJNAPILiveStream::setDoubleScreen(bool i_bDoubleScreen)
+{
+    HJFLogi("setDoubleScreen");
+    do
+    {
+        if (m_prioGraphProc)
+        {
+            bool bLandscape = m_previewWidth > m_previewHeight;
+            m_prioGraphProc->setDoubleScreen(i_bDoubleScreen, bLandscape);
+        }
+    } while (false);
+}
+void HJNAPILiveStream::setGiftPusher(bool i_bGiftPusher)
+{
+    HJFLogi("setGiftPusher");
+    if (m_prioGraphProc)
+    {
+        m_prioGraphProc->setGiftPusher(i_bGiftPusher);
+    }
+}
+int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIEntryNotify i_notify, const HJEntryStatInfo& i_statInfo, uint64_t &o_surfaceId)
 {
     int i_err = 0;
     do
@@ -310,38 +369,37 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
             break;
         }
 
-        if (m_graphVideoCapture)
+        if (m_prioGraphProc)
         {
             i_err = -1;
             HJFLoge("pusher has already created, not open again");
             break;
         }
-
+        m_previewWidth = i_previewInfo.videoWidth;
+        m_previewHeight = i_previewInfo.videoHeight;
         m_notify = i_notify;
 
-        m_graphVideoCapture = HJGraphComVideoCapture::Create();
-        if (!m_graphVideoCapture)
+        if (i_statInfo.bUseStat)
         {
-            i_err = -1;
-            HJFLoge("HJGraphComVideoCapture create error");
-            break;
-        }
-
+            m_statCtx = HJStatContext::Create();
+            i_err = m_statCtx->init(i_statInfo.uid, i_statInfo.device, i_statInfo.sn, i_statInfo.interval, 0, [](const std::string & i_name, int i_nType, const std::string & i_info)
+	        {
+		        HJFLogi("StatStart callback name:{}, type:{}, info:{}", i_name, i_nType, i_info);
+	        });
+            if (i_err < 0)
+            {
+                i_err = -1;
+                HJFLoge("m_statCtx init error");
+                break;
+            }    
+        }    
+        
         HJBaseParam::Ptr param = HJBaseParam::Create();
         (*param)[HJBaseParam::s_paramFps] = i_previewInfo.videoFps;
         m_previewFps = i_previewInfo.videoFps;
-        HJTransferRenderModeInfo renderModeInfo;
-        renderModeInfo.color = "BT601";
-        renderModeInfo.cropMode = "clip";
-        renderModeInfo.viewOffx = 0.0;
-        renderModeInfo.viewOffy = 0.0;
-        renderModeInfo.viewWidth = 1.0;
-        renderModeInfo.viewHeight = 1.0;
-        std::string renderModeStr = renderModeInfo.initSerial();
-        (*param)[HJBaseParam::s_paramRenderBridge] = (std::string)renderModeStr;
 
-        m_graphVideoCapture = HJGraphComVideoCapture::Create();
-        if (!m_graphVideoCapture)
+        m_prioGraphProc = HJPrioGraphProc::Create();
+        if (!m_prioGraphProc)
         {
             i_err = -1;
             HJFLoge("HJGraphComVideoCapture create error");
@@ -354,37 +412,37 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
             {
                 return HJ_OK;
             }
-            HJFLogi("graph video capture notify id:{}, msg:{}", HJRenderVideoCaptureEventToString((HJRenderVideoCaptureEvent)ntf->getID()), ntf->getMsg());
-            int type = HJVIDEOCAPTURE_EVENT_NONE;
+            HJFLogi("graph video capture notify id:{}, msg:{}", HJVideoRenderGraphEventToString((HJVideoRenderGraphEvent)ntf->getID()), ntf->getMsg());
+            int type = HJVIDEORENDERGRAPH_EVENT_NONE;
             std::string msg = ntf->getMsg();
             switch (ntf->getID())
             {
-            case HJVIDEOCAPTURE_EVENT_ERROR_DEFAULT:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_DEFAULT:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_DEFAULT;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_ERROR_UPDATE:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_UPDATE:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_UPDATE;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_ERROR_DRAW:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_DRAW:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_DRAW;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_ERROR_VIDEOCAPTURE_INIT:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_INIT:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_ERROR_PNGSEQ_INIT:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_PNGSEQ_INIT:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_PNGSEQ_COMPLETE:
+            case HJVIDEORENDERGRAPH_EVENT_PNGSEQ_COMPLETE:
             {
                 type = HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE;
                 break;
@@ -394,23 +452,24 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
                 break;
             }
             }
-            if (m_notify && (HJVIDEOCAPTURE_EVENT_NONE != type))
+            if (m_notify && (HJVIDEORENDERGRAPH_EVENT_NONE != type))
             {
                 m_notify(type, msg);
             }
             return HJ_OK;
         };
         (*param)["renderListener"] = (HJListener)renderListener;
-        i_err = m_graphVideoCapture->init(param);
+        HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioComSourceType), (int)HJPrioComSourceType_SERIES);
+        i_err = m_prioGraphProc->init(param);
         if (i_err < 0)
         {
             HJLoge("m_graphVideoCapture init error:{}", i_err);
             break;
         }
 
-        if (m_graphVideoCapture)
+        if (m_prioGraphProc)
         {
-            m_bridge = m_graphVideoCapture->renderWindowBridgeAcquire();
+            m_bridge = m_prioGraphProc->renderWindowBridgeAcquire();
         }
 
         if (!m_bridge)
@@ -442,7 +501,7 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
 }
 int HJNAPILiveStream::setNativeWindow(void *window, int i_width, int i_height, int i_state)
 {
-    return priSetWindow(window, i_width, i_height, i_state, HJOGEGLSurfaceType_Default, m_previewFps);
+    return priSetWindow(window, i_width, i_height, i_state, HJOGEGLSurfaceType_UI, m_previewFps);
 }
 
 int HJNAPILiveStream::priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps)
@@ -463,9 +522,9 @@ int HJNAPILiveStream::priSetWindow(void *i_window, int i_width, int i_height, in
             i_err = -1;
             break;
         }
-        if (m_graphVideoCapture)
+        if (m_prioGraphProc)
         {
-            i_err = m_graphVideoCapture->eglSurfaceProc(renderTargetStr);
+            i_err = m_prioGraphProc->eglSurfaceProc(renderTargetStr);
             if (i_err < 0)
             {
                 HJFLoge("eglSurfaceProc error i_err:{} w:{} h:{} state:{}", i_err, i_width, i_height, i_state);
@@ -474,6 +533,31 @@ int HJNAPILiveStream::priSetWindow(void *i_window, int i_width, int i_height, in
         }
     } while (false);
     return i_err;
+}
+
+int HJNAPILiveStream::openSpeechRecognizer(HJPluginSpeechRecognizer::Call i_call) {
+    int i_err = 0;
+    do {
+        HJFLogi("openSpeechRecognizer enter");
+        if (m_graphPusher) {
+            auto param = std::make_shared<HJKeyStorage>();
+            (*param)["speechRecognizerCall"] = i_call;
+            i_err = m_graphPusher->openSpeechRecognizer(param);
+            if (i_err < 0) {
+                break;
+            }
+        }
+    } while (false);
+    HJFLogi("openSpeechRecognizer end i_err:{}", i_err);
+    return i_err;
+}
+
+void HJNAPILiveStream::closeSpeechRecognizer() {
+    HJFLogi("closeSpeechRecognizer enter");
+    if (m_graphPusher) {
+        m_graphPusher->closeSpeechRecognizer();
+    }
+    HJFLogi("closeSpeechRecognizer end");
 }
 
 NS_HJ_END

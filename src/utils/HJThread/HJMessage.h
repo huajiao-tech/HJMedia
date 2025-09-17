@@ -22,7 +22,6 @@ public:
 	Ptr next{};
 
 	static Ptr obtain();
-	static Ptr obtain(HJHandlerPtr h);
 	void recycleUnchecked();
 	Ptr setWhat(int what);
 	HJMessage() = default;

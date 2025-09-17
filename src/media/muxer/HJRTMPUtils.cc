@@ -18,8 +18,10 @@ HJEnumToStringFuncImplBegin(HJRTMPEEvent)
 	HJEnumToStringItem(HJRTMP_EVENT_AUTOADJUST_BITRATE),
 	HJEnumToStringItem(HJRTMP_EVENT_SEND_Error),
 	HJEnumToStringItem(HJRTMP_EVENT_RECV_Error),
+	HJEnumToStringItem(HJRTMP_EVENT_LOW_BITRATE),
 	HJEnumToStringItem(HJRTMP_EVENT_RETRY),
 	HJEnumToStringItem(HJRTMP_EVENT_RETRY_TIMEOUT),
+	HJEnumToStringItem(HJRTMP_EVENT_NET_BITRATE),
 	HJEnumToStringItem(HJRTMP_EVENT_DONE),
 HJEnumToStringFuncImplEnd(HJRTMPEEvent);
 
@@ -31,6 +33,10 @@ const std::string HJRTMPUtils::STORE_KEY_DROP_ENABLE = "drop_enale";
 const std::string HJRTMPUtils::STORE_KEY_DROP_THRESHOLD = "drop_threshold";
 const std::string HJRTMPUtils::STORE_KEY_DROP_PFRAME_THRESHOLD = "drop_pframe_threshold";
 const std::string HJRTMPUtils::STORE_KEY_DROP_IFRAME_THRESHOLD = "drop_iframe_threshold";
+//
+const std::string HJRTMPUtils::STORE_KEY_LOWBR_TIMEOUT_ENABLE = "lowbr_timeout_enable";
+const std::string HJRTMPUtils::STORE_KEY_LOWBR_TIMEOUT_LIMITED = "lowbr_timeout_limited";
+const std::string HJRTMPUtils::STORE_KEY_LOWBR_LIMITED = "lowbr_limited";
 //
 const std::string HJRTMPUtils::STORE_KEY_BITRATE = "bitrate";
 const std::string HJRTMPUtils::STORE_KEY_LOW_BITRATE = "low_bitrate";

@@ -180,7 +180,7 @@ int HJOGEGLCore::EGLSurfaceRelease(EGLSurface i_surface)
         }
 #endif
     } while (false);
-    HJFLogi("EGLSurfaceRelease:{}", i_err);
+    HJFLogi("{} EGLSurfaceRelease:{}", m_insName, i_err);
     return i_err;
 }
 EGLSurface HJOGEGLCore::EGLSurfaceCreate(void *window)
@@ -277,7 +277,7 @@ void HJOGEGLCore::priDone()
             m_eglContext = EGL_NO_CONTEXT;
             HJFLogi("{} eglDestroyContext m_eglContext", m_insName);
         }
-        HJFLogi("eglMakeCurrent no surface and no context");
+        HJFLogi("{} eglMakeCurrent no surface and no context", m_insName);
         eglMakeCurrent(m_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         eglTerminate(m_eglDisplay);
         HJFLogi("{} eglTerminate", m_insName);

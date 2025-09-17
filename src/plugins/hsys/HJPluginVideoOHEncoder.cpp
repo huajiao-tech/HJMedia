@@ -60,7 +60,7 @@ void HJPluginVideoOHEncoder::internalRelease()
 	HJPluginCodec::internalRelease();
 }
 
-int HJPluginVideoOHEncoder::runTask()
+int HJPluginVideoOHEncoder::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	int64_t enter = HJCurrentSteadyMS();

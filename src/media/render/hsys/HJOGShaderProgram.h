@@ -31,6 +31,11 @@ public:
     {
         glUseProgram(id_);
     }
+    GLuint getProgramId()
+    {
+        return id_;
+    }
+    
 
     void SetBool(const std::string &name, bool value);
     static void SetInt(GLint i_handle, int value);

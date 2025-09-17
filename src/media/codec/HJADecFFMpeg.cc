@@ -25,30 +25,30 @@ int HJADecFFMpeg::init(const HJStreamInfo::Ptr& info)
 {
     int res = HJBaseCodec::init(info);
     if (HJ_OK != res) {
-        HJLoge("error, base init");
+        HJFNLoge("base init error:{}", res);
         return res;
     }
     HJAudioInfo::Ptr audioInfo = std::dynamic_pointer_cast<HJAudioInfo>(m_info);
     AVCodecParameters* codecParam = audioInfo->getAVCodecParams();
     if (!codecParam) {
-        HJLoge("can't find codec params error");
+        HJFNLoge("can't find codec params error");
         return HJErrInvalidParams;
     }
-    HJLogi("init entry, chanels:" + HJ2STR(audioInfo->m_channels) + ", sample rate:" + HJ2STR(audioInfo->m_samplesRate) + ", sample fmt:" + HJ2STR(audioInfo->m_sampleFmt));
+    HJFNLogi("init entry, chanels:{}, sample rate:{}, sample fmt:{}", audioInfo->m_channels, audioInfo->m_samplesRate, audioInfo->m_sampleFmt);
     m_codecID = (AV_CODEC_ID_NONE != codecParam->codec_id) ? codecParam->codec_id : audioInfo->getCodecID();
     const AVCodec* codec = avcodec_find_decoder((AVCodecID)m_codecID);
     if (!codec) {
-        HJLoge("can't find property codec error, codec id:" + HJ2STR(m_codecID));
+        HJFNLoge("can't find property codec error, codec id:{}", m_codecID);
         return HJErrFFCodec;
     }
     AVCodecContext* avctx = avcodec_alloc_context3(codec);
     if (!avctx) {
-        HJLoge("alloc context error");
+        HJFNLoge("alloc context error");
         return HJErrFFNewAVCtx;
     }
     res = avcodec_parameters_to_context(avctx, codecParam);
     if (HJ_OK != res) {
-        HJLoge("codec parms from error");
+        HJFNLoge("codec parms from error");
         return res;
     }
     //
@@ -60,7 +60,7 @@ int HJADecFFMpeg::init(const HJStreamInfo::Ptr& info)
     AVDictionary* opts = NULL;
     res = avcodec_open2(avctx, codec, &opts);
     if (res < HJ_OK) {
-        HJLoge("codec open error");
+        HJFNLoge("codec open error");
         return res;
     }
     m_avctx = avctx;    
@@ -68,7 +68,7 @@ int HJADecFFMpeg::init(const HJStreamInfo::Ptr& info)
     //buildConverters();
 
     m_runState = HJRun_Init;
-    HJLogi("init end");
+    HJFNLogi("init end");
     
     return res;
 }
@@ -84,17 +84,18 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
         if (mavf) {
             frame = std::move(mavf);
             //
-            HJNipInterval::Ptr nip = m_nipMuster->getOutNip();
-            if (frame && nip && nip->valid()) {
-                HJLogi("name:" + getName() + ", " + frame->formatInfo());
-            }
+            //HJNipInterval::Ptr nip = m_nipMuster->getOutNip();
+            //if (frame && nip && nip->valid()) {
+            //    HJFNLogi(frame->formatInfo());
+            //}
+            HJFPERNLogi(frame->formatInfo());
             return HJ_OK;
         }
     }
     int res = HJ_OK;
     AVFrame* avf = av_frame_alloc();
     if (!avf) {
-        HJLoge("error, alloc avframe");
+        HJFNLoge("error, alloc avframe");
         return HJErrNewObj;
     }
     do {
@@ -116,7 +117,7 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
             }
             break;
         } else if(res < HJ_OK) {
-            HJLoge("receive frame error:" + HJ2String(res));
+            HJFNLoge("receive frame error:{}", res);
             res = HJErrFFGetFrame;
             break;
         } else {
@@ -130,7 +131,7 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
             avf->pts = avf->best_effort_timestamp;
             mvf->setPTSDTS(avf->best_effort_timestamp, avf->best_effort_timestamp, m_timeBase);
             mvf->setDuration(avf->duration, m_timeBase);
-            if((avf->key_frame && avf->pict_type && (avf->pict_type == AV_PICTURE_TYPE_I))) {
+            if((/*avf->key_frame*/(avf->flags & AV_FRAME_FLAG_KEY) && avf->pict_type && (avf->pict_type == AV_PICTURE_TYPE_I))) {
                 mvf->setFrameType(HJFRAME_KEY);
             }
             //
@@ -185,7 +186,7 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
                     mvf = m_adopter->convert(std::move(mvf));
                 }
                 if (!mvf) {
-                    HJLoge("error, audio convert result");
+                    HJFNLoge("error, audio convert result");
                     break;
                 }
                 const HJAudioInfo::Ptr mavfAInfo = mvf->getAudioInfo();
@@ -194,7 +195,7 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
                     m_fifo = std::make_shared<HJAudioFifo>(mavfAInfo->m_channels, mavfAInfo->m_sampleFmt, mavfAInfo->m_samplesRate);
                     res = m_fifo->init(cvtAInfo->m_samplesPerFrame);
                     if (HJ_OK != res) {
-                        HJLoge("audio fifo init error");
+                        HJFNLoge("audio fifo init error");
                         break;
                     }
                 }
@@ -202,7 +203,7 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
                 {
                     res = m_fifo->addFrame(std::move(mvf));
                     if (HJ_OK != res) {
-                        HJLoge("audio fifo add frame error");
+                        HJFNLoge("audio fifo add frame error");
                         break;
                     }
                     mvf = m_fifo->getFrame();
@@ -217,9 +218,12 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
                 }
                 frame = std::move(mvf);
                 //
-                HJNipInterval::Ptr nip = m_nipMuster->getOutNip();
-                if (frame && nip && nip->valid()) {
-                    HJLogi("name:" + getName() + ", " + frame->formatInfo());
+                //HJNipInterval::Ptr nip = m_nipMuster->getOutNip();
+                //if (frame && nip && nip->valid()) {
+                //    HJFNLogi(frame->formatInfo());
+                //}
+                if (frame) {
+                    HJFPERNLogi(frame->formatInfo());
                 }
             }
         }
@@ -242,7 +246,7 @@ int HJADecFFMpeg::run(const HJMediaFrame::Ptr frame)
     {
         res = init(frame->getInfo());
         if (HJ_OK != res) {
-            HJLoge("init in run error");
+            HJFNLoge("init in run error");
             return res;
         }
     }
@@ -268,12 +272,15 @@ int HJADecFFMpeg::run(const HJMediaFrame::Ptr frame)
             pkt = nullPkt;
         }
         if (!pkt) {
-            HJLoge("run get avpacket error");
+            HJFNLoge("run get avpacket error");
             return HJErrInvalidParams;
         }
-        HJNipInterval::Ptr nip = m_nipMuster->getInNip();
-        if (mvf && nip && nip->valid()) {
-            HJLogi("name:" + getName() + ", " + mvf->formatInfo());
+        //HJNipInterval::Ptr nip = m_nipMuster->getInNip();
+        //if (mvf && nip && nip->valid()) {
+        //    HJFNLogi(mvf->formatInfo());
+        //}
+        if (mvf) {
+            HJFPERNLogi(mvf->formatInfo());
         }
         //
         res = avcodec_send_packet(avctx, pkt);
@@ -283,7 +290,7 @@ int HJADecFFMpeg::run(const HJMediaFrame::Ptr frame)
             m_runState = HJRun_Stop;
             return HJ_EOF;
         } else if (res < HJ_OK){
-            HJLoge("auido decoder send packet error:" + HJ2STR(res));
+            HJFNLoge("auido decoder send packet error:" + HJ2STR(res));
             return HJErrFatal;
         }
     } while (false);
@@ -314,17 +321,17 @@ bool HJADecFFMpeg::checkFrame(const HJMediaFrame::Ptr frame)
     }
     if (frame->isFlushFrame()) 
     {
-        HJFLogi("flush frame");
+        //HJFLogi("flush frame");
         const auto& inInfo = frame->getAudioInfo();
         if (!inInfo) {
-            HJFLogw("waning, audio info in null");
+            HJFNLogw("waning, audio info in null");
             return false;
         }
         const auto otherCodecParam = inInfo->getCodecParams();
         const auto codecParam = m_info->getCodecParams();
         if (!codecParam || !codecParam->isEqual(otherCodecParam)) {
             m_info->setCodecParams(otherCodecParam);
-            HJFLogi("set flush codec params");
+            HJFNLogi("set flush codec params");
             return true;
         }
         //const auto& inInfo = frame->getAudioInfo();
@@ -340,7 +347,7 @@ bool HJADecFFMpeg::checkFrame(const HJMediaFrame::Ptr frame)
 
 int HJADecFFMpeg::reset()
 {
-    HJLogi("entry");
+    HJFNLogi("entry");
     done();
     return init(m_info);
 }

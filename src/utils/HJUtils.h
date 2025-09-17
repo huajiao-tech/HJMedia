@@ -4,16 +4,7 @@
 //CREATE TIME:
 //***********************************************************************************//
 #pragma once
-// #include "HJDefines.h"
-// #include "HJMacros.h"
-// #include "HJError.h"
-// #include "HJCommons.h"
-// #include "HJLog.h"
-// #include "HJObject.h"
-// #include "HJBuffer.h"
-// #include "HJByteBuffer.h"
-// #include "HJException.h"
-
+#include "HJDefaultValue.h"
 #include "HJAny.h"
 #include "HJBuffer.h"
 //#include "HJByteBuffer.h"

@@ -8,7 +8,7 @@
 NS_HJ_BEGIN
 
 #define UNIQUE_LOCK					std::unique_lock<std::shared_mutex>
-#define SHANRD_LOCK					std::shared_lock<std::shared_mutex>
+#define SHARED_LOCK					std::shared_lock<std::shared_mutex>
 
 #define SYNCHRONIZED(sync, lock)	UNIQUE_LOCK lock((sync).m)
 #define SYNCHRONIZED_LOCK(sync)		SYNCHRONIZED(sync, lock)
@@ -70,7 +70,7 @@ struct HJSync
 	// 消费者进锁
 	template <typename T>
 	auto consLock(T&& run) -> decltype(run()) {
-		SHANRD_LOCK lock(m);
+		SHARED_LOCK lock(m);
 		cv.wait(lock, [this] { return prodCount == 0; });
 
 		return run();

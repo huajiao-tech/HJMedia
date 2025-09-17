@@ -11,12 +11,11 @@ class HJPluginVideoOHEncoder : public HJPluginCodec
 public:
 	HJ_DEFINE_CREATE(HJPluginVideoOHEncoder);
 
-	HJPluginVideoOHEncoder(const std::string& i_name = "HJPluginVideoOHEncoder", size_t i_identify = -1)
-		: HJPluginCodec(i_name, i_identify) {
-		m_mediaType = HJMEDIA_TYPE_VIDEO;
+	HJPluginVideoOHEncoder(const std::string& i_name = "HJPluginVideoOHEncoder", HJKeyStorage::Ptr i_graphInfo = nullptr)
+		: HJPluginCodec(i_name, i_graphInfo) { }
+	virtual ~HJPluginVideoOHEncoder() {
+		HJPluginVideoOHEncoder::done();
 	}
-
-//	virtual void onOutputUpdated() override { }
 
 	int adjustBitrate(int i_newBitrate);
 
@@ -24,11 +23,12 @@ protected:
 	// HJHOSurfaceCb surfaceCb
 	// HJStreamInfo::Ptr streamInfo
 	// HJLooperThread::Ptr thread = nullptr
+	// HJListener pluginListener
 	virtual int internalInit(HJKeyStorage::Ptr i_param) override;
 	virtual void internalRelease() override;
 	virtual void afterInit() override { }
-	virtual int runTask() override;
-	virtual void internalUpdated() override { }
+	virtual int runTask(int64_t* o_delay = nullptr) override;
+	virtual void internalUpdated(int64_t i_delay = 0) override { }
 	virtual HJBaseCodec::Ptr createCodec() override;
 	virtual int initCodec(const HJStreamInfo::Ptr& i_streamInfo) override;
 //	virtual void resetCodec(HJMediaFrame::Ptr frame) override;

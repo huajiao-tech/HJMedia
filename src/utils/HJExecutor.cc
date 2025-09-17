@@ -105,6 +105,7 @@ void HJExecutor::start(bool regSelf/* = true*/)
 //    HJLogi("start entry");
     m_loopThreadID = std::this_thread::get_id();
     m_thread = std::make_shared<std::thread>(&HJExecutor::runLoop, this, regSelf);
+    m_runStarted.wait();
 //    HJLogi("start end");
 }
 
@@ -266,6 +267,7 @@ void HJExecutor::runLoop(bool regSelf)
     if (regSelf) {
         g_CurrentExecutor = sharedFrom(this);
     }
+    m_runStarted.notify();
     //HJLogi("notify start");
     //
     while (!m_isExitFlag)

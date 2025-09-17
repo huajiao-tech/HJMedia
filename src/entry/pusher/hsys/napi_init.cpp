@@ -28,7 +28,11 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(tryClosePreview, HJVerifyManager::tryClosePreview),
         DECLARE_NAPI_FUNCTION_VAL(tryOpenRecord, HJVerifyManager::tryOpenRecord),
         DECLARE_NAPI_FUNCTION_VAL(tryCloseRecord, HJVerifyManager::tryCloseRecord),
-        
+
+        DECLARE_NAPI_FUNCTION_VAL(tryGiftOpen, HJVerifyManager::tryGiftOpen),
+        DECLARE_NAPI_FUNCTION_VAL(tryDoubleScreen, HJVerifyManager::tryDoubleScreen),
+        DECLARE_NAPI_FUNCTION_VAL(tryGiftPusher, HJVerifyManager::tryGiftPusher),
+
         DECLARE_NAPI_FUNCTION_VAL(n_contextInit, HJ::HJPusherNapi::contextInit),
         DECLARE_NAPI_FUNCTION_VAL(n_createPusher, HJ::HJPusherNapi::createPusher),
         DECLARE_NAPI_FUNCTION_VAL(n_destroyPusher, HJ::HJPusherNapi::destroyPusher),
@@ -41,6 +45,13 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(n_openRecorder, HJ::HJPusherNapi::openRecorder),
         DECLARE_NAPI_FUNCTION_VAL(n_closeRecorder, HJ::HJPusherNapi::closeRecorder),
         DECLARE_NAPI_FUNCTION_VAL(n_openPngSeq, HJ::HJPusherNapi::openPngSeq),
+        DECLARE_NAPI_FUNCTION_VAL(n_setDoubleScreen, HJ::HJPusherNapi::setDoubleScreen),
+        DECLARE_NAPI_FUNCTION_VAL(n_setGiftPusher, HJ::HJPusherNapi::setGiftPusher),
+        DECLARE_NAPI_FUNCTION_VAL(n_openSpeechRecognizer, HJ::HJPusherNapi::openSpeechRecognizer),
+        DECLARE_NAPI_FUNCTION_VAL(n_closeSpeechRecognizer, HJ::HJPusherNapi::closeSpeechRecognizer),
+        // DECLARE_NAPI_FUNCTION_VAL(n_openPixelMapOutput, HJ::HJPusherNapi::openPixelMapOutput),
+        // DECLARE_NAPI_FUNCTION_VAL(n_getImageReceiver, HJ::HJPusherNapi::getImageReceiver),
+        // DECLARE_NAPI_FUNCTION_VAL(n_closePixelMapOutput, HJ::HJPusherNapi::closePixelMapOutput),
     };
     
     

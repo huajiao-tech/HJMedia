@@ -321,7 +321,8 @@ int HJAFifoProcessor::addFrame(const HJMediaFrame::Ptr& frame)
         HJMediaFrame::Ptr mavf = frame;
         //
         if (!m_audioProcessor && (1.0f != m_speed)) {
-            m_audioProcessor = std::make_shared<HJAudioProcessor>();
+            m_audioProcessor = HJAudioProcessor::create();
+            //m_audioProcessor = std::make_shared<HJAudioProcessor>();
             m_audioProcessor->setSpeed(m_speed);
         }
         if (m_audioProcessor)
@@ -329,18 +330,26 @@ int HJAFifoProcessor::addFrame(const HJMediaFrame::Ptr& frame)
             if (m_audioProcessor->getSpeed() != m_speed) {
                 m_audioProcessor->setSpeed(m_speed);
             }
-            HJMediaFrame::Ptr outFrame = nullptr;
+            
             res = m_audioProcessor->addFrame(mavf);
             if (HJ_OK != res) {
                 HJLoge("error, audio processor add frame failed");
                 break;
             }
-            res = m_audioProcessor->getFrame(outFrame);
-            if (HJ_OK != res) {
+            auto outFrame = m_audioProcessor->getFrame();
+            if (!outFrame) {
                 HJLoge("error, audio processor get frame failed");
                 break;
             }
             mavf = std::move(outFrame);
+
+            //HJMediaFrame::Ptr outFrame = nullptr;
+            //res = m_audioProcessor->getFrame(outFrame);
+            //if (HJ_OK != res) {
+            //    HJLoge("error, audio processor get frame failed");
+            //    break;
+            //}
+            //mavf = std::move(outFrame);
         }
         if (!mavf) {
             HJLogw("warning, a frame is null");

@@ -6,6 +6,7 @@
 #include "HJFFDemuxer.h"
 #include "HJFFUtils.h"
 #include "HJFLog.h"
+#include "HJGlobalSettings.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -30,21 +31,21 @@ int HJFFDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
 {
     int res = HJBaseDemuxer::init(mediaUrl);
     if (HJ_OK != res) {
-        HJLoge("init error:" + HJ2String(res));
+        HJFNLoge("init error:{}", res);
         return res;
     }
     std::string url = m_mediaUrl->getUrl();
     if (url.empty()) {
-        HJLoge("error, input url:" + url + " invalid");
+        HJFNLoge("error, input url:{} invalid", url);
         return HJErrInvalidUrl;
     }
     int64_t t1 = 0;
     int64_t t0 = HJTime::getCurrentMillisecond();
-    HJFLogi("load stream url:{}, fmt:{}, start time:{}, end time:{}, timeout:{}", url, m_mediaUrl->getFmtName(), m_mediaUrl->getStartTime(), m_mediaUrl->getEndTime(), m_mediaUrl->getTimeout());
+    HJFNLogi("load stream url:{}, fmt:{}, start time:{}, end time:{}, timeout:{}", url, m_mediaUrl->getFmtName(), m_mediaUrl->getStartTime(), m_mediaUrl->getEndTime(), m_mediaUrl->getTimeout());
     do {
         AVFormatContext* ic = avformat_alloc_context();
         if (!ic) {
-            HJLoge("avformate Could not allocate context");
+            HJFNLoge("avformate Could not allocate context");
             res = HJErrFFNewIC;
             break;
         }
@@ -65,7 +66,7 @@ int HJFFDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
             size_t avio_ctx_buffer_size = xioBuffer->size();
             uint8_t* avio_ctx_buffer = (uint8_t *)av_mallocz(avio_ctx_buffer_size);
             if (!avio_ctx_buffer || avio_ctx_buffer_size <= 0) {
-                HJLoge("error, avio context buffer is NULL");
+                HJFNLoge("error, avio context buffer is NULL");
                 res = HJErrMemAlloc;
                 break;
             }
@@ -73,20 +74,24 @@ int HJFFDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
             //
             AVIOContext* xioCtx = avio_alloc_context(avio_ctx_buffer, avio_ctx_buffer_size, 0, this, NULL, NULL, NULL);
             if (!xioCtx) {
-                HJLoge("error, alloc avio context failed");
+                HJFNLoge("error, alloc avio context failed");
                 res = HJErrMemAlloc;
                 break;
             }
             ic->pb = xioCtx;
             ic->flags = AVFMT_FLAG_CUSTOM_IO;
         }
-        
+
+        if (HJGlobalSettingsManager::getUseHTTPPool()) {
+            url = hj_replace_fasthttp(url);
+        }
         AVDictionary* fmtOpts = getFormatOptions();
         res = avformat_open_input(&ic, url.c_str(), NULL, &fmtOpts);
         av_dict_free(&fmtOpts);
         if (res < HJ_OK) {
+            HJFNLoge("error, avformat load url failed:{}, {}", res, HJ_AVErr2Str(res));            
             avformat_free_context(ic);
-            HJLoge("error, avformat load url failed:" + HJ2String(res));
+            
             res = AVErr2HJErr(res, HJErrFFLoadUrl);
             break;
         }
@@ -108,7 +113,7 @@ int HJFFDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
         res = avformat_find_stream_info(ic, NULL);
         //av_dict_free(&opts);
         if (res < HJ_OK) {
-            HJLoge("avformat find stream info error:" + HJ2String(res));
+            HJFNLoge("avformat find stream info error:{}", res);
             res = AVErr2HJErr(res, HJErrFFFindInfo);
             break;
         }
@@ -124,7 +129,7 @@ int HJFFDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
         m_runState = HJRun_Ready;
     } while (false);
     int64_t t2 = HJTime::getCurrentMillisecond();
-    HJFLogi("init load stream end, res:{}, time:{},{},{}, url:{}", res, t1 - t0, t2 - t1, t2 - t0, url);
+    HJFNLogi("init load stream end, res:{}, time:{},{},{}, url:{}", res, t1 - t0, t2 - t1, t2 - t0, url);
     
     return res;
 }
@@ -157,11 +162,10 @@ int HJFFDemuxer::seek(int64_t pos)
     int64_t timestamp = (AV_NOPTS_VALUE != m_mediaInfo->m_startTime) ? (m_mediaInfo->m_startTime + pos) : pos;
     int res = avformat_seek_file(m_ic, -1, INT64_MIN, HJ_MS_TO_US(timestamp), INT64_MAX, 0);
     if (res < HJ_OK) {
-        HJLoge("avformat seek file error:" + HJ2String(res) + ", seek time:" + HJ2String(timestamp));
+        HJFNLoge("avformat seek file error:{}, seek time:{}", res, timestamp);
         return HJErrFFSeek;
     }
-
-    HJLogi("seek end pos:" + HJ2String(pos) + ", timestamp:" + HJ2String(timestamp));
+    HJFNLogi("seek end pos:{}, timestamp:{}", pos, timestamp);
     
     return HJ_OK;
 }
@@ -172,10 +176,15 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
         return HJErrNotAlready;
     }
     //HJLogi("entry");
-    int64_t t0 = HJTime::getCurrentMillisecond();
+    //int64_t t0 = HJCurrentSteadyMS();
+    if (HJRun_EOF == m_runState) {
+        frame = HJMediaFrame::makeEofFrame();
+        frame->m_streamIndex = m_streamID;
+        return HJ_EOF;
+    }
     AVPacket* pkt = av_packet_alloc();
     if (!pkt) {
-        HJLogi("alloc AVPacket error");
+        HJFNLoge("alloc AVPacket error");
         return HJErrNewObj;
     }
     int res = HJ_OK;
@@ -187,17 +196,24 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
             if (AVERROR_EOF == res || avio_feof(ic->pb)) {
                 procEofFrame();
                 frame = HJMediaFrame::makeEofFrame();
-                HJLogw("get frame eof, all track max duration:" + HJ2STR(getDuration()));
+                frame->m_streamIndex = m_streamID;
+                m_runState = HJRun_EOF;
+                HJFNLogw("get frame eof, all track max duration:{}", getDuration());
                 res = HJ_EOF;
                 break;
             }
             if (ic->pb && ic->pb->error) {
-                HJLoge("get frame error:" + HJ2String(ic->pb->error));
+                HJFNLoge("get frame error:{}", ic->pb->error);
                 res = HJErrFatal;
                 break;
             }
             res = HJ_WOULD_BLOCK;
             break;
+        }
+        if (pkt->flags & AV_PKT_FLAG_CORRUPT) {
+            res = HJErrFFAVPacket;
+            HJFNLoge("error, get packet corrupt, flags:{}", pkt->flags);
+			break;
         }
         //
 //        HJMediaFrame::Ptr frame = std::make_shared<HJMediaFrame>();
@@ -211,7 +227,7 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
             HJVideoInfo::Ptr mvinfo = m_mediaInfo->getVideoInfo();
             if (!mvinfo || !trackInfo) {
                 res = HJErrESParse;
-                HJLogi("error, get video info failed");
+                HJFNLoge("error, get video info failed");
                 break;
             }
             mvf = HJMediaFrame::makeVideoFrame();
@@ -245,9 +261,14 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
             {
                 if (!m_extraVBuffer || (mvinfo->getCodecID() != codecparams->codec_id)) 
                 {
+                    if (m_extraVBuffer) {
+                        m_extraABuffer = nullptr;
+                        m_streamID++;
+                        HJFNLogw("warning video m_streamID:{}", m_streamID);
+                    }
                     if (mvinfo->getCodecID() != codecparams->codec_id) 
                     {
-                        HJFLogw("warning, video code id:{} change to :{}", mvinfo->getCodecID(), codecparams->codec_id);
+                        HJFNLogw("warning, video code id:{} change to :{}", mvinfo->getCodecID(), codecparams->codec_id);
                         //m_mediaInfo->m_vstIdx = pkt->stream_index;
                         mvinfo->setID(st->id);
                         mvinfo->setCodecID(codecparams->codec_id);
@@ -268,6 +289,7 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
                     //
                     videoInfo->setAVCodecParams(av_dup_codec_params(codecparams));
                     mvf->setFlush();
+                    HJFNLogw("warning, video media frame flush, switch, m_streamID:{}", m_streamID);
                 }
                 else if (m_extraVBuffer)
                 {
@@ -275,6 +297,8 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
                     if (newExtraBuffer && !HJUtilitys::memoryCompare(m_extraVBuffer->data(), m_extraVBuffer->size(), newExtraBuffer->data(), newExtraBuffer->size()))
                     {
                         m_extraVBuffer = newExtraBuffer;
+                        m_extraABuffer = nullptr;
+                        m_streamID++;
                         //
                         const auto dupCodecParams = av_dup_codec_params(codecparams);
                         if (dupCodecParams->extradata) {
@@ -287,6 +311,7 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
                         //
                         videoInfo->setAVCodecParams(av_dup_codec_params(dupCodecParams));
                         mvf->setFlush();
+                        HJFNLogw("warning, video media frame flush, compare, m_streamID:{}", m_streamID);
                     }
                 }
 
@@ -306,7 +331,7 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
             HJAudioInfo::Ptr mainfo = m_mediaInfo->getAudioInfo();
             if (!mainfo || !trackInfo) {
                 res = HJErrESParse;
-                HJLogi("error, get video info failed");
+                HJFNLoge("error, get video info failed");
                 break;
             }
             mvf = HJMediaFrame::makeAudioFrame();
@@ -325,15 +350,20 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
             audioInfo->m_blockAlign = codecparams->block_align;
             audioInfo->m_sampleFmt = codecparams->format;
             audioInfo->m_dataType = HJDATA_TYPE_ES;
-            if(pkt->duration <= 0) {
+            if(pkt->duration <= 2) {
                 pkt->duration = av_rescale_q(audioInfo->m_samplesPerFrame, { 1, audioInfo->m_samplesRate }, { st->time_base.num, st->time_base.den });
             }
             //flush frame
             if (!m_extraABuffer || (mainfo->getCodecID() != codecparams->codec_id)) 
             {
+                if (m_extraABuffer) {
+                    m_extraVBuffer = nullptr;
+                    m_streamID++;
+                    HJFNLogw("warning audio m_streamID:{}", m_streamID);
+                }
                 if (mainfo->getCodecID() != codecparams->codec_id) 
                 {
-                    HJFLogw("warning, audio code id:{} change to :{}", mainfo->getCodecID(), codecparams->codec_id);
+                    HJFNLogw("warning, audio code id:{} change to :{}", mainfo->getCodecID(), codecparams->codec_id);
                     //m_mediaInfo->m_astIdx = pkt->stream_index;
                     mainfo->setID(st->id);
                     mainfo->setCodecID(codecparams->codec_id);
@@ -342,13 +372,16 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
                 //
                 audioInfo->setAVCodecParams(av_dup_codec_params(codecparams));
                 mvf->setFlush();
+                HJFNLogw("warning, audio media frame flush, switch, m_streamID:{}", m_streamID);
             }
             else if (m_extraABuffer) 
             {
                 auto newExtraBuffer = hj_get_extradata_buffer(pkt);
-                if (newExtraBuffer && !HJUtilitys::memoryCompare(m_extraVBuffer->data(), m_extraVBuffer->size(), newExtraBuffer->data(), newExtraBuffer->size()))
+                if (newExtraBuffer && !HJUtilitys::memoryCompare(m_extraABuffer->data(), m_extraABuffer->size(), newExtraBuffer->data(), newExtraBuffer->size()))
                 {
-                    m_extraVBuffer = newExtraBuffer;
+                    m_extraABuffer = newExtraBuffer;
+                    m_extraVBuffer = nullptr;
+                    m_streamID++;
                     //
                     const auto dupCodecParams = av_dup_codec_params(codecparams);
                     if (dupCodecParams->extradata) {
@@ -361,16 +394,31 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
                     //
                     audioInfo->setAVCodecParams(dupCodecParams);
                     mvf->setFlush();
+                    HJFNLogw("warning, audio media frame flush, compare, m_streamID:{}", m_streamID);
                 }
             }
+            int64_t dts = av_time_to_ms(pkt->dts, pkt->time_base);
+            if (HJ_NOTS_VALUE != m_lastAudioDTS) 
+            {
+                int64_t delta = dts - m_lastAudioDTS;
+                if (dts < m_lastAudioDTS || delta > m_gapThreshold) {
+                    //m_extraVBuffer = nullptr;
+                    m_streamID++;
+                    audioInfo->setAVCodecParams(av_dup_codec_params(codecparams));
+                    mvf->setFlush();
+                    HJFNLogw("warning, audio media frame flush, time skip, m_streamID:{}", m_streamID);
+                }
+            }
+            m_lastAudioDTS = dts;
+            //
             m_afCnt++;
         } else {
-            HJLogi("warning, not support or disable AVPacket type:" + HJ2String(codecparams->codec_type));
+            HJFNLogi("warning, not support or disable AVPacket type:{}", codecparams->codec_type);
             res = HJ_WOULD_BLOCK;
             continue;
         }
         pkt->time_base = st->time_base;
-        if (!m_lowDelay && AV_NOPTS_VALUE != m_mediaInfo->m_startTime)
+        if (m_timeOffsetEnable/*!m_lowDelay*/ && AV_NOPTS_VALUE != m_mediaInfo->m_startTime)
         {
             int64_t offsetTime = 0; // (HJ_NOTS_VALUE != m_atrs->m_offsetTime) ? m_atrs->m_offsetTime : 0;
             int64_t startTime = av_ms_to_time(m_mediaInfo->m_startTime + offsetTime, pkt->time_base);
@@ -381,11 +429,16 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
                 pkt->dts -= startTime;
             }
         }
+        mvf->m_streamIndex = m_streamID;
         mvf->setPTSDTS(pkt->pts, pkt->dts, av_rational_to_hj_rational(pkt->time_base));
         mvf->setDuration(pkt->duration, av_rational_to_hj_rational(pkt->time_base));
         mvf->setMTS(pkt->pts, pkt->dts, pkt->duration, av_rational_to_hj_rational(pkt->time_base));
         //
         mvf->setMPacket(pkt); pkt = NULL;
+
+        if (mvf->getDuration() <= 2) {
+            HJFNLogw("warning, frame duration too short:{}, info:{}", mvf->getDuration(), mvf->formatInfo());
+        }
         //
         frame = std::move(mvf);
         //
@@ -394,7 +447,7 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
 #endif
         HJNipInterval::Ptr nip = m_nipMuster->getNipById(frame->getType());
         if (frame && nip && nip->valid()) {
-            HJLogi("name:" + getName() + ", " + frame->formatInfo());
+            HJFNLogi(frame->formatInfo());
         }
         break;
     }
@@ -403,7 +456,7 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
         av_packet_free(&pkt);
         pkt = NULL;
     }
-    //HJFLogi("getFrame end");
+    //HJFNLogi("getFrame end, time:{}", HJCurrentSteadyMS() - t0);
     
     return res;
 }
@@ -416,9 +469,10 @@ void HJFFDemuxer::reset()
     if(startTime >= 0 && startTime < m_mediaInfo->getDuration()) {
         int res = seek(startTime);
         if(HJ_OK != res) {
-            HJLoge("seek time:" + HJ2String(startTime) + " error:" + HJ2STR(res));
+            HJFNLoge("seek time:{},  error:{}", startTime , res);
         }
     }
+    m_runState = HJRun_Ready;
     return;
 }
 
@@ -430,7 +484,7 @@ int HJFFDemuxer::makeMediaInfo()
     int res = HJ_OK;
     AVFormatContext* ic = (AVFormatContext*)m_ic;
 	if (ic->nb_streams <= 0) {
-        HJLoge("error, ic->nb_streams is zero");
+        HJFNLoge("error, ic->nb_streams is zero");
 		return HJErrFatal;
 	}
     for (unsigned int i = 0; i < ic->nb_streams; i++) {
@@ -457,7 +511,7 @@ int HJFFDemuxer::makeMediaInfo()
             st->discard = AVDISCARD_DEFAULT;
             AVCodecParameters* codecparams = st->codecpar;
             if (!codecparams) {
-                HJLoge("error, video codec params is NULL");
+                HJFNLoge("error, video codec params is NULL");
                 return HJErrInvalid;
             }
             minStartTime = HJ_MIN(minStartTime, av_time_to_ms(st->start_time, st->time_base));
@@ -471,12 +525,12 @@ int HJFFDemuxer::makeMediaInfo()
             AVRational fr = av_guess_frame_rate(ic, st, NULL);
             videoInfo->m_frameRate = (0 != fr.den) ? (fr.num / (float)fr.den + 0.5f) : videoInfo->m_frameRate;
             videoInfo->m_TimeBase = HJMediaUtils::checkTimeBase({st->time_base.num, st->time_base.den});
-            videoInfo->setTimeRange({{st->start_time, {st->time_base.num, st->time_base.den}}, {st->duration, {st->time_base.num, st->time_base.den}}});
+            videoInfo->setTimeRange({{st->start_time, {st->time_base.num, st->time_base.den}}, {HJ_MAX(0,st->duration), {st->time_base.num, st->time_base.den}}});
             videoInfo->m_rotate = getRotation(st);
             //
             AVCodecParameters* storeParams = av_dup_codec_params(codecparams);
             if (!storeParams) {
-                HJLoge("dup codec params error");
+                HJFNLoge("dup codec params error");
                 return HJErrNewObj;
             }
             videoInfo->setAVCodecParams(storeParams);
@@ -495,7 +549,7 @@ int HJFFDemuxer::makeMediaInfo()
             st->discard = AVDISCARD_DEFAULT;
             AVCodecParameters* codecparams = st->codecpar;
             if (!codecparams) {
-                HJLoge("error, audio codec params is NULL");
+                HJFNLoge("error, audio codec params is NULL");
                 return HJErrInvalid;
             }
             minStartTime = HJ_MIN(minStartTime, av_time_to_ms(st->start_time, st->time_base));
@@ -513,13 +567,13 @@ int HJFFDemuxer::makeMediaInfo()
             audioInfo->m_sampleFmt = codecparams->format;
             audioInfo->m_bytesPerSample = (codecparams->bits_per_coded_sample > 0) ? (codecparams->bits_per_coded_sample * audioInfo->m_channels / 8) : (2 * audioInfo->m_channels);
             audioInfo->setTimeBase({ st->time_base.num, st->time_base.den });
-            audioInfo->setTimeRange({{st->start_time, {st->time_base.num, st->time_base.den}}, {st->duration, {st->time_base.num, st->time_base.den}}});
+            audioInfo->setTimeRange({{st->start_time, {st->time_base.num, st->time_base.den}}, {HJ_MAX(0,st->duration), {st->time_base.num, st->time_base.den}}});
 //            audioInfo->m_sampleFmt = avctx->sample_fmt;
 //            audioInfo->m_sampleCnt = codecparams->frame_size;
             //
             AVCodecParameters* storeParams = av_dup_codec_params(codecparams);
             if (!storeParams) {
-                HJLoge("dup codec params error");
+                HJFNLoge("dup codec params error");
                 return HJErrNewObj;
             }
             audioInfo->setAVCodecParams(storeParams);
@@ -541,7 +595,7 @@ int HJFFDemuxer::makeMediaInfo()
 	m_mediaInfo->setTimeRange({{m_mediaInfo->m_startTime, HJ_TIMEBASE_MS}, {m_mediaInfo->m_duration, HJ_TIMEBASE_MS}});
     m_nipMuster = std::make_shared<HJNipMuster>(nidIdxs);
 
-    HJLogi("media info:" + m_mediaInfo->formatInfo());
+    HJFNLogi("media info:{}", m_mediaInfo->formatInfo());
     
     return res;
 }
@@ -582,6 +636,9 @@ AVDictionary* HJFFDemuxer::getFormatOptions()
             //av_dict_set(&fmtOpts, "fps", "30", 0);
         }
     }
+    av_dict_set_int(&fmtOpts, "streamtype", 2, 0);
+    av_dict_set(&fmtOpts, "obj_name", getName().c_str(), 0);    
+    
 //        {
 //            char   *ptr, **pptr;
 //            struct hostent *hptr;
@@ -642,7 +699,7 @@ HJMediaFrame::Ptr HJFFDemuxer::procEofFrame()
             maxDelta = tinfo->m_endDelta;
         }
     }
-    HJLogi("{eof attrs:" + m_atrs->formatInfo() + "}");
+    HJFNLogi("eof attrs:" + m_atrs->formatInfo());
     
     return mvf;
 }
@@ -658,7 +715,7 @@ int64_t HJFFDemuxer::getDuration()
     }
     return 0;
 }
-
+#if 0
 double HJFFDemuxer::getRotation(AVStream *st)
 {
     AVDictionaryEntry *rotate_tag = av_dict_get(st->metadata, "rotate", NULL, 0);
@@ -681,6 +738,33 @@ double HJFFDemuxer::getRotation(AVStream *st)
 
     return theta;
 }
+#endif
+
+double HJFFDemuxer::getRotation(AVStream* st)
+{
+    double theta = 0.0;
+    int32_t* displaymatrix = NULL;
+    const AVPacketSideData* psd = av_packet_side_data_get(st->codecpar->coded_side_data,
+        st->codecpar->nb_coded_side_data,
+        AV_PKT_DATA_DISPLAYMATRIX);
+    if (psd)
+        displaymatrix = (int32_t*)psd->data;
+
+    if (displaymatrix)
+        theta = -round(av_display_rotation_get(displaymatrix));
+
+    theta -= 360 * floor(theta / 360 + 0.9 / 360);
+
+    if (fabs(theta - 90 * round(theta / 90)) > 2) {
+        HJFLogi("Odd rotation angle.");
+    }
+    //av_log(NULL, AV_LOG_WARNING, "Odd rotation angle.\n"
+    //    "If you want to help, upload a sample "
+    //    "of this file to https://streams.videolan.org/upload/ "
+    //    "and contact the ffmpeg-devel mailing list. (ffmpeg-devel@ffmpeg.org)");
+
+    return theta;
+}
 
 int HJFFDemuxer::analyzeProtocol()
 {
@@ -693,7 +777,7 @@ int HJFFDemuxer::analyzeProtocol()
         if (m_ic->protocol_whitelist) {
             const std::vector<std::string> liveProtocols = HJUtilitys::split("http,https,tls,rtp,tcp,udp,httpproxy,rtmp", ",");
             std::string whitelist = HJ2SSTR(m_ic->protocol_whitelist);
-            HJLogi("analyze protocols:" + whitelist);
+            HJFNLogi("analyze protocols:{}", whitelist);
             auto protocols = HJUtilitys::split(whitelist, ",");
             for (std::string pro : protocols) {
                 if (std::find(liveProtocols.begin(), liveProtocols.end(), pro) != liveProtocols.end()) {

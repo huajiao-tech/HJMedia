@@ -7,5 +7,5 @@
 #include "HJMacros.h"
 
 //***********************************************************************************//
-#define HJ_VERSION         "1.0.0.11"
-#define HJ_VERSION_CODE    1000000011
+#define HJ_VERSION         "1.0.1"
+#define HJ_VERSION_CODE    1000001

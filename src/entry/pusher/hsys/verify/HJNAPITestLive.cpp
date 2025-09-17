@@ -7,8 +7,10 @@
 #include "HJRTMPUtils.h"
 #include "HJComEvent.h"
 #include "HJOGRenderEnv.h"
-#include "HJGraphComVideoCapture.h"
+#include "HJPrioGraphProc.h"
 #include "HJGraphComPusher.h"
+#include "HJOGRenderWindowBridge.h"
+#include "HJPrioUtils.h"
 
 NS_HJ_BEGIN
     
@@ -23,7 +25,7 @@ HJNAPITestLive::~HJNAPITestLive()
 {
    
 }
-int HJNAPITestLive::contextInit(const HJPusherContextInfo& i_contextInfo)
+int HJNAPITestLive::contextInit(const HJEntryContextInfo& i_contextInfo)
 {
     int i_err = 0;
     do 
@@ -45,11 +47,11 @@ int HJNAPITestLive::openPngSeq(const HJPusherPNGSegInfo &i_pngseqInfo)
     int i_err = 0;
     do 
     {
-        if (m_graphVideoCapture)
+        if (m_prioGraphProc)
         {
             HJ::HJBaseParam::Ptr param = HJ::HJBaseParam::Create();
             (*param)["pngsequrl"] = std::string(i_pngseqInfo.pngSeqUrl);
-            i_err = m_graphVideoCapture->openPNGSeq(param);
+            i_err = m_prioGraphProc->openPNGSeq(param);
             if (i_err < 0)
             {
                 break;
@@ -111,7 +113,7 @@ int HJNAPITestLive::openPusher(const HJPusherVideoInfo& i_videoInfo, const HJPus
                 state = HJTargetState_Destroy;
             }
             int64_t t0 = HJCurrentSteadyMS();
-            int ret =  priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_Encoder, m_encoderFps);
+            int ret =  priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_EncoderPusher, m_encoderFps);
             HJFLogi("setwindow state:{} timediff:{}", state, (HJCurrentSteadyMS() - t0));
             return ret;
         };
@@ -204,12 +206,12 @@ void HJNAPITestLive::closePreview()
     }    
     
     HJFLogi("closePreview m_graphVideoCapture done enter");
-    if (m_graphVideoCapture)
+    if (m_prioGraphProc)
     {
         HJFLogi("closePreview m_graphVideoCapture-> done enter");
-        m_graphVideoCapture->done();
+        m_prioGraphProc->done();
         HJFLogi("closePreview m_graphVideoCapture-> done end");
-        m_graphVideoCapture = nullptr;
+        m_prioGraphProc = nullptr;
     }     
     HJFLogi("closePreview m_graphVideoCapture done end time:{}", (HJCurrentSteadyMS() - t0));
 }
@@ -239,7 +241,7 @@ void HJNAPITestLive::closeRecorder()
         m_graphPusher->closeRecorder();
     }   
 }
-int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIPusherNotify i_notify, uint64_t &o_surfaceId)
+int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIEntryNotify i_notify, uint64_t &o_surfaceId)
 {
     int i_err = 0;
 	do
@@ -251,7 +253,7 @@ int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPI
             break;
         }
         
-        if (m_graphVideoCapture)
+        if (m_prioGraphProc)
         {
             i_err = -1;
             HJFLoge("pusher has already created, not open again");
@@ -264,24 +266,8 @@ int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPI
         (*param)[HJBaseParam::s_paramFps] = i_previewInfo.videoFps;
         m_previewFps = i_previewInfo.videoFps;
         
-        HJTransferRenderModeInfo renderModeInfo;
-        renderModeInfo.color = "BT601";
-        renderModeInfo.cropMode = "clip";
-        renderModeInfo.viewOffx = 0.0;
-        renderModeInfo.viewOffy = 0.0;
-        renderModeInfo.viewWidth = 1.0;
-        renderModeInfo.viewHeight = 1.0;
-        std::string renderModeStr = renderModeInfo.initSerial();
-        if (renderModeStr.empty())
-        {
-            i_err = -1;
-            HJFLoge("initSerial error");
-            break;
-        }    
-        (*param)[HJBaseParam::s_paramRenderBridge] = (std::string)renderModeStr;
-
-         m_graphVideoCapture = HJGraphComVideoCapture::Create();
-        if (!m_graphVideoCapture)
+        m_prioGraphProc = HJPrioGraphProc::Create();
+        if (!m_prioGraphProc)
         {
             i_err = -1;
             HJFLoge("HJGraphComVideoCapture create error");
@@ -294,37 +280,37 @@ int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPI
             {
                 return HJ_OK;
             }
-            HJFLogi("graph video capture notify id:{}, msg:{}", HJRenderVideoCaptureEventToString((HJRenderVideoCaptureEvent)ntf->getID()), ntf->getMsg());
-            int type = HJVIDEOCAPTURE_EVENT_NONE;
+            HJFLogi("graph video capture notify id:{}, msg:{}", HJVideoRenderGraphEventToString((HJVideoRenderGraphEvent)ntf->getID()), ntf->getMsg());
+            int type = HJVIDEORENDERGRAPH_EVENT_NONE;
             std::string msg = ntf->getMsg();
             switch (ntf->getID())
             {
-            case HJVIDEOCAPTURE_EVENT_ERROR_DEFAULT:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_DEFAULT:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_DEFAULT;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_ERROR_UPDATE:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_UPDATE:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_UPDATE;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_ERROR_DRAW:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_DRAW:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_DRAW;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_ERROR_VIDEOCAPTURE_INIT:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_INIT:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_ERROR_PNGSEQ_INIT:
+            case HJVIDEORENDERGRAPH_EVENT_ERROR_PNGSEQ_INIT:
             {
                 type = HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT;
                 break;
             }
-            case HJVIDEOCAPTURE_EVENT_PNGSEQ_COMPLETE:
+            case HJVIDEORENDERGRAPH_EVENT_PNGSEQ_COMPLETE:
             {
                 type = HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE;
                 break;
@@ -334,23 +320,23 @@ int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPI
                 break;
             }
             }
-            if (m_notify && (HJVIDEOCAPTURE_EVENT_NONE != type))
+            if (m_notify && (HJVIDEORENDERGRAPH_EVENT_NONE != type))
             {
                 m_notify(type, msg);
             }
             return HJ_OK;
         };
         (*param)["renderListener"] = (HJListener)renderListener;
-        
-        i_err = m_graphVideoCapture->init(param);
+        HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioComSourceType), (int)HJPrioComSourceType_SERIES);
+        i_err = m_prioGraphProc->init(param);
         if (i_err < 0)
         {
             HJLoge("m_graphVideoCapture init error:{}", i_err);
             break;
         }
-        if (m_graphVideoCapture)
+        if (m_prioGraphProc)
         {
-            m_bridge = m_graphVideoCapture->renderWindowBridgeAcquire();
+            m_bridge = m_prioGraphProc->renderWindowBridgeAcquire();
         }    
         
         if (!m_bridge)
@@ -404,9 +390,9 @@ int HJNAPITestLive::priSetWindow(void *i_window, int i_width, int i_height, int 
             i_err = -1;
             break;
         }    
-        if (m_graphVideoCapture)
+        if (m_prioGraphProc)
         {
-            i_err = m_graphVideoCapture->eglSurfaceProc(renderTargetStr);
+            i_err = m_prioGraphProc->eglSurfaceProc(renderTargetStr);
             if (i_err < 0)
             {
                 HJFLoge("eglSurfaceProc error i_err:{} w:{} h:{} state:{}", i_err, i_width, i_height, i_state);
