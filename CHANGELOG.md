@@ -6,6 +6,7 @@
 
 - 完成直播播放器HJPlayer
 - 同步更新推流器HJPusher基础媒体库及打点功能
+- 更新ffmpeg到8.0
   
   
 

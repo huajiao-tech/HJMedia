@@ -293,7 +293,7 @@ int HJNAPIPlayer::priCreatePlayerGraph(const HJPlayerInfo &i_playerInfo)
                 break;
             case HJ_PLUGIN_NOTIFY_AUDIORENDER_FRAME:
                 type = HJ_PLAYER_NOTIFY_AUDIO_FRAME;
-                HJFLogi("{} player notify id:{}, msg:{}", this->getInsName(), HJPluginNofityTypeToString((HJPluginNofityType)ntf->getID()), ntf->getMsg());
+                // HJFLogi("{} player notify id:{}, msg:{}", this->getInsName(), HJPluginNofityTypeToString((HJPluginNofityType)ntf->getID()), ntf->getMsg());
                 break;
             case HJ_PLUGIN_NOTIFY_EOF:
                 type = HJ_PLAYER_NOTIFY_EOF;
