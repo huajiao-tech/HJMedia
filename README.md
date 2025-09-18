@@ -22,7 +22,6 @@
 <img title="" src="examples/harmony/hjpusher/hjpusherDemo.gif" alt="" data-align="center">    
 <img title="" src="examples/harmony/hjplayer/hjplayerDemo.gif" alt="" data-align="center">
 
-
 # 特性
 
 - 推流器
@@ -98,7 +97,17 @@
     
     - 使用 [DevEco Studio]([DevEco Studio-鸿蒙应用集成开发环境（IDE）-华为开发者联盟](https://developer.huawei.com/consumer/cn/deveco-studio/))，5.1.1 Release
 
-# 
+- Harmony编译 
+  
+  - HJPusher的har包编译
+    
+    ![](examples/harmony/hjpusher/HJPusher_build.jpg)
+    
+    
+  
+  - HJPlayer的har包编译
+    
+    ![](examples/harmony/hjplayer/HJPlayer_build.jpg)
 
 # 最新更新
 
