@@ -23,6 +23,8 @@
 #define INVALID_SOCKET (-1)
 #endif
 
+//#define SIOCOUTQ 0x5411  // 通常与Linux保持一致
+
 #if defined( __cplusplus )
 extern "C" {
 #endif
@@ -138,7 +140,7 @@ int HJRTMPWrapper::init(const std::string url, HJOptions::Ptr opts)
 			res = HJErrNetConnectFailed;
 			break;
 		}
-		HJLogi("rtmp connect ok");
+		HJFLogi("rtmp connect ok, server ip:{}, port:{}", rtmp->Link.theIP, rtmp->Link.port);
 		notify(std::move(HJMakeNotification(HJRTMP_EVENT_CONNECTED, "rtmp connected")));
 
 		if (!RTMP_ConnectStream(rtmp, 0)) {
@@ -191,6 +193,7 @@ int HJRTMPWrapper::send(const uint8_t* data, size_t len, int idx)
 		HJFLoge("invalid rtmp or stream index:{}", idx);
 		return HJErrNotAlready;
 	}
+	auto tt0 = HJCurrentSteadyMS();
 #if defined(HJ_HAVE_RTMPEX)
 	int wlen = RTMP_Write(m_rtmp, (const char*)data, (int)len, idx);
 #else
@@ -203,7 +206,11 @@ int HJRTMPWrapper::send(const uint8_t* data, size_t len, int idx)
 		m_lastCode = HJErrNetSend;
 		return m_lastCode;
 	}
-	//HJFLogi("rtmp write tag data size:{}, out size:{}", len, wlen);
+	auto delta = HJCurrentSteadyMS() - tt0;
+	if (delta > 100) {
+		HJFLogi("rtmp send data size:{}, out size:{}, time:{}ms", len, wlen, delta);
+	}
+	// HJFLogi("rtmp write tag data size:{}, out size:{}", len, wlen);
 	return HJ_OK;
 }
 
@@ -300,6 +307,27 @@ int HJRTMPWrapper::setNONBlocking()
 	}
 	return HJ_OK;
 }
+
+//int HJRTMPWrapper::get_sndbuf_remaining()
+//{
+//	if (!m_rtmp) {
+//		return HJErrNotAlready;
+//	}
+//	int sndbuf_size;
+//    socklen_t len = sizeof(sndbuf_size);
+//    if (getsockopt(m_rtmp->m_sb.sb_socket, SOL_SOCKET, SO_SNDBUF, &sndbuf_size, &len) == -1) {
+//        HJLoge("getsockopt SO_SNDBUF failed");
+//        return -1;
+//    }
+//
+//    int pending_bytes;
+//    if (ioctl(m_rtmp->m_sb.sb_socket, SIOCOUTQ, &pending_bytes) == -1) {
+//        HJLoge("ioctl SIOCOUTQ failed");
+//        return -1;
+//    }
+//
+//    return sndbuf_size - pending_bytes;
+//}
 
 bool HJRTMPWrapper::processRecvData(size_t size)
 {

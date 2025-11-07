@@ -7,12 +7,16 @@
 #include "HJFFUtils.h"
 #include "HJTime.h"
 #include "HJFLog.h"
+#include "deviceinfo.h"
+#include <dlfcn.h>
+
+#define USE_ROI_20 1
 
 NS_HJ_BEGIN
 
 std::string HJVEncOHCodec::s_h264mime = "video/avc";
 std::string HJVEncOHCodec::s_h265mime = "video/hevc";
-
+std::string HJVEncOHCodec::s_roi_params_val = "";
 //***********************************************************************************//
 HJVEncOHCodec::HJVEncOHCodec()
 {
@@ -34,6 +38,13 @@ HJVEncOHCodec::~HJVEncOHCodec()
 	{
 		if (m_encoder)
 		{
+            
+            if (m_roiCb)
+	        {
+                HJRoiInfoVectorPtr roiInfo = nullptr;
+                m_roiCb(roiInfo, HJ_ROI_CB_FLAG_CLOSE);
+            }
+            
 			int ret = OH_VideoEncoder_Flush(m_encoder);
 			if (AV_ERR_OK != ret)
 			{
@@ -61,7 +72,7 @@ HJVEncOHCodec::~HJVEncOHCodec()
 
 int HJVEncOHCodec::init(const HJStreamInfo::Ptr &info)
 {
-	HJLogi("init begin");
+	HJFLogi("init begin");
 	int res = HJBaseCodec::init(info);
 	if (HJ_OK != res)
 	{
@@ -97,6 +108,9 @@ int HJVEncOHCodec::init(const HJStreamInfo::Ptr &info)
 		OH_AVFormat_SetLongValue(format, OH_MD_KEY_BITRATE, videoInfo->m_bitrate);
 		OH_AVFormat_SetIntValue(format, OH_MD_KEY_I_FRAME_INTERVAL, 1000 * videoInfo->m_gopSize / videoInfo->m_frameRate); // ms for example, (2 * 1000 / fps)
 		OH_AVFormat_SetIntValue(format, OH_MD_KEY_PROFILE, 0);
+        HJFLogi("init begin w:{} h:{} fps:{} bitrate:{}", videoInfo->m_width, videoInfo->m_height, videoInfo->m_frameRate, videoInfo->m_bitrate);
+        
+        
 		res = OH_VideoEncoder_Configure(m_encoder, format);
         OH_AVFormat_Destroy(format);
 		if (res != AV_ERR_OK)
@@ -176,6 +190,7 @@ int HJVEncOHCodec::setEof()
 
 int HJVEncOHCodec::adjustBitrate(int i_newBitrate)
 {
+	return 0;
 	int i_err = HJ_OK;
 	HJFLogi("adjustBitrate newBitrate:{}", i_newBitrate);
 	OH_AVFormat *format = nullptr;

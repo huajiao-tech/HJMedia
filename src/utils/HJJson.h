@@ -59,6 +59,11 @@ using HJVReal = HJValue<double>;
 using HJVString = HJValue<std::string>;
 using HJVPtr = HJValue<const uint8_t *>;
 using HJVCPtr = HJValue<const char *>;
+using HJVStrArray = HJValue<std::vector<std::string>>;
+using HJVIntArray = HJValue<std::vector<int>>;
+using HJVInt64Array = HJValue<std::vector<int64_t>>;
+using HJVBoolArray = HJValue<std::vector<bool>>;
+using HJVRealArray = HJValue<std::vector<double>>;
 //***********************************************************************************//
 #if defined(HJ_HAVE_YYJSON)
 class HJYJsonObject : public HJObject
@@ -140,6 +145,7 @@ public:
     int getMember(const std::string& key, uint8_t*& value, size_t& len);
     int getMember(const std::string& key, std::vector<HJYJsonObject::Ptr>& objs);
     int forEach(const std::string& key, const std::function<int(const HJYJsonObject::Ptr &)>& cb);
+    int forEachAnonymous(const std::function<int(const HJYJsonObject::Ptr&)>& cb);
 //    template <typename T>
 //    int getMember(const std::string& key, T& value);
 //    template <typename T>
@@ -155,6 +161,12 @@ public:
     int setMember(const std::string& key, const char* value);
     int setMember(const std::string& key, const uint8_t* value, const size_t len);
     int setMember(const std::string& key, std::vector<HJYJsonObject::Ptr> value);
+    //add vector
+    int setMember(const std::string& key, const std::vector<std::string>& value);
+    int setMember(const std::string& key, const std::vector<int>& value);
+    int setMember(const std::string& key, const std::vector<int64_t>& value);
+    int setMember(const std::string& key, const std::vector<bool>& value);
+    int setMember(const std::string& key, const std::vector<double>& value);
 protected:
     //proxy []
     class JsonProxy {

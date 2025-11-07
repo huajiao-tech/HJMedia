@@ -111,6 +111,7 @@ napi_value HJPlayerNapi::openPlayer(napi_env env, napi_callback_info info)
                                        .m_videoCodecType = config->videoCodecType,
                                        .m_sourceType = static_cast<HJPrioComSourceType>(config->sourceType),
                                        .m_playerType = static_cast<HJPlayerType>(config->playerType),
+                                       .m_bSplitScreenMirror = config->bSplitScreenMirror
                                    },
                                    [nPlayerPtr](int i_type, const std::string &i_msgInfo) {
                                        auto data = new HJYJsonDocument{};
@@ -210,6 +211,162 @@ napi_value HJPlayerNapi::preloadUrl(napi_env env, napi_callback_info info)
     HJPlayerBridge::preloadUrl(url);
 
     return nullptr;
+}
+
+
+napi_value HJPlayerNapi::setFaceInfo(napi_env env, napi_callback_info info)
+{
+    int i_err = HJ_OK;
+    NAPI_PARSE_ARGS(PARAM_COUNT_4)
+
+    int64_t nPlayerHandle;
+    bool lossless = true;
+    napi_get_value_bigint_int64(env, args[INDEX_0], &nPlayerHandle, &lossless);
+
+    auto nPlayerPtr = reinterpret_cast<HJPlayerBridge *>(nPlayerHandle);
+    if (nPlayerPtr)
+    {
+        int32_t w;
+        napi_get_value_int32(env, args[INDEX_1], &w);
+        int32_t h;
+        napi_get_value_int32(env, args[INDEX_2], &h);
+        
+        
+        size_t strLen;
+        napi_get_value_string_utf8(env, args[INDEX_3], nullptr, 0, &strLen);
+
+        std::vector<char> buffer(strLen + 1);
+        napi_get_value_string_utf8(env, args[INDEX_3], buffer.data(), buffer.size(), nullptr);
+        std::string pointsInfo = std::string(buffer.data());
+        
+        HJFacePointsWrapper::Ptr faceInfo = HJFacePointsWrapper::Create<HJFacePointsWrapper>(w, h, pointsInfo);
+        nPlayerPtr->setFaceInfo(faceInfo);
+    }
+
+    NAPI_INT_RET    
+}
+napi_value HJPlayerNapi::nativeSourceOpen(napi_env env, napi_callback_info info)
+{
+    int i_err = HJ_OK;
+    NAPI_PARSE_ARGS(PARAM_COUNT_2)
+
+    int64_t nPlayerHandle;
+    bool lossless = true;
+    napi_get_value_bigint_int64(env, args[INDEX_0], &nPlayerHandle, &lossless);
+
+    auto nPlayerPtr = reinterpret_cast<HJPlayerBridge *>(nPlayerHandle);
+    if (nPlayerPtr)
+    {
+        bool bUsePBO = false;
+        napi_get_value_bool(env, args[INDEX_1], &bUsePBO);
+        i_err = nPlayerPtr->openNativeSource(bUsePBO);
+    }
+
+    NAPI_INT_RET
+}
+napi_value HJPlayerNapi::nativeSourceClose(napi_env env, napi_callback_info info)
+{
+    int i_err = HJ_OK;
+    NAPI_PARSE_ARGS(PARAM_COUNT_1)
+
+    int64_t nPlayerHandle;
+    bool lossless = true;
+    napi_get_value_bigint_int64(env, args[INDEX_0], &nPlayerHandle, &lossless);
+
+    auto nPlayerPtr = reinterpret_cast<HJPlayerBridge *>(nPlayerHandle);
+    if (nPlayerPtr)
+    {
+        nPlayerPtr->closeNativeSource();
+    }
+
+    NAPI_INT_RET
+}
+napi_value HJPlayerNapi::nativeSourceAcquire(napi_env env, napi_callback_info info)
+{
+    NAPI_PARSE_ARGS(PARAM_COUNT_1)
+    std::shared_ptr<HJRGBAMediaData> data = nullptr;
+    
+    int64_t nPlayerHandle;
+    bool lossless = true;
+    napi_get_value_bigint_int64(env, args[INDEX_0], &nPlayerHandle, &lossless);
+
+    auto nPlayerPtr = reinterpret_cast<HJPlayerBridge *>(nPlayerHandle);
+    if (nPlayerPtr)
+    {
+        data = nPlayerPtr->acquireNativeSource();
+        if (data)
+        {
+            void* arrayBufferPtr = nullptr;
+            napi_value arrayBuffer = nullptr;
+            size_t bufferSize = data->m_nSize;
+            napi_status status = napi_create_arraybuffer(env, bufferSize, &arrayBufferPtr, &arrayBuffer);
+            if (status != napi_ok || arrayBufferPtr == nullptr) 
+            {
+                napi_throw_error(env, nullptr, "Failed to create ArrayBuffer");
+                return nullptr;
+            }
+            uint8_t *pData = static_cast<uint8_t*>(arrayBufferPtr);
+        
+            //int64_t t0 = HJCurrentSteadyMS();
+            memcpy(pData, data->m_buffer->getBuf(), bufferSize);
+            //int64_t t1 = HJCurrentSteadyMS();
+            //HJFLogi("memcpy size:{} time is:{} ", bufferSize, (t1 - t0));
+                
+            napi_value resultObj;
+            napi_create_object(env, &resultObj);
+        
+            napi_value jsWidth, jsHeight;
+            napi_create_uint32(env, data->m_width, &jsWidth);
+            napi_create_uint32(env, data->m_height, &jsHeight);
+
+            napi_set_named_property(env, resultObj, "data", arrayBuffer);
+            napi_set_named_property(env, resultObj, "width", jsWidth);
+            napi_set_named_property(env, resultObj, "height", jsHeight);
+            return resultObj; 
+        }
+    }
+    return nullptr;
+}
+
+napi_value HJPlayerNapi::openFaceu(napi_env env, napi_callback_info info)
+{
+    int i_err = HJ_OK;
+    NAPI_PARSE_ARGS(PARAM_COUNT_2)
+    
+    int64_t nPlayerHandle;
+    bool lossless = true;
+    napi_get_value_bigint_int64(env, args[INDEX_0], &nPlayerHandle, &lossless);
+
+    auto nPlayerPtr = reinterpret_cast<HJPlayerBridge *>(nPlayerHandle);
+    if (nPlayerPtr)
+    {
+        size_t strLen;
+        napi_get_value_string_utf8(env, args[INDEX_1], nullptr, 0, &strLen);
+
+        std::vector<char> buffer(strLen + 1);
+        napi_get_value_string_utf8(env, args[INDEX_1], buffer.data(), buffer.size(), nullptr);
+        std::string url = std::string(buffer.data());
+        i_err = nPlayerPtr->openFaceu(url);
+    }
+
+    NAPI_INT_RET
+}
+napi_value HJPlayerNapi::closeFaceu(napi_env env, napi_callback_info info)
+{
+    int i_err = HJ_OK;
+    NAPI_PARSE_ARGS(PARAM_COUNT_1)
+       
+    int64_t nPlayerHandle;
+    bool lossless = true;
+    napi_get_value_bigint_int64(env, args[INDEX_0], &nPlayerHandle, &lossless);
+
+    auto nPlayerPtr = reinterpret_cast<HJPlayerBridge *>(nPlayerHandle);
+    if (nPlayerPtr)
+    {
+        nPlayerPtr->closeFaceu();
+    }
+
+    NAPI_INT_RET
 }
 
 NS_HJ_END

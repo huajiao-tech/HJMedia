@@ -208,6 +208,12 @@ EGLSurface HJOGEGLCore::EGLSurfaceCreate(void *window)
             eglSurface = nullptr;
             break;
         }
+        if (makeCurrent(eglSurface) < 0)
+        {
+            HJFLoge("{} makeCurrent: error {}", m_insName, GetEglErrorString());
+            eglSurface = nullptr;
+            break;
+        }
 #endif
     } while (false);
     return eglSurface;

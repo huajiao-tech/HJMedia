@@ -48,11 +48,12 @@ private:
 	HJPluginVideoRender::Ptr m_videoSoftRender{};
 	HJPluginVideoFFDecoder::Ptr m_videoFFDecoder{};
 #if defined (WINDOWS)
-	HJPluginAudioWORender::Ptr m_audioRender{};
-#endif
-#if defined (HarmonyOS)
+	HJPluginAudioWASRender::Ptr m_audioRender{};
+#elif defined (HarmonyOS)
 	HJPluginVideoOHDecoder::Ptr m_videoHWDecoder{};
     HJPluginAudioOHRender::Ptr m_audioRender{};
+#else
+    HJPluginAudioRender::Ptr m_audioRender{};
 #endif
 
 	HJDeviceType m_deviceType{};

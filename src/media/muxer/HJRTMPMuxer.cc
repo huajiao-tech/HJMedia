@@ -58,7 +58,7 @@ int HJRTMPMuxer::init(const HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts)
         }
         if (!m_localUrl.empty()) {
             m_localFile = std::make_shared<HJXIOFile>();
-            res = m_localFile->open(std::make_shared<HJUrl>(m_localUrl, HJXFMode_WONLY));
+            res = m_localFile->open(std::make_shared<HJUrl>(m_localUrl, HJ_XIO_WRITE));
             if (HJ_OK != res) {
                 HJFLoge("error, open local url:{} failed", m_localUrl);
                 break;
@@ -97,7 +97,7 @@ int HJRTMPMuxer::init(const std::string url, int mediaTypes, HJOptions::Ptr opts
         }
         if (!m_localUrl.empty()) {
             m_localFile = std::make_shared<HJXIOFile>();
-            res = m_localFile->open(std::make_shared<HJUrl>(m_localUrl, HJXFMode_WONLY));
+            res = m_localFile->open(std::make_shared<HJUrl>(m_localUrl, HJ_XIO_WRITE));
             if (HJ_OK != res) {
                 HJFLoge("error, open local url:{} failed", m_localUrl);
                 break;

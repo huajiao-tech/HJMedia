@@ -5,7 +5,7 @@
 #include "HJOGRenderWindowBridge.h"
 #include "HJOGRenderEnv.h"
 #include "HJOGFBOCtrl.h"
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #include "HJOGShaderCommon.h"
 #endif
 

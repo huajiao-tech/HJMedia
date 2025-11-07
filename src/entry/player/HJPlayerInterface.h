@@ -31,6 +31,7 @@ typedef struct HJPlayerInfo
     int m_videoCodecType = HJPlayerVideoCodecType_SoftDefault;
     HJPrioComSourceType m_sourceType = HJPrioComSourceType_SERIES;
     HJPlayerType m_playerType = HJPlayerType_LIVESTREAM;
+    bool m_bSplitScreenMirror = false;
 } HJPlayerInfo;
 
 typedef enum HJPlayerNotifyType
@@ -51,6 +52,9 @@ typedef enum HJPlayerNotifyType
     HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT = 104,
     HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE = 105,
     HJ_RENDER_NOTIFY_NEED_SURFACE = 106,
+    
+    HJ_RENDER_NOTIFY_FACEU_ERROR = 107,
+    HJ_RENDER_NOTIFY_FACEU_COMPLETE = 108,
 
 } HJPlayerNotifyType;
 

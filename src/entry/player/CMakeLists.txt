@@ -31,14 +31,14 @@ add_library(${PROJ_NAME} SHARED ${SOURCE_FILES} ${HEADER_FILES})
 
 if (HarmonyOS)
     set(Harmony_Native_LIBRARY
-    libace_napi.z.so libEGL.so libGLESv3.so libace_ndk.z.so libuv.so libhilog_ndk.z.so
+    libace_napi.z.so libdeviceinfo_ndk.z.so libEGL.so libGLESv3.so libace_ndk.z.so libuv.so libhilog_ndk.z.so
     libnative_media_codecbase.so libnative_media_core.so libnative_media_vdec.so libnative_window.so
     libnative_media_venc.so libnative_media_acodec.so libnative_media_avdemuxer.so libnative_media_avsource.so libnative_media_avmuxer.so
-    libohaudio.so libnative_image.so libnative_buffer.so)
+    libohaudio.so libnative_image.so libnative_buffer.so libimage_source.so libpixelmap.so libimage_receiver.so libohimage.so)
     target_link_libraries(${PROJ_NAME} PRIVATE ${Harmony_Native_LIBRARY})
 
     target_link_libraries(${PROJ_NAME} PRIVATE LIBX264)
-    target_link_libraries(${PROJ_NAME} PRIVATE LIBZLIB)   # ffmpeg png encoder need zlib
+    target_link_libraries(${PROJ_NAME} PRIVATE zlib)   # ffmpeg png encoder need zlib
     target_link_options(${PROJ_NAME} PRIVATE "-Wl,-Bsymbolic")  #ld.lld: error: relocation R_AARCH64_ADR_PREL_PG_HI21 cannot be used against symbol 'ff_tx_tab_2048_float'; recompile with -fPIC
 endif()
 

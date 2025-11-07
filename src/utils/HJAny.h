@@ -44,7 +44,6 @@ public:
             return std::any_cast<T>(*anyObj);
         }
         return HJDefaultValue::get<T>();
-        //return (T)0;
     }
     //
     bool haveValue(const std::string& key) {
@@ -117,16 +116,31 @@ public:
     std::string getString(const std::string& key) {
         const std::any* anyObj = getStorage(key);
         if (anyObj) {
-            return std::any_cast<std::string>(*anyObj);
+            if (anyObj->type() == typeid(std::string)) {
+                return std::any_cast<std::string>(*anyObj);
+            }
+            else if (anyObj->type() == typeid(const char*)) {
+                const char* cstr = std::any_cast<const char*>(*anyObj);
+                return cstr ? std::string(cstr) : std::string();
+            }
+            else if (anyObj->type() == typeid(char*)) {
+                char* cstr = std::any_cast<char*>(*anyObj);
+                return cstr ? std::string(cstr) : std::string();
+            }
         }
         return "";
     }
     const char* getCharPtr(const std::string& key) {
         const std::any* anyObj = getStorage(key);
         if (anyObj) {
-            return std::any_cast<const char *>(*anyObj);
+            if (anyObj->type() == typeid(const char*)) {
+                return std::any_cast<const char*>(*anyObj);
+            }
+            else if (anyObj->type() == typeid(char*)) {
+                return std::any_cast<char*>(*anyObj);
+            }
         }
-        return "";
+        return NULL;
     }
     virtual void clone(const HJKeyStorage::Ptr& other) {
         //for (auto& it = other->begin(); it != other->end(); it++) {

@@ -7,6 +7,7 @@
 #include "HJContext.h"
 #include "HJFLog.h"
 #include "HJFFUtils.h"
+#include "HJLocalServer.h"
 //#include "HJByteBuffer.h"
 //#include "IconFontCppHeaders/IconsFontAwesome5.h"
 
@@ -46,12 +47,17 @@ int HJPlayerView::init(const std::string info)
         //m_mediaUrl = "E:/movies/h265_548637.flv";
         //m_mediaUrl = "https://live-replay-5.test.huajiao.com/psegments/z1.huajiao-live.HJ_0_qiniu_5_huajiao-live__h265_45752749_1730776617184_3550_T/1730776662-1730776884.m3u8";
         //m_mediaUrl = "https://file-21.huajiao.com/record/main/HJ_0_ali_2_main__h265_271891644_1751257106161_8625_O/replay.m3u8"; 
-        m_mediaUrl = "https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h265_132201540_1757987857283_9129_O.flv?auth_key=1758076136-0-0-b15e5f4f47bf463c55ae0140c0db14c2";
+        //m_mediaUrl = "https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h265_268302111_1761034596728_7704_O.flv?auth_key=1761121005-0-0-c496e8d2513f9ac4790f04c9a54d5a45";
         //m_mediaUrl = "E:/movies/replaym3u8/index.m3u8";
         //m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main_a_h264_270100274_1732602713389_8267_O.flv?auth_key=1732694308-0-0-d6f19de17979da5df6536153270dc20f";
         //m_mediaUrl = "https://al2-flv.live.huajiao.com/live_huajiao_h265/_LC_AL2_non_h265_SD_26624183417212690010010622_OX.flv";//"E:/js/820827.crdownload.flv";
         //m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_97810010_1733716541801_3403_O.flv?auth_key=1733815629-0-0-e1b5d5cd604208f609de1e6c165c5c8d";
         //m_mediaUrl = "http://localhost:8080/live/livestream.flv";
+        //m_mediaUrl = "E:/movies/blob/server/720x1280.mp4";
+        m_mediaUrl = "E:/movies/blob/server/2024_08_19_11_01_48_371_783.flv";
+        //m_mediaUrl = "E:/movies/blob/server/zzqc.mp4";
+        //m_mediaUrl = "E:/movies/blob/server/oceans.mp4";
+        //m_mediaUrl = "http://vjs.zencdn.net/v/oceans.mp4";
 #elif defined(HJ_OS_MACOS)
         m_mediaUrl = "/Users/zhiyongleng/works/movies/720x1280.mp4";
 #endif
@@ -876,9 +882,13 @@ void HJPlayerView::onClickPrepare()
         if (m_isAsyncUrl) {
             url = "exasync:" + url;
         }
+        auto rid = HJ2STR(HJUtilitys::hash(url));
+        url = HJLocalServer::getInstance()->getPlayUrl(rid, url);
+        //
         HJMediaUrl::Ptr url0 = std::make_shared<HJMediaUrl>(url);
         url0->setTimeout(m_timeout);
 //        url0->setLoopCnt(100);
+        //url0->setUseFast(false);
         mediaUrls = { url0 };
         //
         m_player = std::make_shared<HJMediaPlayer>();
@@ -952,9 +962,9 @@ void HJPlayerView::onClickPrepare()
                     HJFLoge("error, on process error failed, m_tryCnt:{}", m_tryCnt);
                     break;
                 }
-                HJMainExecutorAsync([=]() {
-                    onClickPrepare();
-                });
+                //HJMainExecutorAsync([=]() {
+                //    onClickPrepare();
+                //});
                 break;
             }
             case HJNotify_MediaChanged:
@@ -1030,9 +1040,9 @@ void HJPlayerView::onSeek(const int64_t pos)
 void HJPlayerView::onCompleted()
 {
     HJFLogi("entry");
-    HJMainExecutor()->async([=]() {
-        onClickPrepare();
-    }, 1000);
+    //HJMainExecutor()->async([=]() {
+    //    onClickPrepare();
+    //}, 1000);
 }
 
 void HJPlayerView::onWriteThumb(const HJMediaFrame::Ptr& frame)

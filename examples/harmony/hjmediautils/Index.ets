@@ -1,0 +1,1 @@
+export { HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet } from './src/main/ets/native/HJFaceDetectMgr';

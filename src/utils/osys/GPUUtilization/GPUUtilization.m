@@ -19,10 +19,9 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-
+#    if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #import "GPUUtilization.h"
 #import "IOKit.h"
-
 
 const char *kIOServicePlane = "IOService";
 
@@ -179,3 +178,5 @@ GPU_UTILI_KEY(TextureCount, textureCount)
 }
 
 @end
+
+#endif //#if defined(TARGET_OS_IPHONE)

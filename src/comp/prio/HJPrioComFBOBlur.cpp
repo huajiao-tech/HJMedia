@@ -46,7 +46,7 @@ public:
 private:
    
     GLint m_strideHandle = 0;
-    int m_stride = 4;
+    int m_stride = 6;
     int m_width = 0;
     int m_height = 0;
 };

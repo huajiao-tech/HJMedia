@@ -54,7 +54,7 @@ void HJPluginDemuxer::internalRelease()
 	HJFLogi("{}, internalRelease() begin", getName());
 
 	releaseDemuxer();
-	m_currentFrame = nullptr;
+//	m_currentFrame = nullptr;		// 可不可以不置空，等对象析构时自行释放？
 
 	HJPlugin::internalRelease();
 
@@ -102,7 +102,7 @@ int  HJPluginDemuxer::reset(uint64_t i_delay)
 		return initDemuxer(m_mediaUrl, i_delay);
 	});
 }
-
+#if 0
 int HJPluginDemuxer::runTask(int64_t* o_delay)
 {
     addInIdx();
@@ -229,7 +229,82 @@ int HJPluginDemuxer::runTask(int64_t* o_delay)
 	}
 	return ret;
 }
+#else
+int HJPluginDemuxer::runTask(int64_t* o_delay)
+{
+	addInIdx();
+	int64_t enter = HJCurrentSteadyMS();
+	auto log = (m_lastEnterTimestamp < 0 || enter >= m_lastEnterTimestamp + LOG_INTERNAL);
+	if (log) {
+		m_lastEnterTimestamp = enter;
+		RUNTASKLog("{}, enter", getName());
+		if (m_demuxNotify) {
+			m_demuxNotify();
+		}
+	}
 
+	std::string route{};
+	int ret = HJ_OK;
+	do {
+		if (m_currentFrame == nullptr) {
+			route += "_0";
+			ret = getFrameFromDemuxer(route);
+			if (ret == HJ_EOF) {
+				route += "_1";
+				if (m_pluginListener) {
+					route += "_2";
+					ret = m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_DEMUXER_EOF)));
+					if (ret != HJ_OK) {
+						route += "_3";
+						IF_FALSE_BREAK(setStatus(HJSTATUS_EOF), HJErrAlreadyDone);
+					}
+				}
+			}
+			if (ret != HJ_OK) {
+				route += "_4";
+				if (ret == HJ_STOP) {
+					route += "_5";
+					IF_FALSE_BREAK(setStatus(HJSTATUS_Stoped), HJErrAlreadyDone);
+				}
+				else if (ret == HJErrFatal) {
+					route += "_6";
+					IF_FALSE_BREAK(setStatus(HJSTATUS_Exception), HJErrAlreadyDone);
+					if (m_pluginListener) {
+						route += "_7";
+						ret = m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_DEMUXER_GETFRAME)));
+					}
+				}
+				break;
+			}
+		}
+	
+		ret = canDeliverToOutputs(m_currentFrame);
+		if (ret != HJ_OK) {
+			route += "_8";
+			if (ret < 0) {
+				route += "_9";
+				HJFLoge("{}, canDeliverToOutputs error({})", getName(), ret);
+				IF_FALSE_BREAK(setStatus(HJSTATUS_Exception), HJErrAlreadyDone);
+			}
+			break;
+		}
+
+		deliverToOutputs(m_currentFrame);
+
+		if (m_currentFrame->isEofFrame()) {
+			route += "_10";
+			IF_FALSE_BREAK(setStatus(HJSTATUS_EOF), HJErrAlreadyDone);
+		}
+
+		m_currentFrame = nullptr;
+	} while (false);
+	addOutIdx();
+	if (log) {
+		RUNTASKLog("{}, leave, route({}), task duration({}), ret({})", getName(), route, (HJCurrentSteadyMS() - m_lastEnterTimestamp), ret);
+	}
+	return ret;
+}
+#endif
 void HJPluginDemuxer::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 {
 	if (i_mediaFrame->isVideo()) {
@@ -352,6 +427,51 @@ int HJPluginDemuxer::canDeliverToOutputs(const HJMediaFrame::Ptr& i_currentFrame
 	auto param = HJMakeNotification(HJ_PLUGIN_GETINFO_DEMUXER_canDeliverToOutputs);
 	(*param)["mediaFrame"] = i_currentFrame;
 	return graph->getInfo(param);
+}
+
+int HJPluginDemuxer::getFrameFromDemuxer(std::string& route)
+{
+	return SYNC_CONS_LOCK([&route, this] {
+		if (m_status == HJSTATUS_Done) {
+			route += "_20";
+			return HJErrAlreadyDone;
+		}
+		if (m_status < HJSTATUS_Ready) {
+			route += "_21";
+			return HJ_WOULD_BLOCK;
+		}
+		if (m_status >= HJSTATUS_EOF) {
+			route += "_22";
+			return HJ_WOULD_BLOCK;
+		}
+
+		auto err = m_demuxer->getFrame(m_currentFrame);
+		if (m_quitting.load() || m_resetting.load()) {
+			route += "_23";
+			HJFLogi("{}, m_demuxer->getFrame(), (m_quitting.load() || m_resetting.load())", getName());
+			return HJ_STOP;
+		}
+		if (err < 0) {
+			route += "_24";
+			HJFLoge("{}, m_demuxer->getFrame(), error({})", getName(), err);
+			return HJErrFatal;
+		}
+		if (m_currentFrame == nullptr) {
+			route += "_25";
+			return HJ_WOULD_BLOCK;
+		}
+
+		m_currentFrame->m_streamIndex += m_streamIndexOffset;
+		m_streamIndex = m_currentFrame->m_streamIndex;
+
+		if (m_currentFrame->isEofFrame()) {
+			route += "_26";
+			HJFLogi("{}, (currentFrame->isEofFrame())", getName());
+			return HJ_EOF;
+		}
+
+		return HJ_OK;
+	});
 }
 
 NS_HJ_END

@@ -82,7 +82,7 @@ int HJFFDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
             ic->flags = AVFMT_FLAG_CUSTOM_IO;
         }
 
-        if (HJGlobalSettingsManager::getUseHTTPPool()) {
+        if (mediaUrl->getUseFast() && HJGlobalSettingsManager::getUseHTTPPool()) {
             url = hj_replace_fasthttp(url);
         }
         AVDictionary* fmtOpts = getFormatOptions();
@@ -418,6 +418,12 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
             continue;
         }
         pkt->time_base = st->time_base;
+        if (AV_NOPTS_VALUE == pkt->dts && AV_NOPTS_VALUE != pkt->pts) {
+            pkt->dts = pkt->pts - 1;
+        }
+        if (AV_NOPTS_VALUE == pkt->pts) {
+            HJFNLogw("warning, pkt pts:{} invalid", pkt->pts);
+        }
         if (m_timeOffsetEnable/*!m_lowDelay*/ && AV_NOPTS_VALUE != m_mediaInfo->m_startTime)
         {
             int64_t offsetTime = 0; // (HJ_NOTS_VALUE != m_atrs->m_offsetTime) ? m_atrs->m_offsetTime : 0;
@@ -606,8 +612,12 @@ AVDictionary* HJFFDemuxer::getFormatOptions()
     std::string thisStr = HJ2STR((size_t)this);
     av_dict_set(&fmtOpts, "opaque", thisStr.c_str(), 0);
     //
-    std::string blobUrl = HJUtilitys::concateString(HJUtilitys::concatenatePath("E:/movies/blob/", HJUtilitys::getTimeToString()), ".flv");
-    av_dict_set(&fmtOpts, "bloburl", blobUrl.c_str(), 0);
+    //std::string blobUrl = HJUtilitys::concateString(HJUtilitys::concatenatePath("E:/movies/blob/", HJUtilitys::getTimeToString()), ".flv");
+    //av_dict_set(&fmtOpts, "bloburl", blobUrl.c_str(), 0);
+    auto localUrl = m_mediaUrl->getString("local_url");
+    if (!localUrl.empty()) {
+        av_dict_set(&fmtOpts, "bloburl", localUrl.c_str(), 0);
+    }
     
     if (m_mediaUrl->getTimeout() >= 0) {
         av_dict_set(&fmtOpts, "timeout", HJFMT("{}", m_mediaUrl->getTimeout()).c_str(), 0);

@@ -37,6 +37,7 @@ HJCacheObserver::Stats HJCacheObserver::addCacheDuration(int64_t duration)
         min,
         stddev
     };
+    HJFPERNLogi("speed control, current duration:{}, max:{}, min:{}", duration, max, min);
     return m_stats;
     //return {
     //    sum / static_cast<int64_t>(m_cacheDatas.size()),

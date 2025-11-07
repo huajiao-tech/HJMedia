@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "page_show",
+      "value": "page from package"
+    },
+    {
+      "name": "permission_CAMERA",
+      "value": "permission_CAMERA"
+    },
+    {
+      "name": "permission_MICROPHONE",
+      "value": "permission_MICROPHONE"
+    }
+  ]
+}

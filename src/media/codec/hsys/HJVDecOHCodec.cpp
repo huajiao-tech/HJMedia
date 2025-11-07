@@ -540,9 +540,9 @@ void HJVDecOHCodec::OnNeedInputBuffer(OH_AVCodec* codec, uint32_t index, OH_AVBu
 	HJVDecOHCodec* the = static_cast<HJVDecOHCodec*>(userData);
 	if (the)
 	{
-		//HJFLogi("input buffer: this:{} decoder:{} index:{}", size_t(the), size_t(codec), index);
+		//HJFLogi("{} OnNeedInputBuffer enter this:{} decoder:{} index:{}", the->getName(), size_t(the), size_t(codec), index);
 		the->priOnNeedInputBuffer(codec, index, buffer);
-		//JFLogi("OnNeedInputBuffer end index:{}", index);    
+		//HJFLogi("{} OnNeedInputBuffer end the:{} index:{}", the->getName(), size_t(the), index);    
 	}
 }
 void HJVDecOHCodec::OnNewOutputBuffer(OH_AVCodec* codec, uint32_t index, OH_AVBuffer* buffer, void* userData)
@@ -550,9 +550,9 @@ void HJVDecOHCodec::OnNewOutputBuffer(OH_AVCodec* codec, uint32_t index, OH_AVBu
 	HJVDecOHCodec* the = static_cast<HJVDecOHCodec*>(userData);
 	if (the)
 	{
-		//HJFLogi("output buffer: this:{} decoder:{} index:{}", size_t(the), size_t(codec), index);
+		//HJFLogi("{} OnNewOutputBuffer enter this:{} decoder:{} index:{}", the->getName(), size_t(the), size_t(codec), index);
 		the->priOnNewOutputBuffer(codec, index, buffer);
-		//JFLogi("OnNewOutputBuffer end index:{}", index);
+		//HJFLogi("{} OnNewOutputBuffer end this:{} index:{}", the->getName(), size_t(the), index);
 	}
 }
 

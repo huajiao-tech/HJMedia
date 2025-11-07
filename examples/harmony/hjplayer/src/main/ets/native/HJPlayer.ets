@@ -1,3 +1,5 @@
+//import { HJNativeSourceData } from 'hjmediautils';
+import { HJNativeSourceData } from '../HJFaceDetectMgr'
 import nPlayer from 'libHJPlayer.so';
 import { MediaStateInfo, SetWindowInfo } from '../HJCommTypes';
 import { OpenPlayerInfo } from '../HJPlayerTypes';
@@ -80,4 +82,46 @@ export class HJPlayer {
       nPlayer.n_setMute(this.m_playerHandler, mute);
     }
   }
+
+  public setFaceInfo(width: number, height: number, faceinfo: string)
+  {
+    if (this.m_playerHandler) {
+      nPlayer.n_setFaceInfo(this.m_playerHandler, width, height, faceinfo);
+    }
+  }
+  public nativeSourceOpen(isPBO: boolean) : number
+  {
+    if (this.m_playerHandler) {
+      return nPlayer.n_nativeSourceOpen(this.m_playerHandler, isPBO);
+    }
+    return -1;
+  }
+  public nativeSourceClose()
+  {
+    if (this.m_playerHandler) {
+      nPlayer.n_nativeSourceClose(this.m_playerHandler);
+    }
+  }
+  public nativeSourceAcquire(): HJNativeSourceData | null
+  {
+    if (this.m_playerHandler) {
+      return nPlayer.n_nativeSourceAcquire(this.m_playerHandler);
+    }
+    return null;
+  }
+
+  public openFaceu(url : string) : number
+  {
+    if (this.m_playerHandler) {
+      return nPlayer.n_openFaceu(this.m_playerHandler, url);
+    }
+    return -1;
+  }
+  public closeFaceu()
+  {
+    if (this.m_playerHandler) {
+      nPlayer.n_closeFaceu(this.m_playerHandler);
+    }
+  }
+
 }

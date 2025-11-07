@@ -31,7 +31,11 @@ public:
     
     static napi_value tryOpen(napi_env env, napi_callback_info info);
     static napi_value tryMute(napi_env env, napi_callback_info info);
+    static napi_value tryOpenImgReceiver(napi_env env, napi_callback_info info);
+    static napi_value tryCloseImageReceiver(napi_env env, napi_callback_info info);
     static napi_value tryClose(napi_env env, napi_callback_info info);
+    static napi_value tryGetMediaData(napi_env env, napi_callback_info info);
+    static napi_value trySetFacePoints(napi_env env, napi_callback_info info);
     
     static int priTryStart(void *window, int width, int height);
     static int priTryStop();
@@ -67,6 +71,7 @@ private:
     static int s_fps;
     static int s_videoCodecType;
     static int s_sourceType;
+    static std::string s_faceuUrl;
     
     std::unordered_map<std::string, OH_NativeXComponent*> m_nativeXComponentMap;
     std::unordered_map<std::string, HJVerifyRender*> m_HJVerifyRenderMap;

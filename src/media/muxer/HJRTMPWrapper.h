@@ -43,6 +43,7 @@ public:
     bool sendFooter(int timestamp, bool isHevc);
 private:
     int setNONBlocking();
+    //int get_sndbuf_remaining();
     bool processRecvData(size_t size);
     //
     virtual int notify(HJNotification::Ptr ntf) {

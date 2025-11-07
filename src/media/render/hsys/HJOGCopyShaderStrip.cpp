@@ -1,4 +1,4 @@
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #include "HJFLog.h"
 #include "linmath.h"
 #include "HJOGShaderCommon.h"
@@ -16,7 +16,7 @@ HJOGCopyShaderStrip::~HJOGCopyShaderStrip()
 {
 }
 
-int HJOGCopyShaderStrip::init(int i_nFlag)
+int HJOGCopyShaderStrip::init(int i_nFlag, bool i_bPreMultipleShader)
 {
     int i_err = 0;
     do
@@ -42,11 +42,11 @@ int HJOGCopyShaderStrip::init(int i_nFlag)
         {
             if (m_nFlag & OGCopyShaderStripFlag_2D)
             {
-                fragShader = HJOGShaderCommon::s_fragmentCopyShader;
+                fragShader = i_bPreMultipleShader ? HJOGShaderCommon::s_fragmentCopyPreMultipleShader : HJOGShaderCommon::s_fragmentCopyShader;
             }
             else if (m_nFlag & OGCopyShaderStripFlag_OES)
             {
-                fragShader = HJOGShaderCommon::s_fragmentCopyShaderOES;
+                fragShader = i_bPreMultipleShader ? HJOGShaderCommon::s_fragmentCopyPreMultipleShaderOES : HJOGShaderCommon::s_fragmentCopyShaderOES;
             }
         }
 
@@ -98,10 +98,70 @@ int HJOGCopyShaderStrip::init(int i_nFlag)
         {
             break;
         }    
+        HJFLogi("{} shader init end i_err:{}", getInsName(), i_err);
     } while (false);
     return i_err;
 }
-int HJOGCopyShaderStrip::draw(GLuint textureId, const std::string &i_fitMode, int srcw, int srch, int dstw, int dsth, float *texMat, bool i_bYFlip)
+int HJOGCopyShaderStrip::draw(GLuint textureId, float *vertexMat, float *texMat)
+{
+int i_err = 0;
+    do
+    {
+        if (!m_shaderProgram)
+        {
+            i_err = -1;
+            break;
+        }
+        m_shaderProgram->Use();
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+        glVertexAttribPointer(maPositionHandle, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), HJOGShaderCommon::s_rectangleSTRIPVertexs);
+        glEnableVertexAttribArray(maPositionHandle);
+
+        glVertexAttribPointer(maTextureHandle, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), &HJOGShaderCommon::s_rectangleSTRIPVertexs[3]);
+        glEnableVertexAttribArray(maTextureHandle);
+
+        glActiveTexture(GL_TEXTURE0);
+        if (m_textureStyle == TEXTURE_TYPE_2D)
+        {
+            glBindTexture(GL_TEXTURE_2D, textureId);
+        }
+        else
+        {
+            glBindTexture(GL_TEXTURE_EXTERNAL_OES, textureId);
+        }
+        HJOGShaderProgram::SetInt(mSampleHandle, 0);
+    
+        HJOGShaderProgram::SetMatrix4v(muMVPMatrixHandle, vertexMat, 16, false);
+        HJOGShaderProgram::SetMatrix4v(muSTMatrixHandle, texMat, 16, false);
+        
+
+        shaderDrawUpdate();
+        // HJFLogi("Matrix");
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glDisableVertexAttribArray(maPositionHandle);
+        glDisableVertexAttribArray(maTextureHandle);
+
+        glDisable(GL_BLEND);
+
+        if (m_textureStyle == TEXTURE_TYPE_2D)
+        {
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+        else
+        {
+            glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+        }
+        
+        shaderDrawEnd();
+        //
+        glUseProgram(0);
+    } while (false);
+    return i_err;    
+}
+int HJOGCopyShaderStrip::draw(GLuint textureId, const std::string &i_fitMode, int srcw, int srch, int dstw, int dsth, float *texMat, bool i_bYFlip, bool i_bXFlip)
 {
     int i_err = 0;
     do
@@ -139,6 +199,12 @@ int HJOGCopyShaderStrip::draw(GLuint textureId, const std::string &i_fitMode, in
         {
             mat[1][1] = -1;
         }
+        if (i_bXFlip)
+        {
+            mat[0][0] = -1;
+        }
+
+
         float xscale = 1.f;
         float yscale = 1.f;
 
@@ -181,8 +247,11 @@ int HJOGCopyShaderStrip::draw(GLuint textureId, const std::string &i_fitMode, in
 }
 void HJOGCopyShaderStrip::release()
 {
-    m_shaderProgram = nullptr;
-    HJFLogi("{} release", getInsName());
+    if (m_shaderProgram)
+    {
+        m_shaderProgram = nullptr;
+        HJFLogi("{} release this:{}", getInsName(), size_t(this));
+    }
 }
 
 // the camera mvp transform; the effect is equal texture matrix

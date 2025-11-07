@@ -31,7 +31,7 @@ void HJNetManager::registerAllNetworks()
             HJTLSLinkManagerInstance()->setLinkMax(HJGlobalSettingsManager::getUrlLinkMax());
             HJTLSLinkManagerInstance()->setLinkAliveTime(HJGlobalSettingsManager::getUrlLinkTimeout());
             //
-            //av_register_protocol(&ff_jptcp_protocol);
+            //av_register_protocol(&ff_hjtcp_protocol);
             av_register_protocol(&ff_hjtls_protocol);
             if (HJGlobalSettingsManager::getUseHTTPPool()) {
                 av_register_protocol(&ff_hjhttp_protocol);

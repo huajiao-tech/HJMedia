@@ -1,5 +1,6 @@
 #include "HJGraphPusher.h"
 #include "HJStatContext.h"
+#include "HJMediaUtils.h"
 
 NS_HJ_BEGIN
 
@@ -120,6 +121,12 @@ int HJGraphPusher::internalInit(HJKeyStorage::Ptr i_param)
             if (pusherListener) {
                 (*param)["pluginListener"] = pusherListener;
             }
+            
+            if (i_param->haveValue("ROIEncodeCb"))
+            {
+                (*param)["ROIEncodeCb"] = i_param->getValueObj<HJRoiEncodeCb>("ROIEncodeCb");
+            }
+            
 #if defined(HarmonyOS)
             IF_FAIL_BREAK(ret = m_videoEncoder->init(param), ret);
 #endif

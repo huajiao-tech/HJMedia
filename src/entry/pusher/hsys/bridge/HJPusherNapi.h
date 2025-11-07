@@ -27,6 +27,16 @@ public:
     static napi_value openPixelMapOutput(napi_env env, napi_callback_info info);
     static napi_value getImageReceiver(napi_env env, napi_callback_info info);
     static napi_value closePixelMapOutput(napi_env env, napi_callback_info info);
+
+    static napi_value setFaceInfo(napi_env env, napi_callback_info info);
+    static napi_value nativeSourceOpen(napi_env env, napi_callback_info info);
+    static napi_value nativeSourceClose(napi_env env, napi_callback_info info);
+    static napi_value nativeSourceAcquire(napi_env env, napi_callback_info info);
+    static napi_value openFaceu(napi_env env, napi_callback_info info);
+    static napi_value closeFaceu(napi_env env, napi_callback_info info);
+    static napi_value setVideoEncQuantOffset(napi_env env, napi_callback_info info);
+
+    static napi_value setFaceProtected(napi_env env, napi_callback_info info);
 };
 
 NS_HJ_END

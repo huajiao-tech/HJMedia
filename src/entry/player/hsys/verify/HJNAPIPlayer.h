@@ -1,5 +1,6 @@
 #pragma once
 
+#include "HJGPUToRAM.h"
 #include "HJPrerequisites.h"
 #include "HJComUtils.h"
 
@@ -14,6 +15,8 @@ class HJPrioGraphProc;
 class HJGraphPlayer;
 class HJThreadPool;
 class HJStatContext;
+class HJBaseGPUToRAM;
+class HJRGBAMediaData;
 
 class HJNAPIPlayer
 {
@@ -37,6 +40,13 @@ public:
     void openEffect(int i_effectType);
     void closeEffect(int i_effectType);
     
+    int openNativeSource(bool i_bUsePBO = true);
+    void closeNativeSource();
+    std::shared_ptr<HJRGBAMediaData> acquireNativeSource();
+    void setFaceInfo(HJFacePointsWrapper::Ptr faceInfo);
+    
+    int openFaceu(const std::string &i_faceuUrl);
+    void closeFaceu();
 private:
     
     void setInsName(const std::string &i_name)
@@ -68,10 +78,10 @@ private:
     static std::atomic<int> s_insIdx;
     
     
-    
     int m_curIdx;
     std::string m_insName = "";
     
+    std::shared_ptr<HJBaseGPUToRAM> m_gpuToRamPtr = nullptr;
 };
 
 NS_HJ_END

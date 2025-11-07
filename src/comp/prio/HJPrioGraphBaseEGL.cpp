@@ -102,7 +102,18 @@ int HJPrioGraphBaseEGL::run()
             } while (false);
             return i_err;
         });
-#if defined(HarmonyOS)          
+        
+        if (m_funcPre)
+        {
+            i_err = m_funcPre();
+            if (i_err < 0)
+            {
+                HJFLoge("{} pre func error {}", getInsName(), i_err);
+                break;
+            }    
+        }
+        
+#if defined(HarmonyOS)
         int graphFps = HJPrioGraphTimer::getFps();
         i_err = m_renderEnv->foreachRender(graphFps, updateFun, drawFun);
         if (i_err < 0)
@@ -115,6 +126,17 @@ int HJPrioGraphBaseEGL::run()
             break;
         }
 #endif
+        
+        if (m_funcPost)
+        {
+            i_err = m_funcPost();
+            if (i_err < 0)
+            {
+                HJFLoge("{} post func error {}", getInsName(), i_err);
+                break;
+            }    
+        }
+        
 	} while (false);
 	return i_err;
 }
@@ -148,6 +170,7 @@ int HJPrioGraphBaseEGL::init(HJBaseParam::Ptr i_param)
 					}
 #endif
 				} while (false);
+                HJFLogi("{} init egl end i_err:{}", m_insName, i_err);
 				return i_err; 
         });
 		if (i_err < 0)
@@ -167,7 +190,8 @@ int HJPrioGraphBaseEGL::eglSurfaceProc(const std::string &i_renderTargetInfo)
 			{
 				HJFLogi("{} m_renderEnv eglSurfaceProc enter", getInsName());
 #if defined(HarmonyOS)
-				ret = m_renderEnv->procEglSurface(i_renderTargetInfo);
+				std::shared_ptr<HJOGEGLSurface> eglSurface = nullptr;
+				ret = m_renderEnv->procEglSurface(i_renderTargetInfo, eglSurface);
 #endif
 				HJFLogi("{} m_renderEnv eglSurfaceProc end", getInsName());
 			}

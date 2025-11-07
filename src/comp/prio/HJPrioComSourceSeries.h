@@ -1,9 +1,12 @@
 #pragma once
 
+
 #include "HJPrioCom.h"
 #include "HJPrioComSourceBridge.h"
+#include "HJPrioComSourcePingPongFBO.h"
 
 #if defined(HarmonyOS)
+#include "HJOGPointShader.h"
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
@@ -16,6 +19,8 @@ class HJPrioGraph;
 class HJOGCopyShaderStrip;
 class HJPrioComBaseFBOInfo;
 class HJPrioComFBOBase;
+class HJOGPointShader;
+class HJPBOReadWrapper;
 
 class HJPrioComSourceSeries : public HJPrioComSourceBridge
 {
@@ -29,6 +34,8 @@ public:
        
     virtual int update(HJBaseParam::Ptr i_param) override;
     virtual int render(HJBaseParam::Ptr i_param) override;
+    virtual void openPBO(HJMediaDataReaderCb i_cb) override;
+    virtual void closePBO() override;
     
     int openEffect(HJBaseParam::Ptr i_param);
     void closeEffect(HJBaseParam::Ptr i_param);
@@ -37,13 +44,14 @@ protected:
     
 private:
     std::shared_ptr<HJPrioGraph> m_graph = nullptr;
-    
+    std::shared_ptr<HJPBOReadWrapper> m_pboReader = nullptr;
 #if defined (HarmonyOS)
     std::shared_ptr<HJPrioComBaseFBOInfo> m_LastFboInfo = nullptr;
 #endif
-    std::shared_ptr<HJPrioComFBOBase> m_fbo = nullptr;
+    std::shared_ptr<HJPrioComFBOBase> m_renderFbo = nullptr;
+    std::shared_ptr<HJPrioComFBOBase> m_detectFbo = nullptr;
+    HJPrioComSourcePingPangFBO m_pingpangFBO;
     std::shared_ptr<HJOGCopyShaderStrip> m_draw = nullptr;
-    
     int m_insIdx = 0;
 };
 

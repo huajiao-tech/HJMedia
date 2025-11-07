@@ -2,7 +2,7 @@
 #include "HJPrioComFBOGray.h"
 #include "HJFLog.h"
 #include "HJOGFBOCtrl.h"
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #include "HJOGShaderCommon.h"
 
 

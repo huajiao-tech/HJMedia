@@ -13,7 +13,7 @@ public:
     virtual ~HJEntryContext();
     static int init(HJEntryType i_type, const HJEntryContextInfo& i_contextInfo);
     static void unInit();
-    
+    static int  getSystemVersion();
 private:
     static bool m_bContextInit;
     

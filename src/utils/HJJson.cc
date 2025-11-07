@@ -385,7 +385,26 @@ int HJYJsonObject::getMember(const std::string& key, std::vector<HJYJsonObject::
     }
     return HJ_OK;
 }
-
+int HJYJsonObject::forEachAnonymous(const std::function<int(const HJYJsonObject::Ptr&)>& cb)
+{
+	if (!m_rval) {
+		return HJErrNotAlready;
+	}
+	
+	int res = HJ_OK;
+	size_t idx, max;
+	yyjson_val* item = NULL;
+	yyjson_arr_foreach(m_rval, idx, max, item) {
+		//if (yyjson_is_obj(item) || yyjson_is_arr(item)) {
+		HJYJsonObject::Ptr obj = std::make_shared<HJYJsonObject>("anonymous", item);
+		res = cb(obj);
+		if (HJ_OK != res) {
+			break;
+		}
+		//}
+	}
+	return res;
+}
 int HJYJsonObject::forEach(const std::string& key, const std::function<int(const HJYJsonObject::Ptr &)>& cb)
 {
     if (!m_rval || key.empty()) {
@@ -623,6 +642,140 @@ int HJYJsonObject::setMember(const std::string& key, std::vector<HJYJsonObject::
 //    }
     return HJ_OK;
 }
+
+int HJYJsonObject::setMember(const std::string& key, const std::vector<std::string>& value)
+{
+    int i_err = HJ_OK;
+    do
+    {
+        if (key.empty() || !m_wval || !m_mdoc) {
+            i_err = HJErrNotAlready;
+            break;
+        }
+        auto subObj = std::make_shared<HJVStrArray>(key, value);
+        m_subObjs[key] = subObj;
+
+        int size = value.size();
+        std::vector<const char*> cStyleStrings;
+        cStyleStrings.reserve(size); 
+        for (const auto& str : value) {
+            cStyleStrings.push_back(str.c_str());
+        }
+
+        yyjson_mut_val* val = yyjson_mut_arr_with_str(m_mdoc, cStyleStrings.data(), size);
+        bool ret = yyjson_mut_obj_add_val(m_mdoc, m_wval, subObj->getName().c_str(), val); //not use yyjson_mut_arr_add_val
+        if (!ret)
+        {
+            i_err = HJErrJSONAddValue;
+            break;
+        }
+    } while (false);
+    return i_err;
+}
+int HJYJsonObject::setMember(const std::string& key, const std::vector<int>& value)
+{
+    int i_err = HJ_OK;
+    do
+    {
+        if (key.empty() || !m_wval || !m_mdoc) {
+            i_err = HJErrNotAlready;
+            break;
+        }
+        auto subObj = std::make_shared<HJVIntArray>(key, value);
+        m_subObjs[key] = subObj;
+
+        int size = value.size();
+        yyjson_mut_val* val = yyjson_mut_arr_with_sint32(m_mdoc, value.data(), size);
+        bool ret = yyjson_mut_obj_add_val(m_mdoc, m_wval, subObj->getName().c_str(), val); //not use yyjson_mut_arr_add_val
+        if (!ret)
+        {
+            i_err = HJErrJSONAddValue;
+            break;
+        }
+    } while (false);
+    return i_err;
+}
+int HJYJsonObject::setMember(const std::string& key, const std::vector<int64_t>& value)
+{
+    int i_err = HJ_OK;
+    do
+    {
+        if (key.empty() || !m_wval || !m_mdoc) {
+            i_err = HJErrNotAlready;
+            break;
+        }
+        auto subObj = std::make_shared<HJVInt64Array>(key, value);
+        m_subObjs[key] = subObj;
+
+        int size = value.size();
+        yyjson_mut_val* val = yyjson_mut_arr_with_sint(m_mdoc, value.data(), size);
+        bool ret = yyjson_mut_obj_add_val(m_mdoc, m_wval, subObj->getName().c_str(), val); //not use yyjson_mut_arr_add_val
+        if (!ret)
+        {
+            i_err = HJErrJSONAddValue;
+            break;
+        }
+    } while (false);
+    return i_err;
+}
+int HJYJsonObject::setMember(const std::string& key, const std::vector<bool>& value)
+{
+    int i_err = HJ_OK;
+    bool *pBool = nullptr;
+    do
+    {
+        if (key.empty() || !m_wval || !m_mdoc) {
+            i_err = HJErrNotAlready;
+            break;
+        }
+        auto subObj = std::make_shared<HJVBoolArray>(key, value);
+        m_subObjs[key] = subObj;
+
+        int size = value.size();
+        pBool = new bool[size];
+        for (int i = 0; i < size; i++)
+        {
+            pBool[i] = value[i];
+        }
+
+        yyjson_mut_val* val = yyjson_mut_arr_with_bool(m_mdoc, pBool, size);
+        bool ret = yyjson_mut_obj_add_val(m_mdoc, m_wval, subObj->getName().c_str(), val); //not use yyjson_mut_arr_add_val
+        if (!ret)
+        {
+            i_err = HJErrJSONAddValue;
+            break;
+        }
+    } while (false);
+    if (pBool)
+    {
+        delete[] pBool;
+    }
+    return i_err;
+}
+int HJYJsonObject::setMember(const std::string& key, const std::vector<double>& value)
+{
+    int i_err = HJ_OK;
+    do
+    {
+        if (key.empty() || !m_wval || !m_mdoc) {
+            i_err = HJErrNotAlready;
+            break;
+        }
+        auto subObj = std::make_shared<HJVRealArray>(key, value);
+        m_subObjs[key] = subObj;
+
+        int size = value.size();
+        yyjson_mut_val* val = yyjson_mut_arr_with_real(m_mdoc, value.data(), size);
+        bool ret = yyjson_mut_obj_add_val(m_mdoc, m_wval, subObj->getName().c_str(), val); //not use yyjson_mut_arr_add_val
+        if (!ret)
+        {
+            i_err = HJErrJSONAddValue;
+            break;
+        }
+    } while (false);
+    return i_err;
+}
+
 //***********************************************************************************//
 HJYJsonDocument::HJYJsonDocument()
 {
@@ -666,12 +819,12 @@ int HJYJsonDocument::init()
 
 int HJYJsonDocument::init(const std::string& info)
 {
-    HJLogi("init entry");
+    //HJLogi("init entry");
     int res = HJ_OK;
     try
     {
         do {
-            m_rdoc = yyjson_read(info.c_str(), info.size(), 0);
+            m_rdoc = yyjson_read(info.c_str(), info.size(), YYJSON_READ_ALLOW_BOM  | YYJSON_READ_ALLOW_TRAILING_COMMAS);
             if (!m_rdoc) {
                 res = HJErrJSONRead;
                 break;
@@ -692,7 +845,7 @@ int HJYJsonDocument::init(const std::string& info)
         HJLoge("error, unkown exception");
         res = HJErrFatal;
     }
-    HJFLogi("init entry, res:{}", res);
+    //HJFLogi("init entry, res:{}", res);
 
     return res;
 }

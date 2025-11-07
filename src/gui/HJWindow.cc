@@ -231,7 +231,11 @@ HJHND HJWindow::getHandle()
     if (!m_window) {
         return NULL;
     }
+#if defined(HJ_OS_WINDOWS)
     return (HJHND)glfwGetWin32Window(m_window);
+#else
+    return (HJHND)NULL;
+#endif
 }
 
 void HJWindow::onFramebufferSizeCallback(GLFWwindow* window, int width, int height)

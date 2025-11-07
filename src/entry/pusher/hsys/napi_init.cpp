@@ -32,6 +32,12 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(tryGiftOpen, HJVerifyManager::tryGiftOpen),
         DECLARE_NAPI_FUNCTION_VAL(tryDoubleScreen, HJVerifyManager::tryDoubleScreen),
         DECLARE_NAPI_FUNCTION_VAL(tryGiftPusher, HJVerifyManager::tryGiftPusher),
+        
+        DECLARE_NAPI_FUNCTION_VAL(tryOpenImgReceiver, HJVerifyManager::tryOpenImgReceiver),
+        DECLARE_NAPI_FUNCTION_VAL(tryCloseImageReceiver, HJVerifyManager::tryCloseImageReceiver),
+        DECLARE_NAPI_FUNCTION_VAL(tryGetMediaData, HJVerifyManager::tryGetMediaData),
+        DECLARE_NAPI_FUNCTION_VAL(trySetROIOffset, HJVerifyManager::trySetROIOffset),
+        DECLARE_NAPI_FUNCTION_VAL(trySetFacePoints, HJVerifyManager::trySetFacePoints),
 
         DECLARE_NAPI_FUNCTION_VAL(n_contextInit, HJ::HJPusherNapi::contextInit),
         DECLARE_NAPI_FUNCTION_VAL(n_createPusher, HJ::HJPusherNapi::createPusher),
@@ -49,6 +55,16 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(n_setGiftPusher, HJ::HJPusherNapi::setGiftPusher),
         DECLARE_NAPI_FUNCTION_VAL(n_openSpeechRecognizer, HJ::HJPusherNapi::openSpeechRecognizer),
         DECLARE_NAPI_FUNCTION_VAL(n_closeSpeechRecognizer, HJ::HJPusherNapi::closeSpeechRecognizer),
+
+        DECLARE_NAPI_FUNCTION_VAL(n_setFaceInfo, HJ::HJPusherNapi::setFaceInfo),
+        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceOpen, HJ::HJPusherNapi::nativeSourceOpen),
+        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceClose, HJ::HJPusherNapi::nativeSourceClose),
+        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceAcquire, HJ::HJPusherNapi::nativeSourceAcquire),
+        DECLARE_NAPI_FUNCTION_VAL(n_openFaceu, HJ::HJPusherNapi::openFaceu),
+        DECLARE_NAPI_FUNCTION_VAL(n_closeFaceu, HJ::HJPusherNapi::closeFaceu),
+        DECLARE_NAPI_FUNCTION_VAL(n_setVideoEncQuantOffset, HJ::HJPusherNapi::setVideoEncQuantOffset),
+
+        DECLARE_NAPI_FUNCTION_VAL(n_setFaceProtected, HJ::HJPusherNapi::setFaceProtected),
         // DECLARE_NAPI_FUNCTION_VAL(n_openPixelMapOutput, HJ::HJPusherNapi::openPixelMapOutput),
         // DECLARE_NAPI_FUNCTION_VAL(n_getImageReceiver, HJ::HJPusherNapi::getImageReceiver),
         // DECLARE_NAPI_FUNCTION_VAL(n_closePixelMapOutput, HJ::HJPusherNapi::closePixelMapOutput),

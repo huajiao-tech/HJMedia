@@ -79,8 +79,27 @@
 				"url": "https://github.com/madler/zlib.git",
 				"commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
 				"dir": "third_party/zlib"
-			}
-			
+			},
+            {
+				"url": "https://github.com/yhirose/cpp-httplib.git",
+				"commit": "89c932f313c6437c38f2982869beacc89c2f2246",
+				"dir": "third_party/cpp-httplib"              
+            },
+            {
+				"url": "https://gitee.com/medkit/sqlite.git",
+				"commit": "1616f578970dcf5e5f43f9ec8db285f4b1da089b",
+				"dir": "third_party/sqlite"
+            },
+            {
+				"url": "https://github.com/fnc12/sqlite_orm.git",
+				"commit": "5f1a2ce84a3d72711b4f0a440fdaba977868ae67",
+				"dir": "third_party/sqlite_orm"              
+            },
+            {
+				"url": "https://github.com/lz4/lz4.git",
+				"commit": "ebb370ca83af193212df4dcbadcc5d87bc0de2f0",
+				"dir": "third_party/lz4"
+            }
         ]
     },
     "actions": {

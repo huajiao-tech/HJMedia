@@ -11,7 +11,9 @@
 #include <sys/sysctl.h>
 #import <mach/mach.h>
 #import <mach/mach_host.h>
-#import "GPUUtilization/GPUUtilization.h"
+#if defined(HJ_OS_IOS)
+#   import "GPUUtilization/GPUUtilization.h"
+#endif
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -169,10 +171,14 @@ float HJISysUtils::getCpuUsageX()
 
 float HJISysUtils::getGpuUsage()
 {
+#if defined(HJ_OS_IOS)
     return [GPUUtilization gpuUsage];
 //    [GPUUtilization fetchCurrentUtilization:^(GPUUtilization *current) {
 //      NSLog(@"202412181932 gpu usage %ld", static_cast<long>(current.deviceUtilization));
 //    }];
+#else
+    return 0.0f;
+#endif
 }
 
 NS_HJ_END

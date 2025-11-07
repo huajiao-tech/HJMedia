@@ -92,8 +92,8 @@ int HJPlugin::internalInit(HJKeyStorage::Ptr i_param)
 					break;
 				}
 			}
-            if (m_handler)
-            {
+
+			if (m_handler) {
                 m_runTaskId = m_handler->genMsgId();
             }
 			m_pluginListener = pluginListener;
@@ -234,52 +234,7 @@ void HJPlugin::onOutputDisconnected(size_t i_dstKeyHash)
 		m_outputs.erase(i_dstKeyHash);
 	});
 }
-/*
-int HJPlugin::setInputMaxSize(size_t i_srcKeyHash, int i_maxSize)
-{
-	if (i_maxSize < 0) {
-		return HJErrInvalidParams;
-	}
 
-	auto input = getInput(i_srcKeyHash);
-	if (input == nullptr) {
-		return HJErrNotFind;
-	}
-
-	input->mediaFrames.setMaxSize(i_maxSize);
-	return HJ_OK;
-}
-
-int HJPlugin::setInputMaxCache(size_t i_srcKeyHash, int i_maxCache)
-{
-	if (i_maxCache < 0) {
-		return HJErrInvalidParams;
-	}
-
-	auto input = getInput(i_srcKeyHash);
-	if (input == nullptr) {
-		return HJErrNotFind;
-	}
-
-	input->mediaFrames.setMaxCache(i_maxCache);
-	return HJ_OK;
-}
-
-int HJPlugin::setInputMaxSamples(size_t i_srcKeyHash, int i_maxSamples)
-{
-	if (i_maxSamples < 0) {
-		return HJErrInvalidParams;
-	}
-
-	auto input = getInput(i_srcKeyHash);
-	if (input == nullptr) {
-		return HJErrNotFind;
-	}
-
-	input->mediaFrames.setMaxSamples(i_maxSamples);
-	return HJ_OK;
-}
-*/
 int HJPlugin::deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame, size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames, int64_t* o_audioSamples)
 {
 	auto input = getInput(i_srcKeyHash);
@@ -291,13 +246,18 @@ int HJPlugin::deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame, size
 		return HJErrFatal;
 	}
 
-	internalUpdated();
+	onInputUpdated();
 	return HJ_OK;
+}
+
+void HJPlugin::onInputUpdated()
+{
+	postTask();
 }
 
 void HJPlugin::onOutputUpdated()
 {
-	internalUpdated();
+	postTask();
 }
 
 bool HJPlugin::setStatus(HJStatus i_status, bool i_underLock)
@@ -354,8 +314,9 @@ HJPlugin::Output::Ptr HJPlugin::getOutput(size_t i_dstKeyHash)
 
 void HJPlugin::postTask(int64_t i_delay)
 {
-	auto handler = m_handlerSync.consLock([this] {
-		return m_handler;
+	HJLooperThread::Handler::Ptr handler{};
+	m_handlerSync.consLock([&handler, this] {
+		handler = m_handler;
 	});
 
 	if (handler != nullptr) {
@@ -365,20 +326,11 @@ void HJPlugin::postTask(int64_t i_delay)
 			if (plugin) {
 				int64_t delay = 0;
 				if (plugin->runTask(&delay) == HJ_OK) {
-					plugin->internalUpdated(delay);
+					plugin->postTask(delay);
 				}
 			}
 		}, m_runTaskId, i_delay);
 	}
-}
-
-void HJPlugin::internalUpdated(int64_t i_delay)
-{
-	SYNC_CONS_LOCK([=] {
-		CHECK_DONE_STATUS();
-
-		postTask(i_delay);
-	});
 }
 
 HJMediaFrame::Ptr HJPlugin::receive(size_t i_srcKeyHash, size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames, int64_t* o_audioSamples)

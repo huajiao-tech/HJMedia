@@ -17,6 +17,7 @@ export interface VideoConfig {
   bitrate: number;
   frameRate: number;
   gopSize: number;
+  videoIsROIEnc: boolean;
 }
 
 export interface AudioConfig {
@@ -66,4 +67,7 @@ export enum PusherStateType {
   HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT = 103,
   HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT = 104,
   HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE = 105,
+
+  HJ_RENDER_NOTIFY_FACEU_ERROR = 107,
+  HJ_RENDER_NOTIFY_FACEU_COMPLETE = 108,
 }

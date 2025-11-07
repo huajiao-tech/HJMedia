@@ -10,8 +10,40 @@
 #include "HJStatContext.h"
 #include "HJPrioUtils.h"
 #include "HJEntryContext.h"
-
+#include "HJGPUToRAM.h"
+#include "HJFacePointMgr.h"
+#include "deviceinfo.h"
 NS_HJ_BEGIN
+
+//int HJRoiCom::sendMessage(HJBaseMessage::Ptr i_msg) 
+//{
+//    int i_err = HJ_OK;
+//    do
+//    {
+//        switch (i_msg->getMessageType())
+//        {
+//        case HJCOM_MESSAGE_FACEPOINT:
+//            std::shared_ptr<HJFacePointsReal> point = nullptr;
+//            HJ_CatchMapGetVal(i_msg, HJFacePointsReal::Ptr, point);
+//            if (point)
+//            {
+//                m_cache.enqueue(point);
+//            }
+//            break;
+//        }
+//    } while (false);
+//    return i_err;
+//}
+//std::shared_ptr<HJFacePointsReal> HJRoiCom::acquire()
+//{
+//    return m_cache.acquire();
+//}
+//void HJRoiCom::recovery(std::shared_ptr<HJFacePointsReal> i_data)
+//{
+//    m_cache.recovery(i_data);
+//}
+
+//////////////////////////////////////////////////////////////////////////////////////
 
 HJNAPILiveStream::HJNAPILiveStream()
 {
@@ -70,7 +102,76 @@ void HJNAPILiveStream::setMute(bool i_mute)
         m_graphPusher->setMute(i_mute);
     }
 }
+void HJNAPILiveStream::priROIPrepare(const HJKeyStorage::Ptr& param, int i_encWidth, int i_encHeight)
+{
+    HJRoiEncodeCb roicb = [this, i_encWidth, i_encHeight](HJRoiInfoVectorPtr &roiInfo, int i_nFlag)
+    {
+        if (i_nFlag == HJ_ROI_CB_FLAG_TRY_ACQUIRE)
+        {
+            {
+                HJ_LOCK(m_nativeSourceLock);
+                if (!m_bNativeSourceOpen)
+                {
+                    m_cache.clear();
+                    m_pointSubscriberPtr = nullptr;
+                    HJFLogi(" roi cb enter flag:{} nativesource open false destroy roicom", i_nFlag);
+                }
+            }
+            
+            if (!m_pointSubscriberPtr)
+            {
+                HJ_LOCK(m_nativeSourceLock);
+                if (m_bNativeSourceOpen)
+                {
+                    m_pointSubscriberPtr = std::make_shared<HJFaceSubscribeFunc>([this](HJFacePointsReal::Ptr i_point)
+                    {
+                        m_cache.enqueue(i_point);
+                    });
+                    m_prioGraphProc->registSubscriber(m_pointSubscriberPtr);
+                    
+                    HJFLogi(" roi cb enter flag:{} nativesource open true create roicom", i_nFlag);
+                }
+            }
+            if (m_pointSubscriberPtr)
+            {
+                HJFacePointsReal::Ptr point = m_cache.acquire();     
+                if (point)
+                {
+                    if (point->isContainFace())
+                    {
+                        const std::vector<HJPointf> &filterPt = point->getFilterPt();
+                        int imgw = point->width();
+                        int imgh = point->height();
 
+                        HJRoiInfo roi;
+                        roi.x = filterPt[5].x * i_encWidth / imgw;
+                        roi.y = filterPt[5].y * i_encHeight / imgh;
+                        roi.w = (filterPt[8].x - filterPt[5].x) * i_encWidth / imgw;
+                        roi.h = (filterPt[8].y - filterPt[5].y) * i_encHeight / imgh;
+                        roi.quant_offset = m_quantOffset;
+                        roiInfo = std::make_shared<HJRoiInfoVector>();
+                        roiInfo->push_back(std::move(roi));
+                        HJFLogi(" roi cb enter flag:{} find face x,y:{} {} w,h:{} {} quant:{}", i_nFlag, roi.x, roi.y, roi.w, roi.h, roi.quant_offset);
+                    }    
+                    else
+                    {
+                        HJFLogi(" roi cb enter flag:{} not find face", i_nFlag);
+                    }    
+                    m_cache.recovery(point);
+                }
+               
+            }   
+        }   
+        else if (i_nFlag == HJ_ROI_CB_FLAG_CLOSE)
+        {
+            m_cache.clear();
+            m_pointSubscriberPtr = nullptr;
+            HJFLogi(" roi cb enter flag:{} destroy roicom", i_nFlag);
+        }        
+    };
+    (*param)["ROIEncodeCb"] = roicb; 
+    
+}
 int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJPusherAudioInfo &i_audioInfo, const HJPusherRTMPInfo &i_rtmpInfo, const HJEntryStatInfo& i_statInfo)
 {
     int i_err = 0;
@@ -130,6 +231,18 @@ int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJP
         videoInfo->m_frameRate = i_videoInfo.videoFramerate;
         videoInfo->m_gopSize = i_videoInfo.videoGopSize;
         
+        bool bRoiEncode = i_videoInfo.videoIsROIEnc;
+        int sdkVersion = OH_GetSdkApiVersion();
+        if (sdkVersion < 20)
+        {
+            bRoiEncode = false;
+            HJFLogi("api version {} is < 20, so bRoiEncode = false", sdkVersion);
+        }    
+        HJFLogi("bRoiEncode:{} ", bRoiEncode);
+        if (bRoiEncode)
+        {
+            priROIPrepare(param, videoInfo->m_width, videoInfo->m_height);
+        }
         m_encoderFps = i_videoInfo.videoFramerate;
         
         (*param)["videoInfo"] = videoInfo;
@@ -361,7 +474,7 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
     int i_err = 0;
     do
     {
-        HJFLogi("openPreview enter");
+        HJFLogi("openPreview enter version:{}", HJ_VERSION);
         if (i_previewInfo.videoWidth <= 0 || i_previewInfo.videoHeight <= 0 || i_previewInfo.videoFps <= 0)
         {
             i_err = -1;
@@ -445,6 +558,16 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
             case HJVIDEORENDERGRAPH_EVENT_PNGSEQ_COMPLETE:
             {
                 type = HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE;
+                break;
+            }
+            case HJVIDEORENDERGRAPH_EVENT_FACEU_ERROR:
+            {
+                type = HJ_RENDER_NOTIFY_FACEU_ERROR;
+                break; 
+            }
+            case HJVIDEORENDERGRAPH_EVENT_FACEU_COMPLETE:
+            {
+                type = HJ_RENDER_NOTIFY_FACEU_COMPLETE;
                 break;
             }
             default:
@@ -558,6 +681,172 @@ void HJNAPILiveStream::closeSpeechRecognizer() {
         m_graphPusher->closeSpeechRecognizer();
     }
     HJFLogi("closeSpeechRecognizer end");
+}
+
+void HJNAPILiveStream::openEffect(int i_effectType)
+{
+    HJBaseParam::Ptr param = HJBaseParam::Create();
+    HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioEffectType), i_effectType);
+    if (m_prioGraphProc)
+    {
+        HJFLogi("HJNAPIPlayer openeffect enter");
+        m_prioGraphProc->openEffect(param);
+    }
+}
+void HJNAPILiveStream::closeEffect(int i_effectType)
+{
+    HJBaseParam::Ptr param = HJBaseParam::Create();
+    HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioEffectType), i_effectType);
+    if (m_prioGraphProc)
+    {
+        m_prioGraphProc->closeEffect(param);
+    }    
+}
+
+std::shared_ptr<HJRGBAMediaData> HJNAPILiveStream::acquireNativeSource()
+{
+    HJRGBAMediaData::Ptr data = nullptr;
+    if (m_gpuToRamPtr)
+    {
+        data = m_gpuToRamPtr->getMediaRGBAData();
+    }    
+    return data;
+}
+
+int HJNAPILiveStream::openFaceu(const std::string &i_faceuUrl, bool i_bDebugPoint)
+{
+    int i_err = HJ_OK;
+    do 
+    {
+        HJFLogi("openFaceu enter i_bDebugPoint:{}", i_bDebugPoint);
+        if (m_prioGraphProc)
+        {
+            HJBaseParam::Ptr param = HJBaseParam::Create();
+            HJ_CatchMapPlainSetVal(param, std::string, "faceuUrl", i_faceuUrl);
+            HJ_CatchMapPlainSetVal(param, bool, "bDebugPoint", i_bDebugPoint);
+            i_err = m_prioGraphProc->openFaceu(param);
+            if (i_err < 0)
+            {
+                break;
+            }
+        }
+    } while (false);
+    HJFLogi("openFaceu end i_err:{}", i_err);
+    return i_err;
+}
+void HJNAPILiveStream::closeFaceu()
+{
+    if (m_prioGraphProc)
+    {   
+        m_prioGraphProc->closeFaceu();
+    }   
+}
+
+int HJNAPILiveStream::openNativeSource(bool i_bUsePBO)
+{
+    int i_err = HJ_OK;
+    HJFLogi("openNativeSource enter bUsePBO:{}", i_bUsePBO);
+    HJ_LOCK(m_nativeSourceLock);
+    do 
+    {
+        if (!m_prioGraphProc)
+        {
+            i_err = -1;
+            break;
+        }
+        if (!m_gpuToRamPtr)
+        {
+            HJGPUToRAMType type = i_bUsePBO ? HJGPUToRAMType_PBO : HJGPUToRAMType_ImageReceiver;
+            m_gpuToRamPtr = HJBaseGPUToRAM::CreateGPUToRAM(type);
+
+            HJBaseParam::Ptr param = HJBaseParam::Create();
+            if (!i_bUsePBO)
+            {
+                HJGPUToRAMImageReceiver::HOImageReceiverSurfaceCb surfaceCb = [this](void *i_window, int i_width, int i_height, bool i_bCreate)
+                {
+                    int state = 0;
+                    if (i_bCreate)
+                    {
+                        state = HJTargetState_Create;
+                    }
+                    else
+                    {
+                        state = HJTargetState_Destroy;
+                    }
+                    return priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_FaceDetect, 30);
+                };
+                HJ_CatchMapSetVal(param, HJGPUToRAMImageReceiver::HOImageReceiverSurfaceCb, surfaceCb);
+            }
+
+            i_err = m_gpuToRamPtr->init(param);
+            if (i_err < 0)
+            {
+                break;
+            }    
+    
+            if (i_bUsePBO)
+            {
+                HJBaseGPUToRAM::Wtr wtr = m_gpuToRamPtr;
+                m_prioGraphProc->openPBO([wtr](HJSPBuffer::Ptr i_buffer, int width, int height)
+                {
+                    HJBaseGPUToRAM::Ptr gpuToRamPtr = wtr.lock();
+                    if (gpuToRamPtr)
+                    {
+                        gpuToRamPtr->setMediaData(i_buffer, width, height);
+                    }
+                    return HJ_OK;
+                });
+            }
+                           
+            m_prioGraphProc->openFaceMgr();
+            m_bNativeSourceOpen = true;
+        }    
+    } while (false);
+    HJFLogi("openNativeSource end bUsePBO:{} i_err:{}", i_bUsePBO, i_err);
+    return i_err;
+}
+void HJNAPILiveStream::closeNativeSource()
+{
+    HJFLogi("closeNativeSource enter");
+
+    HJ_LOCK(m_nativeSourceLock);
+    if (m_prioGraphProc)
+    {
+        m_prioGraphProc->closePBO();
+        m_prioGraphProc->closeFaceMgr();
+    }
+    
+    if (m_gpuToRamPtr)
+    {
+        m_gpuToRamPtr->done();
+        m_gpuToRamPtr = nullptr;
+    }   
+
+    m_bNativeSourceOpen = false;
+
+    HJFLogi("closeNativeSource end");
+}
+
+void HJNAPILiveStream::setFaceInfo(HJFacePointsWrapper::Ptr faceInfo)
+{
+    if (m_prioGraphProc)
+    {
+        m_prioGraphProc->setFaceInfo(faceInfo);
+    }    
+}
+
+void HJNAPILiveStream::setVideoEncQuantOffset(int i_quantOffset)
+{
+    m_quantOffset = i_quantOffset;
+}
+void HJNAPILiveStream::setFaceProtected(bool i_bProtect)
+{
+    HJFLogi("setFaceProtected enter i_bProtect:{}", i_bProtect);
+    if (m_prioGraphProc)
+    {
+        m_prioGraphProc->setFaceProtected(i_bProtect);
+    }
+    HJFLogi("setFaceProtected end i_bProtect:{}", i_bProtect);
 }
 
 NS_HJ_END

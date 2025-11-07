@@ -760,5 +760,85 @@ std::tuple<std::string, std::string, std::string> HJUtilitys::parseRtmpUrl(std::
     return { address, stream_name, auth_param };
 }
 
+void HJUtilitys::splitParam(const std::string& param, std::vector<std::pair<std::string, std::string>>& result)
+{
+    if (param.empty()) {
+        return;
+    }
+
+    size_t equal_pos = param.find('=');
+    std::string key;
+    std::string value;
+
+    if (equal_pos == std::string::npos) {
+        key = param;
+        value = "";
+    }
+    else {
+        key = param.substr(0, equal_pos);
+        value = param.substr(equal_pos + 1);
+    }
+
+    result.emplace_back(key, value);
+}
+
+std::vector<std::pair<std::string, std::string>> HJUtilitys::parseUrl(const std::string& url)
+{
+    std::vector<std::pair<std::string, std::string>> result;
+
+    if (url.empty()) {
+        return result;
+    }
+
+    size_t question_mark_pos = url.find('?');
+    std::string core_url;
+    std::string query_string;
+
+    if (question_mark_pos == std::string::npos) {
+        core_url = url;
+        query_string = "";
+    }
+    else {
+        core_url = url.substr(0, question_mark_pos);
+        query_string = url.substr(question_mark_pos + 1);
+    }
+
+    result.emplace_back("url", core_url);
+    if (query_string.empty()) {
+        return result;
+    }
+
+    size_t start = 0;
+    size_t ampersand_pos = query_string.find('&');
+    while (ampersand_pos != std::string::npos) {
+        std::string param = query_string.substr(start, ampersand_pos - start);
+        splitParam(param, result);
+        start = ampersand_pos + 1;
+        ampersand_pos = query_string.find('&', start);
+    }
+
+    std::string last_param = query_string.substr(start);
+    splitParam(last_param, result);
+
+    return result;
+}
+
+std::string HJUtilitys::getCoreUrl(const std::string& url)
+{
+    if (url.empty()) {
+        return "";
+    }
+
+    size_t question_mark_pos = url.find('?');
+    std::string core_url = "";
+
+    if (question_mark_pos == std::string::npos) {
+        core_url = url;
+    } else {
+        core_url = url.substr(0, question_mark_pos);
+    }
+
+    return core_url;
+}
 
 NS_HJ_END

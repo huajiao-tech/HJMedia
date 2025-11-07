@@ -1,12 +1,12 @@
 {
   "name": "@hj-live/hjpusher",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "HJMedia",
   "main": "Index.ets",
   "author": "huajiao",
   "license": "LGPL v2.1",
   "dependencies": {},
   "keywords": ["media","video","audio","rtmp","pusher","tools","camera"],
-  "homepage": "https://github.com/huajiao-tech/HJMedia",
-  "repository": "https://github.com/huajiao-tech/HJMedia"
+  "dependencies": {
+  }
 }

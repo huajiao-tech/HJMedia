@@ -266,7 +266,39 @@ AVFrame* hj_make_silence_audio_frame(int channel, int sampleRate, enum AVSampleF
     }
     return dst;
 }
+AVFrame* hj_make_avframe_fromy_yuv420p(int width, int height, uint8_t* y_data, uint8_t* u_data, uint8_t* v_data)
+{
+    AVFrame* frame = av_frame_alloc();
+    if (!frame) {
+        fprintf(stderr, "Error: Could not allocate AVFrame.\n");
+        return nullptr;
+    }                                                                            
+    frame->width = width;
+    frame->height = height;
+    frame->format = AV_PIX_FMT_YUV420P;
+                                                                  
+    int ret = av_frame_get_buffer(frame, 0);                       
+    if (ret < 0) {
+        fprintf(stderr, "Error: Could not allocate buffer for AVFrame.\n");
+        av_frame_free(&frame);
+        return nullptr;
+    }
+                       
+    const int y_plane_size = width * height;
+    memcpy(frame->data[0], y_data, y_plane_size);
+                                                      
+    const int chroma_width = width / 2;
+    const int chroma_height = height / 2;
+    const int uv_plane_size = chroma_width * chroma_height;
+                                      
+    memcpy(frame->data[1], u_data, uv_plane_size);                      
+    memcpy(frame->data[2], v_data, uv_plane_size);
 
+    frame->linesize[0] = width;
+    frame->linesize[1] = frame->linesize[2] = chroma_width;
+
+    return frame;
+}
 AVFrame* hj_make_avframe(int width, int height, enum AVPixelFormat format)
 {
     AVFrame* avf = av_frame_alloc();

@@ -494,7 +494,7 @@ int HJMov2Live::init(const std::string& inUrl)
         return HJErrInvalidParams;
     }
     m_inUrl = inUrl;
-    HJUrl::Ptr murl = std::make_shared<HJUrl>(m_inUrl, HJXFMode_RONLY);
+    HJUrl::Ptr murl = std::make_shared<HJUrl>(m_inUrl);
     //
     m_inFile = std::make_shared<HJXIOFile>();
     int res = m_inFile->open(murl);
@@ -535,7 +535,7 @@ int HJMov2Live::toLive(const std::string& outUrl)
             break;
         }
         m_outFile = std::make_shared<HJXIOFile>();
-        res = m_outFile->open(std::make_shared<HJUrl>(m_outUrl, HJXFMode_WONLY));
+        res = m_outFile->open(std::make_shared<HJUrl>(m_outUrl, HJ_XIO_WRITE));
         if (HJ_OK != res) {
             break;
         }

@@ -3,11 +3,16 @@
 //AUTHOR:
 //CREATE TIME:
 //***********************************************************************************//
-#include "HJARenderMini.h"
-//namespace ffmpeg {
-#   include "HJFFHeaders.h"
-//}
 #include "HJFLog.h"
+#include "HJARenderMini.h"
+
+#if defined(HJ_OS_DARWIN)
+namespace ffmpeg {  //AVMediaType conflict
+#   include "HJFFHeaders.h"
+}
+#else
+#   include "HJFFHeaders.h"
+#endif
 #if defined(HJ_HAVE_ARENDER_MINI)
     #if defined(HJ_OS_DARWIN)
     #   define MA_NO_RUNTIME_LINKING
@@ -66,30 +71,57 @@ int HJARenderMini::init(const HJAudioInfo::Ptr& info, HJARenderBase::ARCallback 
         return HJErrNewObj;
     }
     ma_format fmt = ma_format_s16;
+#if defined(HJ_OS_DARWIN)
     switch (info->m_sampleFmt)
     {
-        case AV_SAMPLE_FMT_S16: {
-            m_outInfo->m_sampleFmt = AV_SAMPLE_FMT_S16;
+        case ffmpeg::AV_SAMPLE_FMT_S16: {
+            m_outInfo->m_sampleFmt = ffmpeg::AV_SAMPLE_FMT_S16;
             fmt = ma_format_s16;
             break;
         }
-        case AV_SAMPLE_FMT_S32: {
-            m_outInfo->m_sampleFmt = AV_SAMPLE_FMT_S32;
+        case ffmpeg::AV_SAMPLE_FMT_S32: {
+            m_outInfo->m_sampleFmt = ffmpeg::AV_SAMPLE_FMT_S32;
             fmt = ma_format_s32;
             break;
         }
-        case AV_SAMPLE_FMT_FLT: {
-            m_outInfo->m_sampleFmt = AV_SAMPLE_FMT_FLT;
+        case ffmpeg::AV_SAMPLE_FMT_FLT: {
+            m_outInfo->m_sampleFmt = ffmpeg::AV_SAMPLE_FMT_FLT;
             fmt = ma_format_f32;
             break;
         }
         default: {
-            m_outInfo->m_sampleFmt = AV_SAMPLE_FMT_S16;
+            m_outInfo->m_sampleFmt = ffmpeg::AV_SAMPLE_FMT_S16;
             fmt = ma_format_s16;
             break;
         }
     }
+    m_outInfo->m_bytesPerSample = av_samples_get_buffer_size(NULL, m_outInfo->m_channels, 1, (enum ffmpeg::AVSampleFormat)m_outInfo->m_sampleFmt, 1);
+#else
+    switch (info->m_sampleFmt)
+    {
+    case AV_SAMPLE_FMT_S16: {
+        m_outInfo->m_sampleFmt = AV_SAMPLE_FMT_S16;
+        fmt = ma_format_s16;
+        break;
+    }
+    case AV_SAMPLE_FMT_S32: {
+        m_outInfo->m_sampleFmt = AV_SAMPLE_FMT_S32;
+        fmt = ma_format_s32;
+        break;
+    }
+    case AV_SAMPLE_FMT_FLT: {
+        m_outInfo->m_sampleFmt = AV_SAMPLE_FMT_FLT;
+        fmt = ma_format_f32;
+        break;
+    }
+    default: {
+        m_outInfo->m_sampleFmt = AV_SAMPLE_FMT_S16;
+        fmt = ma_format_s16;
+        break;
+    }
+    }
     m_outInfo->m_bytesPerSample = av_samples_get_buffer_size(NULL, m_outInfo->m_channels, 1, (enum AVSampleFormat)m_outInfo->m_sampleFmt, 1);
+#endif
     //
     m_actx = (ma_context*)malloc(sizeof(ma_context));
     if (!m_actx) {
@@ -162,8 +194,11 @@ void HJARenderMini::outAudioCallback(ma_device* dev, void* output, const void* i
             if (render->m_callback) {
                 render->m_callback(mavf);
             }
-
-            AVFrame* avf = (AVFrame *)mavf->getAVFrame();
+#if defined(HJ_OS_DARWIN)
+            ffmpeg::AVFrame* avf = (ffmpeg::AVFrame *)mavf->getAVFrame();
+#else
+            AVFrame* avf = (AVFrame*)mavf->getAVFrame();
+#endif
             if (avf) {
                 memcpy(output, avf->data[0], avf->linesize[0]);
             }

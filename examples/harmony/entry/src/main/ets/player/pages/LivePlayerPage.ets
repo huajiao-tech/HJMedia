@@ -2,6 +2,7 @@ import { HJPlayerSourceType, HJPlayerType } from "hjplayer"
 import { PlayerSwiper } from "../component/PlayerSwiper"
 import { PlayerXComponent } from "../component/PlayerXComponent"
 import { GiftAction, LivePlayerState, LivePlayerStore, SoundAction } from "../store/LivePlayerStore"
+import { FaceuAction, FaceDetectAction } from "../store/PlayerSettingStore"
 
 @Builder
 export function PageBuilder() {
@@ -30,6 +31,7 @@ export struct LivePlayerPage {
             url: this.getUIContext().getHostContext()?.resourceDir + "/ShuangDanCaiShen.mp4",
             sourceType: HJPlayerSourceType.HJPlayerSourceType_SPLITSCREEN,
             playerType: HJPlayerType.HJPlayerType_VOD,
+            
           })
             .hitTestBehavior(HitTestMode.Transparent)
         }
@@ -78,6 +80,11 @@ export struct LivePlayerPage {
               this.store.dispatch(new SoundAction(0))
             } else if (item.item.type == "gift") {
               this.store.dispatch(new GiftAction(this.getUIContext().getHostContext()?.resourceDir + "/ShuangDanCaiShen.mp4"))
+            }
+            else if (item.item.type == "faceu"){
+              this.store.dispatch(new FaceuAction(item.index, this.getUIContext().getHostContext()?.resourceDir + "/800624_1_1504602801"))
+            } else if (item.item.type == "facedetect"){
+              this.store.dispatch(new FaceDetectAction(item.index))
             }
           })
       })

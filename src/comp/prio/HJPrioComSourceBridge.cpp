@@ -36,6 +36,7 @@ HJOGRenderWindowBridge::Ptr HJPrioComSourceBridge::renderWindowBridgeAcquire()
             } 
         }
     } while (false);
+    HJFLogi("{} renderThread renderWindowBridgeAcquire end:{}", getInsName(), i_err);
     return m_bridge;   
 }
 std::shared_ptr<HJOGRenderWindowBridge> HJPrioComSourceBridge::renderWindowBridgeAcquireSoft()
@@ -91,7 +92,14 @@ void HJPrioComSourceBridge::stat()
     }
     m_statIdx++;
 }
-
+void HJPrioComSourceBridge::openPBO(HJMediaDataReaderCb i_cb)
+{
+    
+}
+void HJPrioComSourceBridge::closePBO()
+{
+    
+}
 int HJPrioComSourceBridge::update(HJBaseParam::Ptr i_param)
 {
     int i_err = 0;

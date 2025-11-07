@@ -51,7 +51,7 @@ endif ()
 
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJStat libfdkaac librtmp HJUtils soundtouch sonic zlib LIBOPENSSL LIBMBEDTLS LIBFFMPEG LIBYUV LIBMINIAUDIO LIBSPDLOG)
+target_link_libraries(${PROJ_NAME} PRIVATE LIBSQLITEORM sqlite3 HJStat libfdkaac librtmp HJUtils soundtouch sonic zlib LIBOPENSSL LIBMBEDTLS LIBFFMPEG LIBYUV LIBMINIAUDIO LIBSPDLOG)
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

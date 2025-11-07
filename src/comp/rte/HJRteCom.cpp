@@ -3,6 +3,10 @@
 #include "HJRteCom.h"
 #include "HJFLog.h"
 
+#if defined (HarmonyOS)
+    #include "HJOGBaseShader.h"
+#endif
+
 NS_HJ_BEGIN
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -11,23 +15,33 @@ HJRteComLinkInfo::HJRteComLinkInfo()
 {
 
 }
-HJRteComLinkInfo::HJRteComLinkInfo(float i_x, float i_y, float i_width, float i_height) :
+HJRteComLinkInfo::HJRteComLinkInfo(float i_x, float i_y, float i_width, float i_height, bool i_xMirror, bool i_yMirror) :
     m_x(i_x)
    , m_y(i_y)
    , m_width(i_width)
    , m_height(i_height)
+   , m_xMirror(i_xMirror)
+   , m_yMirror(i_yMirror)
 {
 }
 HJRteComLinkInfo::~HJRteComLinkInfo()
 {
-
 }
 
 std::string HJRteComLinkInfo::getInfo() const
 {
     return HJFMT("viewport: <{} {} {} {}>", m_x, m_y, m_width, m_height);
 }
-
+    
+HJVec4i HJRteComLinkInfo::convert(int i_targetWidth, int i_targetHeight)
+{
+    int x = i_targetWidth * m_x;
+    int y = (1.f - m_height - m_y) * i_targetHeight;
+    int w = i_targetWidth * m_width;
+    int h = i_targetHeight * m_height;
+    return HJVec4i{x, y, w, h};
+}
+        
 /////////////////////////////////////////////////////////////////////////////////////////
 std::atomic<int> HJRteComLink::m_memoryRteComLinkStatIdx = 0;
 
@@ -36,10 +50,11 @@ HJRteComLink::HJRteComLink()
     priMemoryStat();
 }
 
-HJRteComLink::HJRteComLink(const std::shared_ptr<HJRteCom>& i_srcCom, const std::shared_ptr<HJRteCom>& i_dstCom, std::shared_ptr<HJRteComLinkInfo> i_linkInfo) :
+HJRteComLink::HJRteComLink(const std::shared_ptr<HJRteCom>& i_srcCom, const std::shared_ptr<HJRteCom>& i_dstCom, std::shared_ptr<HJRteComLinkInfo> i_linkInfo, std::shared_ptr<HJOGBaseShader> i_shader) :
     m_srcCom(i_srcCom),
     m_dstCom(i_dstCom)
     ,m_linkInfo(i_linkInfo)
+    ,m_shader(i_shader)
 {
     priMemoryStat();
 }
@@ -48,12 +63,25 @@ HJRteComLink::~HJRteComLink()
 {
     m_memoryRteComLinkStatIdx--;
     HJFLogi("{} ~HJRtelink {} memoryStatIdx:{}", m_insName, size_t(this), m_memoryRteComLinkStatIdx);
+    
+    if (m_shader)
+    {
+#if defined (HarmonyOS)
+        m_shader->release();
+        m_shader = nullptr;
+#endif
+    } 
 }
 
 void HJRteComLink::priMemoryStat()
 {
     m_memoryRteComLinkStatIdx++;
     HJFLogi("{} HJRtelink {} memoryStatIdx:{}", m_insName, size_t(this), m_memoryRteComLinkStatIdx);
+    
+    if (!m_linkInfo)
+    {
+        m_linkInfo = HJRteComLinkInfo::Create();
+    }
 }
 void HJRteComLink::setReady(bool i_ready)
 {
@@ -63,7 +91,14 @@ bool HJRteComLink::isReady() const
 {
     return m_bReady;
 }
-
+void HJRteComLink::setDriftInfo(HJRteDriftInfo::Ptr i_driftInfo)
+{
+    m_driftInfo = i_driftInfo;
+}
+HJRteDriftInfo::Ptr HJRteComLink::getDriftInfo() const
+{
+    return m_driftInfo;
+}
 std::shared_ptr<HJRteCom> HJRteComLink::getSrcComPtr() const
 {
     return HJRteCom::GetPtrFromWtr(m_srcCom);
@@ -183,10 +218,21 @@ bool HJRteCom::pricompare(const std::weak_ptr<HJRteComLink>& i_a, const std::wea
     }
     return false;
 }
-HJRteComLink::Ptr HJRteCom::addTarget(HJRteCom::Ptr i_com, std::shared_ptr<HJRteComLinkInfo> i_linkInfo)
+
+HJRteComLink::Ptr HJRteCom::addTarget(HJRteCom::Ptr i_com, std::shared_ptr<HJOGBaseShader> i_shader, std::shared_ptr<HJRteComLinkInfo> i_linkInfo)
 {
-    HJRteComLink::Ptr link = HJRteComLink::Create<HJRteComLink>(HJBaseSharedObject::getSharedFrom(this), i_com, i_linkInfo);
-    link->setInsName(this->getInsName() + "_" + i_com->getInsName() + "_link");
+    HJRteComLink::Ptr link = HJRteComLink::Create<HJRteComLink>(HJBaseSharedObject::getSharedFrom(this), i_com, i_linkInfo, i_shader);
+    std::string linkName = this->getInsName();
+    if (i_shader)
+    {
+        linkName = linkName + "_" + i_shader->getInsName() + "_";
+    }   
+    if (i_linkInfo)
+    {
+        linkName = linkName + "_" + i_linkInfo->getInfo() + "_";
+    }  
+    linkName += i_com->getInsName() + "_link";
+    link->setInsName(linkName);
     m_nextQueue.push_back(link);
     i_com->m_preQueue.push_back(link);
 
@@ -200,6 +246,7 @@ HJRteComLink::Ptr HJRteCom::addTarget(HJRteCom::Ptr i_com, std::shared_ptr<HJRte
     }
     return link;
 }
+
 int HJRteCom::foreachPreLink(std::function<int(const std::shared_ptr<HJRteComLink>& i_link)> i_func)
 {
     int i_err = HJ_OK;
@@ -337,14 +384,18 @@ bool HJRteCom::isTarget() const
     HJRteComType type = getRteComType();
     return (type == HJRteComType_Target);
 }
-int HJRteCom::update(HJBaseParam::Ptr i_param)
+void HJRteCom::reset()
 {
-	return HJ_OK;
+    
 }
-int HJRteCom::render(HJBaseParam::Ptr i_param)
-{
-    return HJ_OK;
-}
+//int HJRteCom::update(HJBaseParam::Ptr i_param)
+//{
+//	return HJ_OK;
+//}
+//int HJRteCom::render(HJBaseParam::Ptr i_param)
+//{
+//    return HJ_OK;
+//}
 
 //bool HJPrioCom::renderModeIsContain(int i_targetType)
 //{

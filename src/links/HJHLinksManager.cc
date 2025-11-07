@@ -1546,7 +1546,7 @@ int HJHLink::http_read_header(URLContext* h)
         if ((err = http_get_line(s, line, sizeof(line))) < 0)
             return err;
 
-        HJFLogt("header={}", line);
+        HJFLogi("header={}", line);
 
         err = process_line(h, line, s->line_count);
         if (err < 0)
@@ -1716,7 +1716,7 @@ int HJHLink::http_connect(URLContext* h, const char* path, const char* local_pat
         err = AVERROR(EINVAL);
         goto done;
     }
-
+    HJFLogi("request: {}", request.str);
     if ((err = ffurl_write(s->hd, (const uint8_t*)request.str, request.len)) < 0)
         goto done;
 

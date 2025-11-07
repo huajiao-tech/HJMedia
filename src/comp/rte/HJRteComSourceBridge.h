@@ -5,6 +5,8 @@
 
 #if defined (HarmonyOS)
     #include <GLES3/gl3.h>
+#else
+    typedef unsigned int GLuint;
 #endif
 
 NS_HJ_BEGIN
@@ -21,8 +23,8 @@ public:
 	virtual int init(HJBaseParam::Ptr i_param) override;
 	virtual void done() override;
        
-    virtual int update(HJBaseParam::Ptr i_param) override;
-    virtual int render(HJBaseParam::Ptr i_param) override;
+    virtual int update(HJBaseParam::Ptr i_param);
+    //virtual int render(HJBaseParam::Ptr i_param) override;
     
     void stat();
     bool IsStateReady();
@@ -30,9 +32,10 @@ public:
     int getWidth();
     int getHeight(); 
     float *getTexMatrix();
-#if defined (HarmonyOS)
     GLuint getTextureId();
-#endif
+
+    bool isUpdateResolution();
+
     const std::shared_ptr<HJOGRenderWindowBridge>& getBridge(); 
     
     static HJRteComSourceBridge::Ptr CreateFactory();
@@ -42,6 +45,10 @@ public:
     std::shared_ptr<HJOGRenderWindowBridge> renderWindowBridgeAcquireSoft();
     void renderWindowBridgeReleaseSoft(); 
 #endif
+
+    void setUseFilter(bool i_bUseFilter) { m_bUseFilter = i_bUseFilter; }
+    bool getUseFilter() const { return m_bUseFilter; }
+
 protected:
 private:
     bool priIsMainReady();
@@ -56,6 +63,10 @@ private:
     std::shared_ptr<HJOGRenderWindowBridge> m_nullBridge = nullptr;
     bool m_bUseSoftEnable = true;
     int m_statIdx = 0;
+
+    int m_width = 0;
+    int m_height = 0;
+    bool m_bUseFilter = false;
 };
 
 NS_HJ_END

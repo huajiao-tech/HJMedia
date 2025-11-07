@@ -26,9 +26,6 @@ public:
 	virtual int addOutputPlugin(Ptr i_plugin, HJMediaType i_type, int i_trackId = 0);
 	virtual void onInputDisconnected(size_t i_srcKeyHash) final;
 	virtual void onOutputDisconnected(size_t i_dstKeyHash) final;
-//	virtual int setInputMaxSize(size_t i_srcKeyHash, int i_maxSize);
-//	virtual int setInputMaxCache(size_t i_srcKeyHash, int i_maxCache);
-//	virtual int setInputMaxSamples(size_t i_srcKeyHash, int i_maxSamples);
 	virtual int deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame, size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_videoKeyFrames = nullptr, int64_t* o_audioSamples = nullptr);
 	virtual void onOutputUpdated();
 	    
@@ -79,6 +76,7 @@ protected:
 	virtual void internalRelease() override;
 	virtual void afterInit() override;
 
+	virtual void onInputUpdated();
 	virtual bool setStatus(HJStatus i_status, bool i_underLock = true);
 	virtual void onInputAdded(size_t i_srcKeyHash, HJMediaType i_type) { }
 	virtual void onOutputAdded(size_t i_dstKeyHash, HJMediaType i_type) { }
@@ -87,7 +85,6 @@ protected:
 //	virtual int flush();
 	virtual int runTask(int64_t* o_delay = nullptr) = 0;
 	virtual void postTask(int64_t i_delay = 0);
-	virtual void internalUpdated(int64_t i_delay = 0);
 	virtual HJMediaFrame::Ptr receive(size_t i_srcKeyHash, size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_videoKeyFrames = nullptr, int64_t* o_audioSamples = nullptr);
 	virtual HJMediaFrame::Ptr preview(size_t i_srcKeyHash, size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_videoKeyFrames = nullptr);
     virtual int64_t audioSamplesOfInput(size_t i_srcKeyHash) final;
@@ -113,8 +110,6 @@ protected:
 	std::atomic<bool> m_quitting{};
 	int m_streamIndex{};
 
-	int64_t m_lastEnterTimestamp{ -1 };
-
 protected:
 	// TODO _每5秒日志_
 	int64_t sample_size{};
@@ -125,6 +120,8 @@ protected:
     
     std::atomic<int64_t> m_inIdx{0};
     std::atomic<int64_t> m_outIdx{0};
+
+	int64_t m_lastEnterTimestamp{ -1 };
 };
 
 NS_HJ_END

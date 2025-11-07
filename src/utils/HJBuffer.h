@@ -181,34 +181,75 @@ public:
         wb16((uint16_t)len);
         write((uint8_t*)str.c_str(), len);
     }
+    std::string rstring(const size_t len) {
+        std::string str;
+        str.resize(len);
+        read((uint8_t*)str.c_str(), len);
+        return str;
+    }
     void w8(uint8_t u8) {
         write(&u8, sizeof(uint8_t));
+    }
+    uint8_t r8() {
+        uint8_t u8;
+        read(&u8, sizeof(uint8_t));
+        return u8;
     }
     void wl16(uint16_t u16) {
         w8((uint8_t)u16);
         w8(u16 >> 8);
     }
+    uint16_t rl16() {
+        uint16_t u16;
+        u16 = r8();
+        u16 |= (((uint16_t)r8()) << 8);
+        return u16;
+    }
     void wl24(uint32_t u24) {
         w8((uint8_t)u24);
         wl16((uint16_t)(u24 >> 8));
     }
-
+    uint32_t rl24() {
+        uint32_t u24;
+        u24 = r8();
+        u24 |= (((uint32_t)rl16()) << 8);
+        return u24;
+    }
     void wl32(uint32_t u32) {
         wl16((uint16_t)u32);
         wl16((uint16_t)(u32 >> 16));
     }
-
+    uint32_t rl32() {
+        uint32_t u32;
+        u32 = rl16();
+        u32 |= (((uint32_t)rl16()) << 16);
+        return u32;
+    }
     void wl64(uint64_t u64) {
         wl32((uint32_t)u64);
         wl32((uint32_t)(u64 >> 32));
     }
-
+    uint64_t rl64() {
+        uint64_t u64;
+        u64 = rl32();
+        u64 |= (((uint64_t)rl32()) << 32);
+        return u64;
+    }
     void wlf(float f) {
         wl32(*(uint32_t*)&f);
     }
-
+    float rlf() {
+        float f;
+        *(uint32_t*)&f = rl32();
+        return f;
+    }
     void wld(double d) {
         wl64(*(uint64_t*)&d);
+    }
+    double rld() {
+        double d;
+        *(uint64_t*)&d = rl64();
+        return d;
     }
 
     void wb16(uint16_t u16) {

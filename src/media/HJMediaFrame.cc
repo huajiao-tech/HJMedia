@@ -381,6 +381,40 @@ HJMediaFrame::Ptr HJMediaFrame::makeAudioFrame(const HJAudioInfo::Ptr& info)
     return frame;
 }
 
+/**
+ * with AVFrame
+ */
+HJMediaFrame::Ptr HJMediaFrame::makeAudioFrameWithSample(const HJAudioInfo::Ptr& info, const uint8_t* data, size_t size, int64_t pts, int64_t dts, const HJTimeBase& tb)
+{
+    auto maf = HJMediaFrame::makeAudioFrame(info);
+    if (!maf) {
+        return nullptr;
+    }
+    maf->setFrameType(HJFRAME_KEY);
+    //
+    HJAudioInfo::Ptr ainfo = maf->getAudioInfo();
+    ainfo->m_bytesPerSample = av_get_bytes_per_sample((AVSampleFormat)ainfo->m_sampleFmt);
+    ainfo->m_sampleCnt = size / (ainfo->m_bytesPerSample * ainfo->m_channels);
+    ainfo->m_samplesPerFrame = ainfo->m_sampleCnt;
+    //
+    AVFrame* avf = hj_make_silence_audio_frame(ainfo->m_channels, ainfo->m_samplesRate, (enum AVSampleFormat)ainfo->m_sampleFmt, ainfo->m_sampleCnt, (AVChannelLayout*)ainfo->getAVChannelLayout());
+    if (!avf){
+        return nullptr;
+    }
+    avf->time_base = av_rational_from_hj_rational(tb);
+    avf->pts = avf->best_effort_timestamp = pts;
+    avf->duration = av_rescale_q(ainfo->m_sampleCnt, { 1, ainfo->m_samplesRate }, { tb.num, tb.den });
+    avf->nb_samples = ainfo->m_sampleCnt;
+    memcpy(avf->data[0], data, size);  
+    //
+    maf->setPTSDTS(avf->best_effort_timestamp, avf->best_effort_timestamp, tb);
+    maf->setDuration(avf->duration, tb);
+    //
+    maf->setMFrame(avf);
+
+    return maf;
+}
+
 HJMediaFrame::Ptr HJMediaFrame::makeSilenceAudioFrame(const HJAudioInfo::Ptr info/* = nullptr*/)
 {
 	HJMediaFrame::Ptr maf = std::make_shared<HJMediaFrame>();
@@ -535,7 +569,7 @@ HJMediaFrame::Ptr HJMediaFrame::makeMediaFrameAsAVFrame(const HJStreamInfo::Ptr 
             memcpy(avf->data[0], i_data, i_size);        
             avf->nb_samples = sample_count;
             
-            frame->setTimeBase(i_ratio);
+            // frame->setTimeBase(i_ratio);
             frame->setPTSDTS(i_pts, i_pts, i_ratio);
             if (i_bKey)
             {
@@ -600,7 +634,7 @@ HJMediaFrame::Ptr HJMediaFrame::makeMediaFrameAsAVPacket(const HJStreamInfo::Ptr
             frame->setFrameType(frame->getFrameType() | HJFRAME_KEY);
         }
         
-        frame->setTimeBase(i_ratio);
+        // frame->setTimeBase(i_ratio);
         frame->setPTSDTS(pkt->pts, pkt->dts, i_ratio);
         frame->setDuration(pkt->duration, av_rational_to_hj_rational(pkt->time_base));
         frame->setMPacket(pkt);

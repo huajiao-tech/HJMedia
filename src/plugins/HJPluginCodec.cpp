@@ -14,6 +14,10 @@ int HJPluginCodec::internalInit(HJKeyStorage::Ptr i_param)
 
 	do {
 		if (streamInfo) {
+            if (i_param->haveValue("ROIEncodeCb"))
+            {
+                (*streamInfo)["ROIEncodeCb"] = i_param->getValueObj<HJRoiEncodeCb>("ROIEncodeCb");
+            }
 			ret = initCodec(streamInfo);
 			if (ret < 0) {
 				break;

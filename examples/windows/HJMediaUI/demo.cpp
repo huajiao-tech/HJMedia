@@ -25,6 +25,13 @@ public:
 					type = HJUIItemType_Test;
 				}
 
+                if (ImGui::MenuItem("SharedMemory"))
+                {
+                    type = HJUIItemType_SharedMemory;
+                }   
+
+
+
                 if (ImGui::MenuItem("PlayerCom"))
                 {
                     type = HJUIItemType_PlayerCom;

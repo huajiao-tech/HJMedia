@@ -21,12 +21,15 @@ import { abilityAccessCtrl } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import window from '@ohos.window';
 import common from '@ohos.app.ability.common';
+//import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from 'hjmediautils'
+import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from '../../../../../hjpusher/src/main/ets/HJFaceDetectMgr'
 
 @Component
 export struct PusherView {
   @State currentStatus: ResourceStr = '';
   @State currentIndex: number = 0;
   @State isClick: boolean = true;
+  @State sliderValue: number = 51;
   private xComponentContext: XComponentContext | undefined = undefined;
 
   @State isScreenOn: boolean = false
@@ -50,6 +53,10 @@ export struct PusherView {
     await windowClass.setWindowKeepScreenOn(true)
     this.isScreenOn = await windowClass.getWindowProperties().isKeepScreenOn
   }
+
+  private m_faceDetectRet : number = HJFaceDetectMgrRet.ok;
+  private m_bFaceOpen:boolean = false;
+  private m_faceDetectMgr : HJFaceDetectMgr = new HJFaceDetectMgr();
 
   build()
   {
@@ -92,7 +99,7 @@ export struct PusherView {
                   let previewSurfaceId: bigint = HJPusher.testOpen();
                   cameraService.initCamera(getContext() as Context);
                   cameraService.bindSurfaceId(previewSurfaceId.toString());
-                  cameraService.startPreview(1);
+                  cameraService.startPreview(1);          // CAMERA_POSITION_BACK = 1, CAMERA_POSITION_FRONT = 2,
                 }
               })
               .width(Common.BUTTON_WIDTH)
@@ -135,7 +142,7 @@ export struct PusherView {
                   let previewSurfaceId: bigint = HJPusher.tryOpenPreview();
                   cameraService.initCamera(getContext() as Context);
                   cameraService.bindSurfaceId(previewSurfaceId.toString());
-                  cameraService.startPreview(1);
+                  cameraService.startPreview(1);  // 0 back,  1 front
                 }
               })
               .width(Common.BUTTON_WIDTH)
@@ -151,6 +158,7 @@ export struct PusherView {
               .fontWeight(Common.FONT_WEIGHT_500)
               .onClick(() => {
                 HJPusher.tryOpenPush();
+                HJPusher.trySetROIOffset(this.sliderValue);
               })
               .width(Common.BUTTON_WIDTH)
               .height($r('app.float.button_height'))
@@ -208,7 +216,52 @@ export struct PusherView {
 
 
           //Blank().height('20vp') // 添加固定间距
+
           Row() {
+            Button($r('app.string.tryFaceu'))
+              .fontSize($r('app.float.button_font_size'))
+              .fontWeight(Common.FONT_WEIGHT_500)
+              .onClick(async () => {
+                if (!this.m_bFaceOpen)
+                {
+                    this.m_faceDetectMgr.registerFaceInfoCb((width:number, height:number, faceInfo:string)=>
+                    {
+                        console.log("faceinfo: " + faceInfo);
+                        HJPusher.trySetFacePoints(width, height, faceInfo);
+                    });
+                    this.m_faceDetectMgr.registerNativeSourceOpenCb(() =>
+                    {
+                        HJPusher.tryOpenImgReceiver();
+                        return 0;
+                    });
+                    this.m_faceDetectMgr.registerNativeSourceAcquireCb((): HJNativeSourceData =>
+                    {
+                        return HJPusher.tryGetMediaData();
+                    });
+                    this.m_faceDetectMgr.registerNativeSourceCloseCb(()=>
+                    {
+                        HJPusher.tryCloseImageReceiver();
+                    });
+                    this.m_faceDetectRet = await this.m_faceDetectMgr.openFaceDetect();
+                    if (this.m_faceDetectRet != HJFaceDetectMgrRet.ok)
+                    {
+                        console.log("openFaceDetect error");
+                    }
+                }
+                else
+                {
+                    await this.m_faceDetectMgr.closeFaceDetect();
+                }
+                this.m_bFaceOpen = !this.m_bFaceOpen;
+              })
+              .width(Common.BUTTON_WIDTH_EX)
+              .height($r('app.float.button_height'))
+              .margin({
+                bottom:$r('app.float.button_margin_bottom')
+              })
+              .backgroundColor(this.isClick ? $r('app.color.button_clickable') : $r('app.color.button_unclickable'))
+              .stateEffect(this.isClick)
+
             Button($r('app.string.tryGift'))
               .fontSize($r('app.float.button_font_size'))
               .fontWeight(Common.FONT_WEIGHT_500)
@@ -252,6 +305,25 @@ export struct PusherView {
           }
           .alignItems(VerticalAlign.Bottom)
           .layoutWeight(1)
+
+          Row() {
+            Text(`${this.sliderValue.toFixed(0)}`)
+              .width(40)
+            Slider({
+              value: this.sliderValue,
+              min: -51,
+              max: 51,
+              step: 1
+            })
+            .onChange((value: number, mode: SliderChangeMode) => {
+              this.sliderValue = value;
+              HJPusher.trySetROIOffset(this.sliderValue);
+            })
+            .width('80%')
+          }
+          .justifyContent(FlexAlign.Center)
+          .width('100%')
+          .margin({ top: 10 })
 
           //Blank().height('20vp') // 添加固定间距
         }

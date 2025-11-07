@@ -77,6 +77,10 @@
       "value": "tC"
     },
     {
+      "name": "tryFaceu",
+      "value": "faceu"
+    },
+    {
       "name": "tryGift",
       "value": "gift"
     },
@@ -90,27 +94,27 @@
     },
     {
       "name": "testPlayerOpen",
-      "value": "testOpen"
+      "value": "tOpen"
     },
     {
       "name": "testPlayerClose",
-      "value": "testClose"
+      "value": "tClose"
     },
     {
       "name": "testEffectGray",
-      "value": "testEffectGray"
+      "value": "tGray"
     },
     {
       "name": "testEffectBlur",
-      "value": "testEffectBlur"
+      "value": "tBlur"
     },
     {
       "name": "tryPlayerOpen",
-      "value": "tryOpen"
+      "value": "open"
     },
     {
-      "name": "tryPlayerMute",
-      "value": "tryMute"
+      "name": "tryPlayerFaceu",
+      "value": "faceu"
     },
     {
       "name": "tryWindowChange",
@@ -118,7 +122,7 @@
     },
     {
       "name": "tryPlayerClose",
-      "value": "tryClose"
+      "value": "close"
     }
   ]
 }

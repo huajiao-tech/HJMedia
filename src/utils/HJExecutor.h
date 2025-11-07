@@ -5,6 +5,9 @@
 //***********************************************************************************//
 #pragma once
 #include "HJChore.h"
+#include <queue>
+#include <thread>
+#include <future>
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -263,4 +266,172 @@ protected:
 #define HJMainExecutorAsync(task)          HJMainExecutor()->async(task);
 #define HJMainExecutorSync(task)           HJMainExecutor()->sync(task);
 
+//***********************************************************************************//
+//#define HJTPOOL_AUTO_GROW 1
+class HJExecutorPool : public HJObject
+{
+public:
+    HJ_INSTANCE_DECL(HJExecutorPool);
+    
+    HJExecutorPool(size_t initSize = HJExecutorPool::K_THREAD_MAX_NUM);
+    virtual ~HJExecutorPool();
+
+    template<class F, class... Args>
+    auto commit(const int priority, const std::string& rid, F&& f, Args&&... args) -> std::future<decltype(f(args...))>
+    {
+        if (!m_run) {
+            throw std::runtime_error("commit on ThreadPool is stopped.");
+        }
+
+        using RetType = decltype(f(args...)); // typename std::result_of<F(Args...)>::type
+        auto task = std::make_shared<std::packaged_task<RetType()>>(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+        std::future<RetType> future = task->get_future();
+
+        addTask([task]() {(*task)(); }, priority, rid);
+
+#if defined(HJTPOOL_AUTO_GROW)
+        if (m_idlThrNum < 1 && m_pool.size() < K_THREAD_MAX_NUM) {
+            addThread(1);
+        }
+#endif
+        m_task_cv.notify_one();
+
+        return future;
+    }
+
+    template <class F>
+    void commitTask(F&& task)
+    {
+        if (!m_run) return;
+
+        addTask(task);
+
+#if defined(HJTPOOL_AUTO_GROW)
+        if (m_idlThrNum < 1 && m_pool.size() < K_THREAD_MAX_NUM) {
+            addThread(1);
+        }
+#endif
+        m_task_cv.notify_one();
+    }
+
+    void cancelTask(const std::string& rid)
+    {
+        HJ_AUTOU_LOCK(m_lock);
+        for (auto& it : m_tasks) {
+            auto& deque = it.second;
+            for (auto iter = deque.begin(); iter != deque.end(); ) {
+                if ((*iter)->getName() == rid) {
+                    (*iter)->cancel();
+                    iter = deque.erase(iter);
+                    return;
+                }
+                else {
+                    ++iter;
+                }
+            }
+        }
+        return;
+    }
+
+    int getIdlCount() const { return m_idlThrNum; }
+    int getThreadCount() const { return m_pool.size(); }
+private:
+    void addThread(unsigned short size)
+    {
+#if defined(HJTPOOL_AUTO_GROW)
+        if (!m_run) {
+            throw std::runtime_error("stopped.");
+        }
+		HJ_AUTOU_LOCK(m_lockGrow);
+#endif
+        for (; m_pool.size() < K_THREAD_MAX_NUM && size > 0; --size)
+        { 
+            m_pool.emplace_back([this] {
+                while (true)
+                {
+                    HJTask::Ptr task{};
+                    {
+                        HJ_AUTOU_LOCK(m_lock);
+                        m_task_cv.wait(lock, [this] {return !m_run || !isTaskEmpty();});
+                        if (!m_run && isTaskEmpty()) {
+                            return;
+                        }
+                        m_idlThrNum--;
+                        task = getTask();
+                    }
+                    task->run();
+#if defined(HJTPOOL_AUTO_GROW)
+                    if (m_idlThrNum > 0 && m_pool.size() > m_initSize)
+                        return;
+#endif 
+                    {
+                        HJ_AUTOU_LOCK(m_lock);
+                        m_idlThrNum++;
+                    }
+                }
+                });
+            {
+                HJ_AUTOU_LOCK(m_lock);
+                m_idlThrNum++;
+            }
+        }
+    }
+
+    bool isTaskEmpty() const { 
+        if (m_tasks.empty()) {
+            return true;
+        }
+        for (auto &it : m_tasks) {
+            if (!it.second.empty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    HJTask::Ptr getTask()
+    {
+        HJTask::Ptr task{};
+        for (auto& it : m_tasks) {
+            if (!it.second.empty()) {
+                task = std::move(it.second.front());
+                it.second.pop_front();
+                break;
+            }
+        }
+        return task;
+    }
+
+    void addTask(HJRunnable run, int priority = 0, const std::string& name = HJMakeGlobalName("task")) 
+    {
+        HJ_AUTOU_LOCK(m_lock);
+        auto task = HJCreates<HJTask>(std::move(run));
+        task->setName(name);
+        task->setClsID(priority);
+        //
+        auto it = m_tasks.find(priority);
+        if (it != m_tasks.end()) {
+            it->second.emplace_back(task);
+        } else {
+            std::deque<HJTask::Ptr> queue;
+            queue.emplace_back(task);
+            m_tasks.emplace(priority, queue);
+        }
+        return;
+    }
+private:
+    static const int K_THREAD_MAX_NUM;
+private:
+    size_t                      m_initSize{0};
+    std::vector<std::thread>    m_pool;
+    //std::queue<HJRunnable>      m_tasks;
+    std::map<int, std::deque<HJTask::Ptr>> m_tasks;
+    std::mutex                  m_lock;  
+#if defined(HJTPOOL_AUTO_GROW)
+    std::mutex                  m_lockGrow;
+#endif
+    std::condition_variable     m_task_cv;
+    std::atomic<bool>           m_run{ true };
+    std::atomic<int>            m_idlThrNum{ 0 };
+};
 NS_HJ_END

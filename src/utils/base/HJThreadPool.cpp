@@ -235,7 +235,7 @@ int HJThreadPool::priStart()
 int HJThreadPool::start()
 {
 	int i_err = 0;
-    HJ_LOCK(m_mutex_run)
+    std::unique_lock<std::shared_mutex> lock(m_mutex_run);
     do
     {
         if (m_bThreadRunning)
@@ -262,25 +262,38 @@ bool HJThreadPool::priIsQuit()
 }
 void HJThreadPool::priDone()
 {
-    HJ_LOCK(m_mutex_run)
+    std::unique_lock<std::shared_mutex> lock(m_mutex_run);
+    if (!m_bThreadRunning)
     {
-        if (!m_bThreadRunning)
-        {
-            //HJFLogi("{} thread is not running, so not join, return", m_insName);
-            return;
-        }
-	    if (m_worker_thread.joinable())
-	    {
-		    {
-			    std::lock_guard<std::mutex> lock(m_mutex);
-			    m_bQuit = true;
-		    }
-		    m_cv.notify_one();
-		    m_worker_thread.join();
-
-            m_bThreadRunning = false;
-	    }
+        return;
     }
+
+    if (m_worker_thread.joinable())
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_bQuit = true;
+        }
+        m_cv.notify_one();
+        m_worker_thread.join();
+
+        m_bThreadRunning = false;
+    }
+
+    // Clean up any tasks that were never executed to unblock sync() callers
+    std::lock_guard<std::mutex> queue_lock(m_mutex);
+    for (auto& taskWrapper : m_task_queue)
+    {
+        if (taskWrapper->m_promise)
+        {
+            try {
+                throw std::runtime_error("Thread pool is shutting down; task not executed.");
+            } catch(...) {
+                taskWrapper->m_promise->set_exception(std::current_exception());
+            }
+        }
+    }
+    m_task_queue.clear();
 }
 void HJThreadPool::done()
 {
@@ -336,7 +349,7 @@ void HJThreadPool::signal()
 int HJThreadPool::asyncClear(HJThreadTaskFunc task, int i_id)
 {
     int i_err = 0;
-    HJ_LOCK(m_mutex_run)
+    std::shared_lock<std::shared_mutex> lock(m_mutex_run);
     do
     {
         if (!m_bThreadRunning)
@@ -354,7 +367,7 @@ int HJThreadPool::asyncClear(HJThreadTaskFunc task, int i_id)
 int HJThreadPool::async(HJThreadTaskFunc task, int64_t i_delayTime)
 {
     int i_err = 0;
-    HJ_LOCK(m_mutex_run)
+    std::shared_lock<std::shared_mutex> lock(m_mutex_run);
     do
     {
         if (!m_bThreadRunning)
@@ -371,29 +384,43 @@ int HJThreadPool::async(HJThreadTaskFunc task, int64_t i_delayTime)
 int HJThreadPool::sync(HJThreadTaskFunc task)
 {
 	int i_err = 0;
-    HJ_LOCK(m_mutex_run)
-	do
-    {
-        if (!m_bThreadRunning)
-        {
-            HJFLogi("{} sync proc the thread is already joined, not proc in thread, direct proc task", m_insName);
-            i_err = task();
-            return i_err;
-        }
+	if (std::this_thread::get_id() == m_threadId)
+	{
+		return task();
+	}
 
-		if (std::this_thread::get_id() == m_threadId)
-		{
-			i_err = task();
-		}
-		else
+	std::future<int> future;
+	bool submitted = false;
+	{
+		std::shared_lock<std::shared_mutex> lock(m_mutex_run);
+		if (m_bThreadRunning)
 		{
 			auto promise = std::make_shared<std::promise<int>>();
-			std::future<int> future = promise->get_future();
+			future = promise->get_future();
 			priEnterTask(task, promise, 0, 0);
 			m_cv.notify_one();
+			submitted = true;
+		}
+	}
+
+	if (submitted)
+	{
+		try
+		{
 			i_err = future.get();
 		}
-	} while (false);
+		catch (const std::exception& e)
+		{
+			HJFLoge("sync task failed with exception: {}", e.what());
+			i_err = -1;
+		}
+	}
+	else
+	{
+		HJFLogi("{} sync proc the thread is already joined, not proc in thread, direct proc task", m_insName);
+		//i_err = task();
+		i_err = -1;
+	}
 	return i_err;
 }
 

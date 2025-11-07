@@ -8,10 +8,13 @@
 #include "HJVDecFFMpeg.h"
 #include "HJAEncFFMpeg.h"
 #include "HJVEncFFMpeg.h"
+#include "HJAEncFDKAAC.h"
 
 #if defined(HJ_OS_HARMONY)
     #include "hsys/HJVEncOHCodec.h"
     #include "hsys/HJVDecOHCodec.h"
+    #include "hsys/HJOHADecoder.h"
+    #include "hsys/HJOHAEncoder.h"
 #endif
 
 //#if defined(HJ_OS_DARWIN)
@@ -42,8 +45,11 @@ int HJBaseCodec::init(const HJStreamInfo::Ptr& info)
 HJBaseCodec::Ptr HJBaseCodec::createADecoder(int type/* = 0*/)
 {
     HJBaseCodec::Ptr decoder = nullptr;
-    
+ #if defined(HJ_OS_HARMONY)
+     decoder = std::make_shared<HJOHADecoder>();
+ #else
     decoder = std::make_shared<HJADecFFMpeg>();
+ #endif
     
     return decoder;
 }
@@ -89,7 +95,11 @@ HJBaseCodec::Ptr HJBaseCodec::createAEncoder(int type/* = 0*/)
 {
     HJBaseCodec::Ptr encoder = nullptr;
     
+#if defined(HJ_OS_HARMONY)
+    encoder = std::make_shared<HJOHAEncoder>();
+#else
     encoder = std::make_shared<HJAEncFFMpeg>();
+#endif
     
     return encoder;
 }

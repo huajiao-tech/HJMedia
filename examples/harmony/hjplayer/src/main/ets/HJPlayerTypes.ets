@@ -4,6 +4,7 @@ export interface OpenPlayerInfo {
   videoCodecType: HJPlayerVideoCodecType
   sourceType: HJPlayerSourceType
   playerType: HJPlayerType
+  bSplitScreenMirror: boolean
 }
 
 export enum HJPlayerVideoCodecType {
@@ -37,6 +38,9 @@ export enum HJPlayerNotifyType {
   HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT = 104,
   HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE = 105,
   HJ_RENDER_NOTIFY_NEED_SURFACE = 106,
+
+  HJ_RENDER_NOTIFY_FACEU_ERROR = 107,
+  HJ_RENDER_NOTIFY_FACEU_COMPLETE = 108,
 }
 
 export enum HJPlayerType {

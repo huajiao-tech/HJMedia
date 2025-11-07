@@ -568,24 +568,31 @@ public:
     void setDisableMFlag(int flag) {
         m_disableMFlag = flag;
     }
-    int getDisableMFlag() {
+    int getDisableMFlag() const {
         return m_disableMFlag;
     }
-    bool isEnbleVideo() {
+    bool isEnbleVideo() const {
         return !(m_disableMFlag & HJMEDIA_TYPE_VIDEO);
     }
-    bool isEnableAudio() {
+    bool isEnableAudio() const {
         return !(m_disableMFlag & HJMEDIA_TYPE_AUDIO);
     }
-    bool isEnableData() {
+    bool isEnableData() const {
         return !(m_disableMFlag & HJMEDIA_TYPE_DATA);
     }
-    bool isEnableSubtitle() {
+    bool isEnableSubtitle() const {
         return !(m_disableMFlag & HJMEDIA_TYPE_SUBTITLE);
     }
-    bool isEnableAttachment() {
+    bool isEnableAttachment() const {
         return !(m_disableMFlag & HJMEDIA_TYPE_ATTACHMENT);
     }
+    void setUseFast(bool useFast) {
+        m_useFast = useFast;
+    }
+    bool getUseFast() const {
+        return m_useFast;
+    }
+
     virtual void clone(const HJMediaUrl::Ptr& other) {
         m_url = other->m_url;
         m_urlHash = other->m_urlHash;
@@ -594,9 +601,11 @@ public:
         m_fmtName = other->m_fmtName;
         m_startTime = other->m_startTime;
         m_endTime = other->m_endTime;
+        m_duration = other->m_duration;
         m_timeout = other->m_timeout;
         m_loopCnt = other->m_loopCnt;
         m_disableMFlag = other->m_disableMFlag;
+        m_useFast = other->m_useFast;
         m_subUrls = other->m_subUrls;
         //
         this->insert(other->begin(), other->end());
@@ -628,6 +637,7 @@ protected:
     int64_t         m_timeout = 3000000;                 //us
     int             m_loopCnt = 1;                       //0=1, HJ_INT_MAX;
     int             m_disableMFlag = HJMEDIA_TYPE_NONE;  //disable video | audio | subtitle
+    bool            m_useFast = true;                    //use fast http or https
     //
     std::set<HJMediaUrl::Ptr>   m_subUrls;
 };
@@ -1146,6 +1156,13 @@ typedef struct HJRoiInfo {
 } HJRoiInfo;
 using HJRoiInfoVector = std::vector<HJRoiInfo>;
 using HJRoiInfoVectorPtr = std::shared_ptr<HJRoiInfoVector>;
+
+typedef enum HJRoiEncodeCbFlag { 
+    HJ_ROI_CB_FLAG_NONE = 0x00,
+    HJ_ROI_CB_FLAG_TRY_ACQUIRE,
+    HJ_ROI_CB_FLAG_CLOSE,
+} HJRoiCbFlag;
+using HJRoiEncodeCb = std::function<void (HJRoiInfoVectorPtr &roiInfo, int i_nFlag)>;
 
 //***********************************************************************************//
 class HJProgressInfo : public HJObject

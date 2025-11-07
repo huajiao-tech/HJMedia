@@ -8,7 +8,7 @@
 #include "HJException.h"
 #include "HJTCPLinkManager.h"
 #include "HJTCPLinkManagerInterface.h"
-//#include "JPlayerGlobalSetting.h"
+#include "HJGlobalSettings.h"
 
 #if defined( __cplusplus )
 extern "C" {
@@ -521,8 +521,8 @@ int HJLongLinkTcp::read(uint8_t* buf, int size)
     }
     ret = ret < 0 ? ff_neterrno() : ret;
 
-    //while (JPlayerGlobleSetting::GetTcpLimitedEnable()) {
-    //    HJUSleep(2 * 1000);
+    //while (HJGlobalSettingsManager::getNetBlockEnable()) {
+    //    std::this_thread::sleep_for(std::chrono::milliseconds(2));
     //};
 #if JP_HAVE_NETWORK_LIMITED
     if (ret > 0) {

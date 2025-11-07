@@ -4,6 +4,7 @@
 #include "HJComUtils.h"
 #include <future>
 #include <deque>
+#include <shared_mutex>
 
 NS_HJ_BEGIN
 
@@ -51,9 +52,9 @@ public:
 	void signal();
 
     void setPause(bool i_bPause);
+    bool isQuit();
         
 protected:
-	bool isQuit();
 
 private:
 	static void priThreadFun(void* argc, std::shared_ptr<std::promise<void>> i_promise);
@@ -92,7 +93,7 @@ private:
 
 	std::thread::id m_threadId;
         
-    std::mutex m_mutex_run;
+    mutable std::shared_mutex m_mutex_run;
     bool m_bThreadRunning = false;
 };
 

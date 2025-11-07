@@ -22,6 +22,12 @@ int HJPluginVideoOHEncoder::internalInit(HJKeyStorage::Ptr i_param)
 	if (pluginListener) {
 		(*param)["pluginListener"] = pluginListener;
 	}
+
+	if (i_param->haveValue("ROIEncodeCb"))
+    {
+        (*param)["ROIEncodeCb"] = i_param->getValueObj<HJRoiEncodeCb>("ROIEncodeCb");
+    }
+
 	int ret = HJPluginCodec::internalInit(param);
 	if (ret < 0) {
 		return ret;
@@ -38,6 +44,8 @@ int HJPluginVideoOHEncoder::internalInit(HJKeyStorage::Ptr i_param)
 			ret = HJErrFatal;
 			break;
 		}
+
+		
 
 		m_surfaceCb = surfaceCb;
 		m_surfaceCb(m_nativeWindow, videoInfo->m_width, videoInfo->m_height, true);

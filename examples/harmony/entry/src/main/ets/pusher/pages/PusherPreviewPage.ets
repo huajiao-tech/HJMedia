@@ -7,12 +7,15 @@ import {
   CameraAction,
   DoubleScreenAction,
   GiftAction,
+  FaceuAction,
+  FaceDetectAction,
   MicrophoneAction,
   PusherAction,
   RecorderAction,
   RecorderActionPayLoad,
   SelectorAction,
-  TimerAction
+  TimerAction,
+  SpeechRecognizerAction
 } from '../store/action/PusherPreviewAction';
 
 @Builder
@@ -131,27 +134,27 @@ struct PusherPreviewPage {
 
   @Builder
   BottomSetting() {
-    Row() {
+    Scroll() {
       Row() {
         this.PusherSettingList("left")
-      }
-      .layoutWeight(1)
-      .justifyContent(FlexAlign.SpaceEvenly)
 
-      Image(this.state.playState ? $r("app.media.play_1_icon") : $r("app.media.play_0_icon"))
-        .width(50).aspectRatio(1).objectFit(ImageFit.Fill)
-        .onClick(() => {
-          this.pusherStore.dispatch(new PusherAction())
-        })
+        Image(this.state.playState ? $r("app.media.play_1_icon") : $r("app.media.play_0_icon"))
+          .width(50).aspectRatio(1).objectFit(ImageFit.Fill)
+          .margin({ left: 10, right: 10 }) // Add margin to the play button for spacing
+          .onClick(() => {
+            this.pusherStore.dispatch(new PusherAction())
+          })
 
-      Row() {
         this.PusherSettingList("right")
       }
-      .layoutWeight(1)
-      .justifyContent(FlexAlign.SpaceEvenly)
-    }.width('100%')
+      .padding({ left: 10, right: 10 }) // Add padding to the Row for start/end spacing
+      .alignItems(VerticalAlign.Center)
+    }
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+    .width('100%')
     .margin({ bottom: 20 })
-    .justifyContent(FlexAlign.SpaceEvenly)
+    .align(Alignment.Center)
   }
 
   @Builder
@@ -160,6 +163,7 @@ struct PusherPreviewPage {
       .template(layout, item => {
         Image(item.item.value ? item.item.primaryIcon : item.item.secondaryIcon)
           .width(30).height(30).objectFit(ImageFit.Fill)
+          .margin({ left: 8, right: 8 })
           .onClick(() => {
             if (item.item.type == "microphone") {
               this.pusherStore.dispatch(new MicrophoneAction(item.index))
@@ -175,6 +179,12 @@ struct PusherPreviewPage {
               this.pusherStore.dispatch(new SelectorAction(0))
             } else if (item.item.type == "doubleScreen") {
               this.pusherStore.dispatch(new DoubleScreenAction())
+            } else if (item.item.type == "faceu"){
+              this.pusherStore.dispatch(new FaceuAction(item.index, "/data/storage/el2/base/haps/entry/files/90237_1"));//this.getUIContext().getHostContext()?.resourceDir + "/800624_1_1504602801"))
+            } else if (item.item.type == "facedetect"){
+              this.pusherStore.dispatch(new FaceDetectAction(item.index))
+            } else if (item.item.type == "speechRecognizer"){
+              this.pusherStore.dispatch(new SpeechRecognizerAction(item.index))
             }
           })
       })

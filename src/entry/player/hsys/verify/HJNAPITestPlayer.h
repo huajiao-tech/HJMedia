@@ -11,8 +11,9 @@ NS_HJ_BEGIN
    
 class HJOGRenderWindowBridge;
 class HJPrioGraphProc;
-class HJGraphComPlayer;
+class HJGraphPlayer;
 class HJRteGraphProc;
+class HJOGEGLSurface;
 
 class HJNAPITestPlayer
 {
@@ -31,7 +32,15 @@ public:
     void closeEffect(int i_effectType);
     
 private:
-    int priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps);
+    void setInsName(const std::string &i_name)
+    {
+        m_insName = i_name;
+    }
+    const std::string& getInsName() const
+    {
+        return m_insName;
+    }
+    int priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps, std::shared_ptr<HJOGEGLSurface> & o_eglSurface);
     int priCreateRenderGraph(const HJPlayerInfo &i_playerInfo);
     int priCreatePlayerGraph(const HJPlayerInfo &i_playerInfo);
     
@@ -40,10 +49,12 @@ private:
 #else
     std::shared_ptr<HJPrioGraphProc> m_prioGraphProc = nullptr; 
 #endif
-    std::shared_ptr<HJGraphComPlayer> m_graphPlayer = nullptr;
-
+    std::shared_ptr<HJGraphPlayer> m_player = nullptr;
+    void *m_cacheWindow = nullptr;
     static bool s_bContextInit;
     int m_renderFps = 30;
+    int m_curIdx;
+    std::string m_insName = "";
 };
 
 NS_HJ_END

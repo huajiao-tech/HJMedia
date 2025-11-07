@@ -1,5 +1,7 @@
 #pragma once
-
+#include "HJDataDequeue.h"
+#include "HJMediaData.h"
+#include "HJAsyncCache.h"
 #include "HJPrioCom.h"
 #include "HJPrioUtils.h"
 #include "HJNotify.h"
@@ -24,6 +26,9 @@ public:
     virtual int update(HJBaseParam::Ptr i_param) override;
     virtual int render(HJBaseParam::Ptr i_param) override;
     
+    virtual void openPBO(HJMediaDataReaderCb i_cb);
+    virtual void closePBO();    
+    
     void stat();
     bool IsStateReady();
     bool IsStateAvaiable();
@@ -44,6 +49,7 @@ public:
 #endif
 protected:
     HJListener m_renderListener = nullptr;
+    
 private:
     bool priIsMainReady();
     bool priIsSoftReady();

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "HJPrerequisites.h"
 
 NS_HJ_BEGIN
@@ -79,11 +81,11 @@ public:
 	int writeYuv(unsigned char** i_pData, int* i_nPitch, int i_width, int i_height);
 };
 
-class SLYuvWriter : public HJDataBase
+class HJYuvWriter : public HJDataBase
 {
 public:
-	HJ_DEFINE_CREATE(SLYuvWriter);
-	virtual ~SLYuvWriter();
+	HJ_DEFINE_CREATE(HJYuvWriter);
+	virtual ~HJYuvWriter();
 	int init(const std::string& i_url, int i_width, int i_height);
 	int write(unsigned char** i_data, int* pitch);
 	//int write(AVFrame* i_frame);

@@ -3,6 +3,10 @@ import { cameraService } from '../../camera/service/CameraService';
 import { State, Store, Action } from '../../interface/Store';
 import DateTimeUtil from '../../util/DateTimeUtils';
 import { applySaveVideo } from '../../util/RecorderVideoUtils';
+//import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from 'hjmediautils'
+
+import { HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet } from '../../../../../../hjpusher/src/main/ets/HJFaceDetectMgr'
+
 import {
   pusherPreset,
   PusherConfigPreset,
@@ -17,6 +21,9 @@ import { PusherLiveInfo } from '../../common/VideoConstant';
 import {
   CameraAction,
   DoubleScreenAction,
+  FaceuAction,
+  FaceDetectAction,
+  SpeechRecognizerAction,
   GiftAction,
   MicrophoneAction,
   PusherAction,
@@ -37,7 +44,11 @@ export class PusherPreviewState implements State {
   @Trace playState: boolean = false
   @Trace live_time: number = 0
   @Trace hour: number = 0;
+  @Trace bFaceProtected: boolean = false
   @Trace doubleScreen: boolean = false
+  @Trace bFaceu: boolean = false
+  @Trace bFaceDetect: boolean = false
+  @Trace bSpeechRecognizer: boolean = false;
   @Trace selectorX: number | string = "50%"
   @Trace selectorY: number | string = 0
   path: string = ""
@@ -48,7 +59,9 @@ export class PusherPreviewState implements State {
     new PusherSetting("recorder", "left", $r("app.media.video_recorder_1_icon"), $r("app.media.video_recorder_0_icon"),  false),
     new PusherSetting("doubleScreen", "left", $r("app.media.double_screen_icon"), $r("app.media.double_screen_icon"),  false),
     new PusherSetting("camera", "right", $r("app.media.camera_front"), $r("app.media.camera_rear"),  true),
-    new PusherSetting("gift", "right", $r("app.media.gift_icon"), $r("app.media.gift_icon"),  false),
+    new PusherSetting("facedetect", "right", $r("app.media.facedetect_close"), $r("app.media.facedetect_open"),  false),
+    new PusherSetting("faceu", "right", $r("app.media.faceu_close"), $r("app.media.faceu_open"),  false),
+    new PusherSetting("speechRecognizer", "right", $r("app.media.speechRecognizer"), $r("app.media.speechRecognizer"),  false),
     new PusherSetting("gift_self", "right", $r("app.media.gift_icon_1"), $r("app.media.gift_icon_1"),  false),
   ]
   textTimerController: TextTimerController = new TextTimerController()
@@ -72,6 +85,9 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
   state = new PusherPreviewState()
   getState = () => this.state
 
+  // private m_faceDetectRet : number = HJFaceDetectMgrRet.unknown;
+  private m_faceDetectMgr : HJFaceDetectMgr = new HJFaceDetectMgr();
+
   aboutToAppear() {
     this.state.videoFormat.unit = this.state.config.videoConfig.codecID == VideoCodecType.HJCodecH264 ? "H264" : "H265"
     if (!this.state.config.isLandScape) {
@@ -94,6 +110,7 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
     const previewInfo = new PreviewInfo();
     previewInfo.realWidth = this.state.config.videoConfig.width
     previewInfo.realHeight = this.state.config.videoConfig.height
+
     let previewSurfaceId: bigint = this.state.hjPusher.openPreview(previewInfo, (str: string) => {
       const strJson: ESObject = JSON.parse(str)
       console.info("### receivecallbak #type is ", strJson.type, strJson.msgInfo);
@@ -104,6 +121,11 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
         this.state.delay.value = liveInfo.delay
       }
     });
+
+    this.state.hjPusher.setFaceProtected(false);
+
+    this.state.hjPusher.setVideoEncQuantOffset(this.state.config.roiQuantOffset);
+
     cameraService.initCamera(getContext() as Context);
     cameraService.bindSurfaceId(previewSurfaceId.toString());
     cameraService.startPreview(this.state.pusherSettings[3].value ? 1 : 0)
@@ -147,6 +169,81 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
     }
   }
 
+  async faceDetectCtrl(index : number)
+  {
+      if (this.state.bFaceu)
+      {
+          ToastUtils.showToast("检测到faceu仍在打开状态，请先关闭")
+          return;
+      }
+      if (!this.state.bFaceDetect)  //open
+      {
+          this.m_faceDetectMgr.registerFaceInfoCb((width:number, height:number, faceInfo:string)=>
+          {
+              this.state.hjPusher.setFaceInfo(width, height, faceInfo);
+          });
+          this.m_faceDetectMgr.registerNativeSourceOpenCb(() =>
+          {
+              this.state.hjPusher.nativeSourceOpen(true);
+              return 0;
+          });
+          this.m_faceDetectMgr.registerNativeSourceAcquireCb((): HJNativeSourceData | null =>
+          {
+              return this.state.hjPusher.nativeSourceAcquire();
+          });
+          this.m_faceDetectMgr.registerNativeSourceCloseCb(()=>
+          {
+              this.state.hjPusher.nativeSourceClose();
+          });
+          let faceDetectRet: number = await this.m_faceDetectMgr.openFaceDetect();
+
+          if (faceDetectRet != HJFaceDetectMgrRet.ok)
+          {
+              await this.m_faceDetectMgr.closeFaceDetect();
+              console.log("openFaceDetect error");
+              ToastUtils.showToast("打开人脸检测失败")
+          }
+          else
+          {
+              this.state.bFaceDetect = true;
+              ToastUtils.showToast("打开人脸检测成功")
+              this.switchIcon(index);
+          }
+      }
+      else //close
+      {
+          await this.m_faceDetectMgr.closeFaceDetect();
+          this.state.bFaceDetect = false;
+          this.switchIcon(index);
+      }
+  }
+
+  faceutCtrl(index: number, url: string)
+  {
+      if (!this.state.bFaceDetect)
+      {
+          ToastUtils.showToast("人脸检测模块未打开，请打开")
+          return;
+      }
+      if (!this.state.bFaceu)  //open
+      {
+            this.state.hjPusher.openFaceu(url);
+            this.state.bFaceu = true;
+            this.switchIcon(index);
+      }
+      else //close
+      {
+          this.state.hjPusher.closeFaceu();
+          this.state.bFaceu = false;
+          this.switchIcon(index);
+      }
+  }
+
+  switchIcon(index : number)
+  {
+      this.state.pusherSettings[index].value = !this.state.pusherSettings[index].value
+  }
+
   dispatch(action: Action<PusherPreviewState>): void {
     if (action instanceof MicrophoneAction) {
       const index = action.payload
@@ -185,6 +282,45 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
       }
     } else if (action instanceof DoubleScreenAction) {
       this.state.doubleScreen = !this.state.doubleScreen
+
+      // //fixme lfs only test
+      // this.state.bFaceProtected = !this.state.bFaceProtected;
+      // if (this.state.bFaceProtected)
+      // {
+      //   this.state.hjPusher.setFaceProtected(true);
+      // }
+      // else
+      // {
+      //   this.state.hjPusher.setFaceProtected(false);
+      // }
+
+    }
+    else if (action instanceof FaceuAction) {
+        this.faceutCtrl(action.payload, action.url);
+        this.state.doubleScreenChange()      
+    }
+    else if (action instanceof FaceDetectAction)
+    {
+        console.log("FaceDetectAction enter");
+        this.faceDetectCtrl(action.payload);
+    }
+    else if (action instanceof SpeechRecognizerAction)
+    {
+        this.state.bSpeechRecognizer = !this.state.bSpeechRecognizer;
+        if (this.state.bSpeechRecognizer)
+        {
+          this.state.hjPusher.openSpeechRecognizer((buffer: ArrayBuffer) =>
+          {
+            console.log(`Speech recognizer buffer received, size: ${buffer.byteLength}`);
+
+          });
+          ToastUtils.showToast("打开语音获取")
+        }
+        else
+        {
+          this.state.hjPusher.closeSpeechRecognizer();
+          ToastUtils.showToast("关闭语音获取")
+        }
     }
   }
 

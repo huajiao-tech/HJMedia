@@ -31,7 +31,7 @@ bool HJFileUtil::create_path(const char* file, unsigned int mod) {
 #endif
         return true;
     } catch (const fs::filesystem_error& e) {
-        HJFLogw("error, create_path failed:{}", e.what());
+        HJFLogw("error, create path failed:{}", e.what());
         return false;
     }
 }
@@ -99,6 +99,16 @@ bool HJFileUtil::fileExist(const char* path) {
         return fs::exists(p) && fs::is_regular_file(p);
     } catch (const fs::filesystem_error& e) {
         HJFLogw("error, fileExist failed:{}", e.what());
+        return false;
+    }
+}
+
+bool HJFileUtil::isDirExist(const std::string& dir)
+{
+    try {
+        return fs::exists(dir) && fs::is_directory(dir);
+    } catch (const fs::filesystem_error& e) {
+        HJFLogw("error, dir exist failed:{}", e.what());
         return false;
     }
 }

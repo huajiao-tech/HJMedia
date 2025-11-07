@@ -77,7 +77,7 @@ int HJPluginAudioRender::deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_media
 
 int HJPluginAudioRender::setMute(bool i_mute)
 {
-	return SYNC_CONS_LOCK([=] {
+	return SYNC_PROD_LOCK([=] {
 		CHECK_DONE_STATUS(HJErrAlreadyDone);
 
 		m_muted = i_mute;

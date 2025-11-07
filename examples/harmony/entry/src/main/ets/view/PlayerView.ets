@@ -21,7 +21,10 @@ import { abilityAccessCtrl } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import window from '@ohos.window';
 import common from '@ohos.app.ability.common';
-
+import image from '@ohos.multimedia.image';
+import { faceDetector } from '@kit.CoreVisionKit';
+//import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from 'hjmediautils'
+import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from '../../../../../hjpusher/src/main/ets/HJFaceDetectMgr'
 @Component
 export struct PlayerView {
   @State currentStatus: ResourceStr = '';
@@ -32,6 +35,8 @@ export struct PlayerView {
   @State xComponentHeight: Resource = $r('app.float.xcomponent_height');
 
   private m_idx: number = 0;
+
+
 
   private xComponentContext: XComponentContext | undefined = undefined;
 
@@ -56,6 +61,10 @@ export struct PlayerView {
     await windowClass.setWindowKeepScreenOn(true)
     this.isScreenOn = await windowClass.getWindowProperties().isKeepScreenOn
   }
+
+  private m_faceDetectRet : number = HJFaceDetectMgrRet.ok;
+  private m_bFaceOpen:boolean = false;
+  private m_faceDetectMgr : HJFaceDetectMgr = new HJFaceDetectMgr();
 
   build()
   {
@@ -167,11 +176,40 @@ export struct PlayerView {
               .backgroundColor(this.isClick ? $r('app.color.button_clickable') : $r('app.color.button_unclickable'))
               .stateEffect(this.isClick)
 
-            Button($r('app.string.tryPlayerMute'))
+            Button($r('app.string.tryPlayerFaceu'))
               .fontSize($r('app.float.button_font_size'))
               .fontWeight(Common.FONT_WEIGHT_500)
-              .onClick(() => {
-                HJPlayer.tryMute();
+              .onClick(async () => {
+                if (!this.m_bFaceOpen)
+                {
+                  this.m_faceDetectMgr.registerFaceInfoCb((width:number, height:number, faceInfo:string)=>
+                  {
+                    HJPlayer.trySetFacePoints(width, height, faceInfo);
+                  });
+                  this.m_faceDetectMgr.registerNativeSourceOpenCb(() =>
+                  {
+                    HJPlayer.tryOpenImgReceiver();
+                    return 0;
+                  });
+                  this.m_faceDetectMgr.registerNativeSourceAcquireCb((): HJNativeSourceData =>
+                  {
+                    return HJPlayer.tryGetMediaData();
+                  });
+                  this.m_faceDetectMgr.registerNativeSourceCloseCb(()=>
+                  {
+                    HJPlayer.tryCloseImageReceiver();
+                  });
+                  this.m_faceDetectRet = await this.m_faceDetectMgr.openFaceDetect();
+                  if (this.m_faceDetectRet != HJFaceDetectMgrRet.ok)
+                  {
+                    console.log("openFaceDetect error");
+                  }
+                }
+                else
+                {
+                  await this.m_faceDetectMgr.closeFaceDetect();
+                }
+                this.m_bFaceOpen = !this.m_bFaceOpen;
               })
               .width(Common.BUTTON_WIDTH_EX)
               .height($r('app.float.button_height'))
@@ -184,8 +222,8 @@ export struct PlayerView {
             Button($r('app.string.tryWindowChange'))
               .fontSize($r('app.float.button_font_size'))
               .fontWeight(Common.FONT_WEIGHT_500)
-              .onClick(() => {
-
+              .onClick(() =>
+              {
                 if ((this.m_idx % 3) == 0)
                 {
                   this.xComponentWidth  = $r('app.float.xcomponent_width2');

@@ -5,9 +5,11 @@
   "name": "entry",
   "description": "Please describe the basic information.",
   "main": "",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "dependencies": {
     "hjpusher": "file:../hjpusher",
-    "hjplayer": "file:../hjplayer"
+    "hjplayer": "file:../hjplayer",
+//    "hjpusher": "file:../hjpusher/build/default/outputs/default/hjpusher.har",
+//    "hjplayer": "file:../hjplayer/build/default/outputs/default/hjplayer.har"
   }
 }

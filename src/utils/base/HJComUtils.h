@@ -2,6 +2,7 @@
 
 #include "HJPrerequisites.h"
 #include "HJMapTab.h"
+#include "HJSPBuffer.h"
 
 NS_HJ_BEGIN
 
@@ -65,6 +66,16 @@ using HJRenderEnvUpdate = std::function<int(std::shared_ptr<HJBaseParam>)>;
 using HJRenderEnvDraw   = std::function<int(std::shared_ptr<HJBaseParam>)>;
 
 using HOVideoSurfaceCb = std::function<int(void *i_window, int i_width, int i_height, bool i_bCreate)>;
+using HJFaceFindCb = std::function<void(bool i_bFindFace)>;
+
+using HJMediaDataReaderCb = std::function<int(HJSPBuffer::Ptr i_buffer, int width, int height)>;
+
+typedef enum HJFaceStatus
+{
+    HJFaceStatus_Unknown = -1,
+    HJFaceStatus_Find,
+    HJFaceStatus_NO_Find,
+} HJFaceStatus;
 
 class HJBaseObject
 {
@@ -120,6 +131,12 @@ typedef enum HJComFilterType
 	HJCOM_FILTER_TYPE_SUBTITLE = 1 << 3,
 } HJComFilterType;
 
+typedef enum HJComMessageType
+{
+    HJCOM_MESSAGE_UNKNOWN     = 0,
+	HJCOM_MESSAGE_FACEPOINT,
+} HJComMessageType;
+
 class HJBaseParam : public HJMapTab
 {
 public:
@@ -128,6 +145,30 @@ public:
 	virtual ~HJBaseParam();
     
     static std::string s_paramFps;
+};  
+
+class HJBaseMessage : public HJBaseParam
+{
+public:
+	HJ_DEFINE_CREATE(HJBaseMessage);
+	HJBaseMessage() = default;
+	virtual ~HJBaseMessage() = default;
+    
+    HJBaseMessage(HJComMessageType i_msgType)
+    {
+        m_type = i_msgType;
+    }
+    void setMessageType(HJComMessageType i_msgType)
+    {
+        m_type = i_msgType;
+    }
+    HJComMessageType getMessageType() const 
+    {
+        return m_type;
+    }
+    
+private:
+    HJComMessageType m_type =  HJCOM_MESSAGE_UNKNOWN;
 };  
 
 class HJBaseNotifyInfo : public HJMapTab

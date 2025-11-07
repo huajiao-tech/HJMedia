@@ -5,10 +5,9 @@
 
 #if defined(HarmonyOS)
 #include "HJOGEGLSurface.h"
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #endif
 
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 NS_HJ_BEGIN

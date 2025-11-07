@@ -5,7 +5,7 @@
 
 SDKBUILDDIR=`pwd`
 
-OUT_DIR=build
+OUT_DIR=build_ios
 # Clean up files from previous builds
 echo Cleaning previous builds...
 if [ "$1" = "clean" ];then
@@ -20,7 +20,7 @@ cmake -G Xcode \
  -DCMAKE_TOOLCHAIN_FILE=cmake/ios.toolchain.cmake \
  -DPLATFORM=OS64 \
  -DENABLE_BITCODE=0 \
- -DDEPLOYMENT_TARGET=12.0 \
+ -DDEPLOYMENT_TARGET=13.0 \
  -DENABLE_ARC=ON \
  -DENABLE_VISIBILITY=OFF \
  -DENABLE_STRICT_TRY_COMPILE=OFF \

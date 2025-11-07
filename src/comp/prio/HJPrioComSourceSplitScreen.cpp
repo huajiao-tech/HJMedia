@@ -3,7 +3,7 @@
 
 #if defined(HarmonyOS)
 #include "HJOGRenderWindowBridge.h"
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #include "HJOGEGLSurface.h"
 #endif
 
@@ -76,7 +76,7 @@ int HJPrioComSourceSplitScreen::render(HJBaseParam::Ptr i_param)
                     
                     int srcWidth = HJPrioComSourceBridge::getWidth();
                     int srcHeight = HJPrioComSourceBridge::getHeight();
-				    i_err = m_draw->draw(HJPrioComSourceBridge::getTextureId(), (*it)->cropMode, srcWidth / 2, srcHeight, viewpotInfo->width, viewpotInfo->height, HJPrioComSourceBridge::getTexMatrix());
+				    i_err = m_draw->draw(HJPrioComSourceBridge::getTextureId(), (*it)->cropMode, srcWidth / 2, srcHeight, viewpotInfo->width, viewpotInfo->height, HJPrioComSourceBridge::getTexMatrix(), false, m_bMirror);
                     if (i_err < 0)
                     {
                         break;
@@ -114,8 +114,7 @@ int HJPrioComSourceSplitScreen::init(HJBaseParam::Ptr i_param)
             break;
         }
 #endif
-        
-   
+        HJ_CatchMapPlainGetVal(i_param, bool, "IsMirror", m_bMirror);
     } while (false);
     return i_err;
 }

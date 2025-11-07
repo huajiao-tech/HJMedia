@@ -22,7 +22,7 @@ protected:
 	virtual void internalRelease() override;
 	virtual void afterInit() override { }
 	virtual int runTask(int64_t* o_delay = nullptr) override;
-	virtual void internalUpdated(int64_t i_delay = 0) override { }
+	virtual void onOutputUpdated() override {}
 
 	virtual HJBaseCapture::Ptr createCapturer() = 0;
 	virtual int initCapturer(const HJStreamInfo::Ptr& i_streamInfo);

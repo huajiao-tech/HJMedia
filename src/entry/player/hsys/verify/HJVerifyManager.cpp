@@ -9,7 +9,9 @@
 #include "HJFFHeaders.h"
 #include "HJTransferInfo.h"
 #include "HJPrioUtils.h"
+#include "HJRteUtils.h"
 #include "HJTime.h"
+#include "HJMediaData.h"
 
 NS_HJ_USING
 
@@ -17,22 +19,24 @@ namespace NativeXComponentSample
 {
 
     std::string HJVerifyManager::s_path = "/data/storage/el2/base/haps/entry/files/";
-    //std::string HJVerifyManager::s_url = s_path + "ShuangDanCaiShen.mp4";//"huajiaot.mp4";//"huajiaoline2_noaudio.flv";
+    std::string HJVerifyManager::s_url = s_path + "H264_H264_ResChange.flv";//"ShuangDanCaiShen.mp4";//"huajiaot.mp4";//"huajiaoline2_noaudio.flv";
 
-    std::string HJVerifyManager::s_url = //s_path + "ShuangDanCaiShen.mp4";//"http://www.w3school.com.cn/example/html5/mov_bbb.mp4";
-    "https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h265_139879955_1758079178061_9753_O.flv?auth_key=1758165659-0-0-356f26c174c655d814726a8ce60c08cb";
+//    std::string HJVerifyManager::s_url = s_path + "huajiaoline2_noaudio.flv";//"qingxi.mp4";//"huajiaot.mp4";//"H264-265-264_RES.flv";//"liujianfang5.mp4";//H264-265-264_RES.flv";//huajiaot.mp4";
+//s_path + "ShuangDanCaiShen.mp4";//"http://www.w3school.com.cn/example/html5/mov_bbb.mp4";
+    //"https://live-pull-7.test.huajiao.com/main/HJ_0_ws_7_main__h264_45868735_1758102832886_2341_T.flv?wsSecret=65a81d2b1c96e70feab343e69b6364b7&wsTime=1758189255";
+    //std::string HJVerifyManager::s_url = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_200818137_1761212882838_1194_O.flv?auth_key=1761360085-0-0-470fbad9409e9f40f0550042f9501dc8";
     
     //s_path + "PK_ZUOJIA.mp4";
     int HJVerifyManager::s_fps = 30;
     int HJVerifyManager::s_videoCodecType = HJPlayerVideoCodecType_OHCODEC; // HJPlayerVideoCodecType_SoftDefault;//HJPlayerVideoCodecType_OHCODEC;//HJPlayerVideoCodecType_SoftDefault;
     int HJVerifyManager::s_sourceType = HJPrioComSourceType_SERIES;
-   
+    std::string HJVerifyManager::s_faceuUrl = "/data/storage/el2/base/haps/entry/files/90237_1";
     HJThreadPool::Ptr HJVerifyManager::m_exitThread = nullptr;
     HJTimerThreadPool::Ptr HJVerifyManager::m_playerThread = nullptr;
     std::deque<HJNAPIPlayer::Ptr> HJVerifyManager::m_playerActiveQueue;
     std::deque<HJNAPIPlayer::Ptr> HJVerifyManager::m_playerDisposeQueue;
     std::atomic<bool> HJVerifyManager::m_bQuit{false};
-    int HJVerifyManager::m_restartTime = 1000;//60 * 60 * 1000;
+    int HJVerifyManager::m_restartTime = 60 * 60 * 1000;
     int HJVerifyManager::s_logCnt = 5;
 
     HJVerifyManager HJVerifyManager::m_HJVerifyManager;
@@ -110,6 +114,105 @@ namespace NativeXComponentSample
 
         return nullptr;
     }
+    napi_value HJVerifyManager::trySetFacePoints(napi_env env, napi_callback_info info)
+    {
+        if ((env == nullptr) || (info == nullptr))
+        {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "HJVerifyManager", "GetContext env or info is null ");
+            return nullptr;
+        }
+
+        size_t argCnt = 3;
+        napi_value args[3];
+        if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok)
+        {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "HJVerifyManager", "GetContext napi_get_cb_info failed");
+        }
+        int32_t w;
+        napi_get_value_int32(env, args[0], &w);
+        int32_t h;
+        napi_get_value_int32(env, args[1], &h);
+        
+        
+        size_t strLen;
+        napi_get_value_string_utf8(env, args[2], nullptr, 0, &strLen);
+
+        std::vector<char> buffer(strLen + 1);
+        napi_get_value_string_utf8(env, args[2], buffer.data(), buffer.size(), nullptr);
+        std::string pointsInfo = std::string(buffer.data());
+
+        HJFacePointsWrapper::Ptr faceInfo = HJFacePointsWrapper::Create<HJFacePointsWrapper>(w, h, pointsInfo);
+        if (m_playerThread)
+        {
+            m_playerThread->async([faceInfo]
+            {
+                if (!m_playerActiveQueue.empty())
+                {
+                    HJNAPIPlayer::Ptr player = *m_playerActiveQueue.begin();
+                    if (player)
+                    {
+                        player->setFaceInfo(faceInfo);
+                        return 0;
+                    }
+                }
+            });
+        }
+        return nullptr;
+    }
+    napi_value HJVerifyManager::tryGetMediaData(napi_env env, napi_callback_info info)
+    {
+        //HJFLogi("tryGetMediaData");
+    
+        std::shared_ptr<HJRGBAMediaData> data = nullptr;
+        if (m_playerThread)
+        {
+            m_playerThread->sync([&data]
+            {
+                if (!m_playerActiveQueue.empty())
+                {
+                    HJNAPIPlayer::Ptr player = *m_playerActiveQueue.begin();
+                    if (player)
+                    {
+                        data = player->acquireNativeSource();
+                        return 0;
+                    }
+                }
+            });
+        }
+    
+        if (data)
+        {
+            void* arrayBufferPtr = nullptr;
+            napi_value arrayBuffer = nullptr;
+            size_t bufferSize = data->m_nSize;
+            napi_status status = napi_create_arraybuffer(env, bufferSize, &arrayBufferPtr, &arrayBuffer);
+            if (status != napi_ok || arrayBufferPtr == nullptr) 
+            {
+                napi_throw_error(env, nullptr, "Failed to create ArrayBuffer");
+                return nullptr;
+            }
+            uint8_t *pData = static_cast<uint8_t*>(arrayBufferPtr);
+        
+            int64_t t0 = HJCurrentSteadyMS();
+            memcpy(pData, data->m_buffer->getBuf(), bufferSize);
+            int64_t t1 = HJCurrentSteadyMS();
+            //HJFLogi("memcpy size:{} time is:{} ", bufferSize, (t1 - t0));
+                
+            napi_value resultObj;
+            napi_create_object(env, &resultObj);
+        
+            napi_value jsWidth, jsHeight;
+            napi_create_uint32(env, data->m_width, &jsWidth);
+            napi_create_uint32(env, data->m_height, &jsHeight);
+
+            napi_set_named_property(env, resultObj, "data", arrayBuffer);
+            napi_set_named_property(env, resultObj, "width", jsWidth);
+            napi_set_named_property(env, resultObj, "height", jsHeight);
+            return resultObj; 
+        }
+        return nullptr;
+    }
+
     napi_value HJVerifyManager::tryMute(napi_env env, napi_callback_info info)
     {
         HJFLogi("tryMute");
@@ -122,16 +225,60 @@ namespace NativeXComponentSample
                     HJNAPIPlayer::Ptr player = *m_playerActiveQueue.begin();
                     if (player)
                     {
-                        static bool sMute = true;
-                        int ret = player->setMute(sMute);
-                        sMute = !sMute;
-                        return ret;
+                       static bool sMute = true;
+                       int ret = player->setMute(sMute);
+                       sMute = !sMute;
+                       return ret;
                     }
                 }
             });
         }
         return nullptr;
     }
+    napi_value HJVerifyManager::tryOpenImgReceiver(napi_env env, napi_callback_info info)
+    {
+        HJFLogi("tryOpenImgReceiver");
+        if (m_playerThread)
+        {
+            m_playerThread->async([]
+            {
+                if (!m_playerActiveQueue.empty())
+                {
+                    HJNAPIPlayer::Ptr player = *m_playerActiveQueue.begin();
+                    if (player)
+                    {
+                        player->openNativeSource();
+                        player->openFaceu(s_faceuUrl);
+                        return 0;
+                    }
+                }
+                return 0;
+            });
+        }
+        return nullptr;
+    }
+    napi_value HJVerifyManager::tryCloseImageReceiver(napi_env env, napi_callback_info info)
+    {
+        HJFLogi("tryCloseImageReceiver");
+        if (m_playerThread)
+        {
+            m_playerThread->async([]
+            {
+                if (!m_playerActiveQueue.empty())
+                {
+                    HJNAPIPlayer::Ptr player = *m_playerActiveQueue.begin();
+                    if (player)
+                    {
+                        player->closeFaceu();
+                        player->closeNativeSource();
+                    }
+                }
+                return 0;
+            });
+        }
+        return nullptr;
+    }
+
     napi_value HJVerifyManager::tryClose(napi_env env, napi_callback_info info)
     {
         HJFLogi("playerexit tryClose enter");
@@ -391,7 +538,7 @@ namespace NativeXComponentSample
 
         m_testPlayer = HJNAPITestPlayer::Create();
         HJPlayerInfo playerInfo;
-        playerInfo.m_url = s_path + "huajiaoline2_noaudio.flv";//s_url; //"https://static.s3.huajiao.com/Object.access/hj-video/MTY1MDI3MjcyNDYyMzg5Lm1wNA==";//s_url;
+        playerInfo.m_url = s_path + "huajiaoline2_noaudio.flv";//"H264_H264_ResChange.flv"; //"huajiaoline2_noaudio.flv";//s_url; //"https://static.s3.huajiao.com/Object.access/hj-video/MTY1MDI3MjcyNDYyMzg5Lm1wNA==";//s_url;
         playerInfo.m_fps = s_fps;
         playerInfo.m_videoCodecType = s_videoCodecType;
         playerInfo.m_sourceType = (HJPrioComSourceType)s_sourceType;
@@ -485,11 +632,11 @@ namespace NativeXComponentSample
             static bool s_bGray = true;
             if (s_bGray)
             {
-                m_testPlayer->openEffect(HJPrioEffect_Gray);
+                m_testPlayer->openEffect(HJRteEffect_Gray);
             }
             else
             {
-                m_testPlayer->closeEffect(HJPrioEffect_Gray);
+                m_testPlayer->closeEffect(HJRteEffect_Gray);
             }
             s_bGray = !s_bGray;
         }
@@ -502,11 +649,11 @@ namespace NativeXComponentSample
             static bool s_bBlur = true;
             if (s_bBlur)
             {
-                m_testPlayer->openEffect(HJPrioEffect_Blur);
+                m_testPlayer->openEffect(HJRteEffect_Blur);
             }
             else
             {
-                m_testPlayer->closeEffect(HJPrioEffect_Blur);
+                m_testPlayer->closeEffect(HJRteEffect_Blur);
             }
             s_bBlur = !s_bBlur;
         }

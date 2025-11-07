@@ -32,7 +32,7 @@ MAKE_COMMON_CONFIG()
 
 add_executable(${PROJ_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJGraphs HJPlugins HJStat HJComp HJMedia HJUtils LIBFFMPEG LIBSPDLOG LIBYUV implot imgui glfw)
+target_link_libraries(${PROJ_NAME} PRIVATE HJGraphs HJPlugins HJStat HJComp HJMedia HJPlatform HJUtils LIBFFMPEG LIBSPDLOG LIBYUV implot imgui glfw)
 target_link_libraries(${PROJ_NAME} PRIVATE winmm.lib Crypt32.lib)
 #target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 

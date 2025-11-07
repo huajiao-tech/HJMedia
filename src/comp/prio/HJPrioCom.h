@@ -37,6 +37,8 @@ public:
     virtual int update(HJBaseParam::Ptr i_param);
     virtual int render(HJBaseParam::Ptr i_param);
     
+    virtual int sendMessage(HJBaseMessage::Ptr i_msg);
+    
     int getPriority() const 
     {
         return (int)m_priority; 

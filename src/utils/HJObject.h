@@ -136,6 +136,7 @@ private:
 using HJObjectMap = std::unordered_map<std::string, HJObject::Ptr>;
 #define HJMakeGlobalID()            HJ::HJObject::getGlobalID()
 #define HJMakeGlobalName(prefix)    HJ::HJObject::getGlobalName(prefix)
+#define HJSharedFromThis()          sharedFrom(this)
 
 template<typename T, typename ...ArgsType>
 static inline std::shared_ptr<T>HJCreates(ArgsType&& ...args) {

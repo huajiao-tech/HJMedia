@@ -176,3 +176,228 @@ export enum SetWindowState {
 再调用导致错误释放相机资源会出现预览黑屏，可参考demo中cameraService的处理方式，或者使用onPageHide()可以保证页面在屏幕上不可见时立马调用（仍需注意生命周期时序）
 
 tips: 如需保持应用在后台持续运行，请参考官网[长时任务](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/continuous-task)
+
+## API
+
+### HJPusher
+
+#### `contextInit(valid: boolean, logDir: string, logLevel: number, logMode: number, maxSize: number, maxFiles: number)`
+
+初始化推流器上下文。
+
+-   `valid`: `boolean` - 是否开启日志。
+-   `logDir`: `string` - 日志目录。
+-   `logLevel`: `number` - 日志级别。
+-   `logMode`: `number` - 日志模式 (见 `LogMode`)。
+-   `maxSize`: `number` - 单个日志文件最大大小。
+-   `maxFiles`: `number` - 最多日志文件数量。
+
+#### `createPusher()`
+
+创建一个推流器实例。
+
+#### `destroyPusher()`
+
+销毁一个推流器实例。
+
+#### `openPreview(previewInfo: PreviewInfo, pusherStateCall: (str: string) => void): bigint`
+
+打开预览。
+
+-   `previewInfo`: `PreviewInfo` - 预览信息 (见 `PreviewInfo`)。
+-   `pusherStateCall`: `(str: string) => void` - 状态回调。
+-   **Returns**: `bigint` - The surface ID for the preview.
+
+#### `closePreview()`
+
+关闭预览。
+
+#### `setWindow(setWindowInfo: SetWindowInfo)`
+
+设置渲染窗口。
+
+-   `setWindowInfo`: `SetWindowInfo` - 窗口信息 (见 `SetWindowInfo`)。
+
+#### `openPusher(pusherConfig: PusherConfig, stateInfo: MediaStateInfo, stateCall: (str: string) => void)`
+
+打开推流器。
+
+-   `pusherConfig`: `PusherConfig` - 推流器配置 (见 `PusherConfig`)。
+-   `stateInfo`: `MediaStateInfo`  - 取默认值即可。
+-   `stateCall`: `(str: string) => void` - 状态回调。
+
+#### `closePusher()`
+
+关闭推流器。
+
+#### `setMute(mute: boolean)`
+
+设置是否静音。
+
+-   `mute`: `boolean` - `true`为静音, `false`为取消静音。
+
+#### `openRecorder(recorderInfo: RecorderInfo): number`
+
+打开录制器。
+
+-   `recorderInfo`: `RecorderInfo` - 录制器信息 (见 `RecorderInfo`)。
+-   **Returns**: `number` - `0` for success, otherwise failure.
+
+#### `closeRecorder()`
+
+关闭录制器。
+
+#### `openPngSeq(url: string)`
+
+打开PNG序列。
+
+-   `url`: `string` - PNG序列资源URL。
+
+#### `setFaceInfo(width: number, height: number, faceinfo: string)`
+
+设置人脸信息。
+
+-   `width`: `number`    - 图像宽度。
+-   `height`: `number`   - 图像高度。
+-   `faceinfo`: `string` - 人脸信息 (JSON 字符串)，含有人脸窗口、角度、置信度、关键点等信息，若未检测到人脸则为空字符串。
+
+#### `nativeSourceOpen(isPBO: boolean): number`
+
+打开原生数据源，此函数调用后可以使显存数据到达内存，以便后续进行人脸检测。
+
+-   `isPBO`: `boolean` - 是否使用PBO模式，此处设置为true。
+-   **Returns**: `number` - `0` for success, otherwise failure.
+
+#### `nativeSourceClose()`
+
+关闭原生数据源。
+
+#### `nativeSourceAcquire(): HJNativeSourceData | null`
+
+从原生数据源获取数据。
+
+-   **Returns**: `HJNativeSourceData | null` - 数据或 `null`。
+
+#### `openFaceu(url: string): number`
+
+打开萌颜，萌颜效果必须在人脸检测开启后才能生效。
+
+-   `url`: `string` - 萌颜资源URL。
+-   **Returns**: `number` - `0` for success, otherwise failure.
+
+#### `closeFaceu()`
+
+关闭FaceU。
+
+#### `setFaceProtected(i_bFaceProtected: boolean)`
+
+设置人脸保护模式，启用后，若检测到直播间无人出现则对画面进行模糊处理。
+
+-   `i_bFaceProtected`: `boolean` - `true` to enable face protection.
+
+### HJFaceDetectMgr
+
+#### `openFaceDetect(): Promise<number>`
+
+开启人脸检测模块。
+
+-   **Returns**: `Promise<number>` - A promise that resolves with `0` on success.
+
+#### `closeFaceDetect(): Promise<number>`
+
+关闭人脸检测。
+
+-   **Returns**: `Promise<number>` - A promise that resolves with `0` on success.
+
+#### `registerFaceInfoCb(cb: (width: number, height: number, faceInfo: string) => void)`
+
+注册人脸信息回调。
+
+-   `cb`: `(width: number, height: number, faceInfo: string) => void` - 回调函数。
+
+#### `registerNativeSourceOpenCb(cb: () => number)`
+
+注册原生数据源打开回调。
+
+-   `cb`: `() => number` - 回调函数。
+
+#### `registerNativeSourceAcquireCb(cb: () => HJNativeSourceData | null)`
+
+注册原生数据源获取回调。
+
+-   `cb`: `() => HJNativeSourceData | null` - 回调函数。
+
+#### `registerNativeSourceCloseCb(cb: () => void)`
+
+注册原生数据源关闭回调。
+
+-   `cb`: `() => void` - 回调函数。
+
+### Enums and Interfaces
+
+#### `PusherConfig`
+
+-   `videoConfig`: `VideoConfig`  - 视频信息
+-   `audioConfig`: `AudioConfig`  - 音频信息
+-   `url`: `string`               - 推流地址
+
+#### `VideoConfig`
+
+-   `codecID`: `VideoCodecType`
+-   `width`: `number`
+-   `height`: `number`
+-   `bitrate`: `number`
+-   `frameRate`: `number`
+-   `gopSize`: `number`
+-   `videoIsROIEnc`: `boolean`    
+
+#### `AudioConfig`
+
+-   `codecID`: `AudioCodecType`
+-   `bitrate`: `number`
+-   `sampleFmt`: `number`
+-   `samplesRate`: `number`
+-   `channels`: `number`
+
+#### `PreviewInfo`
+
+-   `realWidth`: `number`   - 设置底层中间处理画面的宽
+-   `realHeight`: `number`  - 设置底层中间处理画面的高
+-   `previewFps`: `number`  - 设置底层渲染帧率
+
+#### `RecorderInfo`
+
+-   `recordUrl`: `string`
+
+#### `SetWindowInfo`    - 上层窗口设置
+
+-   `surfaceId`: `string`       - 上层窗口ID。
+-   `width`: `number`           - 上层窗口宽度。
+-   `height`: `number`          - 上层窗口高度。 
+-   `state`: `SetWindowState`   -上层窗口状态。
+
+#### `LogMode`
+
+-   `CONSOLE = 1 << 1`    - 打印日志到控制台
+-   `FILE = 1 << 2`       - 打印日志到文件
+
+#### `SetWindowState`
+
+-   `TARGET_CREATE = 0`  - 上层窗口创建时调用
+-   `TARGET_CHANGE = 1`  - 上层窗口分辨率变化时调用
+-   `TARGET_DESTROY = 2` - 上层窗口销毁时调用
+
+#### `VideoCodecType`
+
+-   `HJCodecUnknown = -1`
+-   `HJCodecH264 = 27`
+-   `HJVCodecH265 = 173`
+
+#### `AudioCodecType`
+
+-   `HJCodecUnknown = -1`
+-   `HJCodecAAC = 86018`
+
+#### `PusherStateType`
+
+(Includes various notification types for pusher state)

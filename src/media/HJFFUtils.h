@@ -44,6 +44,7 @@ AVPacket* hj_avpacket_with_newdata(AVPacket* pkt, uint8_t* data, int size);
 AVFrame* hj_dup_audio_frame(AVFrame* src, int dstChannels, const AVChannelLayout* layout);
 AVFrame* hj_make_silence_audio_frame(int channel, int sampleRate, enum AVSampleFormat sampleFmt, int nbSamples, const AVChannelLayout* layout);
 AVFrame* hj_make_avframe(int width, int height, enum AVPixelFormat format);
+AVFrame* hj_make_avframe_fromy_yuv420p(int width, int height, uint8_t* y_data, uint8_t* u_data, uint8_t* v_data);
 
 bool hj_has_protocol(char* protoName);
 

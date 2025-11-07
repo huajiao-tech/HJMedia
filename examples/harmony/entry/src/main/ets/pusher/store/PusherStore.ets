@@ -10,10 +10,11 @@ import { ToastUtils } from '../../util/ToastUtils';
 @ObservedV2
 export class PusherState implements State {
   @Trace pusherConfigArray: MediaConfig[] = [
-    new MediaConfig("string", 'URL 推流地址', 'rtmp://live-push-0.test.huajiao.com/main/ljk979?auth_key=1755763018-0-0-c00ad68d9199388a9cd200c214e52fc1'),
+    new MediaConfig("string", 'URL 推流地址', 'rtmp://live-push-1.huajiao.com/main/lfs?auth_key=1762482963-0-0-350b9e1e3cde5ec152a628888169a6f6'),
     new MediaConfig("boolean", '是否横屏', false),
     new MediaConfig("boolean", '是否保持屏幕常亮', false),
     new MediaConfig("boolean", '是否双屏预览', false),
+    new MediaConfig("slider", 'ROI', -3, -51, 51),
   ]
   config: PusherConfigPreset = AppStorageV2.connect(PusherConfigPreset, () => pusherPreset)!
 }
@@ -30,6 +31,10 @@ export class PusherStore implements Store<PusherState> {
       this.state.config.url = this.state.pusherConfigArray[0].value as string
       this.state.config.isLandScape = this.state.pusherConfigArray[1].value as boolean
       this.state.config.isScreenOn = this.state.pusherConfigArray[2].value as boolean
+
+      this.state.config.roiQuantOffset = this.state.pusherConfigArray[4].value as number
+      console.log("roiQuantOffset: ", this.state.pusherConfigArray[4].value);
+
       if (this.state.config.isLandScape) {
         this.state.config.videoConfig.width = 1280
         this.state.config.videoConfig.height = 720

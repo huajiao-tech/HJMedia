@@ -4,6 +4,9 @@ import {
   PreviewInfo, PusherConfig, RecorderInfo,
 } from './HJPusherTypes';
 
+//import {HJNativeSourceData} from 'hjmediautils'
+import { HJNativeSourceData } from '../HJFaceDetectMgr'
+
 const TAG = "wkshhh"
 
 export class HJPusher {
@@ -11,6 +14,8 @@ export class HJPusher {
   private m_pusherHandler?: bigint
   private m_ImageNativeHandler?: bigint
   private isOpen: boolean = false
+
+
 
   public static contextInit(valid: boolean, logDir: string, logLevel: number, logMode: number, maxSize: number,
     maxFiles: number) {
@@ -133,6 +138,58 @@ export class HJPusher {
     }
   }
 
+  public setFaceInfo(width: number, height: number, faceinfo: string)
+  {
+    if (this.m_pusherHandler) {
+      nPusher.n_setFaceInfo(this.m_pusherHandler, width, height, faceinfo);
+    }
+  }
+  public nativeSourceOpen(isPBO: boolean) : number
+  {
+      if (this.m_pusherHandler) {
+        return nPusher.n_nativeSourceOpen(this.m_pusherHandler, isPBO);
+      }
+      return -1;
+  }
+  public nativeSourceClose()
+  {
+    if (this.m_pusherHandler) {
+      nPusher.n_nativeSourceClose(this.m_pusherHandler);
+    }
+  }
+  public nativeSourceAcquire(): HJNativeSourceData | null
+  {
+    if (this.m_pusherHandler) {
+      return nPusher.n_nativeSourceAcquire(this.m_pusherHandler);
+    }
+    return null;
+  }
+
+  public openFaceu(url : string) : number
+  {
+    if (this.m_pusherHandler) {
+      return nPusher.n_openFaceu(this.m_pusherHandler, url);
+    }
+    return -1;
+  }
+  public closeFaceu()
+  {
+    if (this.m_pusherHandler) {
+      nPusher.n_closeFaceu(this.m_pusherHandler);
+    }
+  }
+  public setVideoEncQuantOffset(i_quantoffset: number)
+  {
+    if (this.m_pusherHandler) {
+      nPusher.n_setVideoEncQuantOffset(this.m_pusherHandler, i_quantoffset);
+    }
+  }
+  public setFaceProtected(i_bFaceProtected: boolean)
+  {
+    if (this.m_pusherHandler) {
+      nPusher.n_setFaceProtected(this.m_pusherHandler, i_bFaceProtected);
+    }
+  }
   // public openPixelMapOutput() {
   //   this.m_ImageNativeHandler = nPusher.n_openPixelMapOutput()
   // }

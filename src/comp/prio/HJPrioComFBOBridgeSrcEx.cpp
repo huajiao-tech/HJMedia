@@ -5,7 +5,7 @@
 #if defined(HarmonyOS)
 #include "HJOGRenderWindowBridge.h"
 #include "HJOGFBOCtrl.h"
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #include "HJOGShaderCommon.h"
 #endif
 

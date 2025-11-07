@@ -5,6 +5,7 @@
 #include "HJUtilitys.h"
 #include "HJNetManager.h"
 #include "HJBaseUtils.h"
+#include "deviceinfo.h"
 
 NS_HJ_BEGIN
 
@@ -31,8 +32,9 @@ int HJEntryContext::init(HJEntryType i_type, const HJEntryContextInfo& i_context
             {
                 break;
             }
+            int currentSystemApiVersion = OH_GetSdkApiVersion();
             
-            HJFLogi("context init logvalid：{} dir:{} level:{} mode:{} filesize:{} num:{}", i_contextInfo.logIsValid, i_contextInfo.logDir, i_contextInfo.logLevel, i_contextInfo.logMode, i_contextInfo.logMaxFileSize, i_contextInfo.logMaxFileNum);
+            HJFLogi("context init logvalid：{} dir:{} level:{} mode:{} filesize:{} num:{} currentSystemApiVersion:{}", i_contextInfo.logIsValid, i_contextInfo.logDir, i_contextInfo.logLevel, i_contextInfo.logMode, i_contextInfo.logMaxFileSize, i_contextInfo.logMaxFileNum, currentSystemApiVersion);
                        
             HJFLogi("HJEntryType:{}", (int)i_type);
             av_log_set_level(AV_LOG_INFO); //AV_LOG_TRACE;
@@ -58,7 +60,11 @@ void HJEntryContext::unInit()
 {
     
 }
-
+int HJEntryContext::getSystemVersion()
+{
+    int currentSystemApiVersion = OH_GetSdkApiVersion();
+    return currentSystemApiVersion;
+}
 void HJEntryContext::onHandleFFLogCallback(void* avcl, int level, const char *fmt, va_list vl)
 {
     switch (level) {

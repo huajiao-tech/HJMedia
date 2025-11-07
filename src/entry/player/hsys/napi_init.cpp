@@ -28,6 +28,10 @@ static napi_value Init(napi_env env, napi_value exports) {
         
         DECLARE_NAPI_FUNCTION_VAL(tryOpen, HJVerifyManager::tryOpen),
         DECLARE_NAPI_FUNCTION_VAL(tryMute, HJVerifyManager::tryMute),
+        DECLARE_NAPI_FUNCTION_VAL(tryOpenImgReceiver, HJVerifyManager::tryOpenImgReceiver),
+        DECLARE_NAPI_FUNCTION_VAL(tryCloseImageReceiver, HJVerifyManager::tryCloseImageReceiver),       
+        DECLARE_NAPI_FUNCTION_VAL(tryGetMediaData, HJVerifyManager::tryGetMediaData),
+        DECLARE_NAPI_FUNCTION_VAL(trySetFacePoints, HJVerifyManager::trySetFacePoints),
         DECLARE_NAPI_FUNCTION_VAL(tryClose, HJVerifyManager::tryClose),
 
         DECLARE_NAPI_FUNCTION_VAL(n_contextInit, HJPlayerNapi::contextInit),
@@ -39,6 +43,13 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(n_exitPlayer, HJPlayerNapi::exitPlayer),
         DECLARE_NAPI_FUNCTION_VAL(n_setMute, HJPlayerNapi::setMute),
         DECLARE_NAPI_FUNCTION_VAL(n_preloadUrl, HJPlayerNapi::preloadUrl),
+        
+        DECLARE_NAPI_FUNCTION_VAL(n_setFaceInfo, HJ::HJPlayerNapi::setFaceInfo),
+        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceOpen, HJ::HJPlayerNapi::nativeSourceOpen),
+        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceClose, HJ::HJPlayerNapi::nativeSourceClose),
+        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceAcquire, HJ::HJPlayerNapi::nativeSourceAcquire),
+        DECLARE_NAPI_FUNCTION_VAL(n_openFaceu, HJ::HJPlayerNapi::openFaceu),
+        DECLARE_NAPI_FUNCTION_VAL(n_closeFaceu, HJ::HJPlayerNapi::closeFaceu),
     };
     
     

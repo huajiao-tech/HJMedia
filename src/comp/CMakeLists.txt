@@ -4,11 +4,13 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/prio)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rte)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/utils)
 include_directories(${HJ_EXTERNALS_PATH}/generic/ffmpeg)
 
 list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
 list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/prio)
 list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/rte)
+list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/utils)
 # message (STATUS "retrieve_files entry")
 HJ_SUBDIR_LIST(subdir_names ${CMAKE_CURRENT_SOURCE_DIR})
 # message (STATUS "core sub dir names:${subdir_names}")
@@ -27,7 +29,7 @@ MAKE_COMMON_CONFIG()
 
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJMedia HJStat LIBSPDLOG LIBFFMPEG LIBSTB libfdkaac HJUtils)
+target_link_libraries(${PROJ_NAME} PRIVATE HJMedia HJStat LIBSPDLOG LIBYUV LIBFFMPEG LIBSTB libfdkaac HJUtils)
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

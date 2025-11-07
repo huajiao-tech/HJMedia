@@ -36,6 +36,8 @@ export class PusherConfigPreset implements PusherConfig {
   url: string
   isLandScape: boolean = false
   isScreenOn: boolean = false
+  roiQuantOffset: number = -3
+
 
   constructor(videoConfig: VideoConfig, audioConfig: AudioConfig, url: string) {
     this.videoConfig = videoConfig;
@@ -51,7 +53,8 @@ export const pusherPreset = new PusherConfigPreset(
     height: 1280,
     bitrate: 2 * 1024 * 1024,
     frameRate: 30,
-    gopSize: 60
+    gopSize: 60,
+    videoIsROIEnc: true,
   },
   {
     codecID: AudioCodecType.HJCodecAAC,

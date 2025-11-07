@@ -56,6 +56,8 @@ public:
      */
     static bool fileExist(const char* path);
 
+    static bool isDirExist(const std::string& dir);
+
     /**
      * 加载文件内容至string
      */

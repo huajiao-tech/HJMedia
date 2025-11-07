@@ -1,0 +1,10 @@
+{
+  "name": "@hj-live/hjmediautils",
+  "version": "1.0.2",
+  "description": "HJMedia",
+  "main": "Index.ets",
+  "author": "huajiao",
+  "license": "LGPL v2.1",
+  "dependencies": {},
+  "keywords": ["media","video","audio","utils"],
+}

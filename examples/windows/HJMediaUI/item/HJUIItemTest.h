@@ -17,6 +17,8 @@ public:
 	virtual int run() override;
     
 private:
+	void priTestSubscribe();
+	void priTestJson();
 	void priTestPrioRender();
 	void priTestRteRender();
 };

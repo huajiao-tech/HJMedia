@@ -47,6 +47,7 @@ typedef struct HJPusherVideoInfo
     int videoBitrateBit = 0;
     int videoFramerate  = 30;
     int videoGopSize    = 60;
+    bool videoIsROIEnc = false;
 } HJPusherVideoInfo;
 
 typedef struct HJPusherAudioInfo
@@ -104,6 +105,9 @@ typedef enum HJPusherNofityType
     HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT = 103,
     HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT = 104,
     HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE = 105,
+    
+    HJ_RENDER_NOTIFY_FACEU_ERROR = 107,
+    HJ_RENDER_NOTIFY_FACEU_COMPLETE = 108,
 
 } HJPusherNofityType;
 

@@ -46,6 +46,7 @@ int HJPluginSpeedControl::internalInit(HJKeyStorage::Ptr i_param)
 					settings.getStutterRatioDelta(),
 					settings.getStutterFactorMax(),
 					settings.getObserveTime());
+				m_autoCacheController->setName(getName());
 				m_autoCacheController->setOnOptionsCallback([&](std::shared_ptr<HJParams> params) {
 					if (m_pluginListener) {
 						auto ntf = HJMakeNotification(HJ_PLUGIN_NOTIFY_AUTODELAY_PARAMS);

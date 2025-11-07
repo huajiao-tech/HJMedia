@@ -50,6 +50,11 @@ public:
 		m_deque.clear();
 		m_deque.push_back(i_data);
 	}
+    void clear()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+		m_deque.clear();
+    }
 private:
 	std::deque<T> m_deque;
 	mutable std::mutex m_mutex;

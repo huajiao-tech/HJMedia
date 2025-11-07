@@ -35,6 +35,7 @@ public:
     void tryGiftOpen();
     void tryDoubleScreen();
     void tryGiftPusher();
+    HJ::HJNAPILiveStream::Ptr getLiveStream();
 
     
     static void onSurfaceChanged();

@@ -1,12 +1,12 @@
 ![](https://img.shields.io/badge/license-LGPL2.1-blue)
 
-# hjplayer
+# HJPlayer
 
-hjplayer属于HJMedia媒体开源的一部分， HJMedia SourceCode: [huajiao-tech/HJMedia · GitHub](https://github.com/huajiao-tech/HJMedia)
+HJPlayer属于HJMedia媒体开源的一部分， HJMedia SourceCode: [huajiao-tech/HJMedia · GitHub](https://github.com/huajiao-tech/HJMedia)
 
 ## 简介
 
-hjplayer是一款轻量级、高性能的鸿蒙平台媒体播放工具，支持直播流和带透明通道的视频礼物点播播放，适用于多种媒体播放场景。
+HJPlayer是一款专注于直播场景的高性能播放器。它基于高度模块化、可扩展的插件化架构构建，支持多实例运行与灵活的视频后处理，并对首屏速度和播放延迟等核心指标进行了系统性优化，旨在为复杂的直播应用提供稳定、流畅的观看体验。
 
 ## 下载安装
 
@@ -108,12 +108,189 @@ onSurfaceDestroyed(surfaceId: string) {
 
 首先需要打开播放器，然后可以调用setWindow(setWindowInfo: SetWindowInfo)增加输出目的，如XComponent
 
-保证setWindow()调用时机问题：保证setWindow()openPlayer()之后调用，注意setWindow()中state参数有三种状态，确保正确传递（可参考demo中使用方式）
+保证setWindow()调用时机问题：保证setWindow()openPlayer()之后调用，注意setWindow()中state参数有三种状态，详见下文SetWindowState介绍，确保正确传递（可参考demo中使用方式）
 
-```typescript
-export enum SetWindowState {
-  TARGET_CREATE = 0, // 创建，增加surface时使用
-  TARGET_CHANGE = 1, // 修改，surface宽高变化时使用
-  TARGET_DESTROY = 2 //  销毁，surface销毁时使用 
-}
-```
+## API介绍
+
+### HJPlayer
+
+#### `contextInit(valid: boolean, logDir: string, logLevel: number, logMode: number, maxSize: number, maxFiles: number)`
+
+初始化播放器上下文。
+
+-   `valid`: `boolean` - 是否开启日志。
+-   `logDir`: `string` - 日志目录。
+-   `logLevel`: `number` - 日志级别。
+-   `logMode`: `number` - 日志模式 (见 `LogMode`)。
+-   `maxSize`: `number` - 单个日志文件最大大小。
+-   `maxFiles`: `number` - 最多日志文件数量。
+
+#### `preloadUrl(url: string)`
+
+预加载URL。
+
+-   `url`: `string` - 要预加载的URL，秒开场景下可使用此方法。
+
+#### `createPlayer()`
+
+创建一个播放器实例。
+
+#### `destroyPlayer()`
+
+销毁一个播放器实例。
+
+#### `setWindow(setWindowInfo: SetWindowInfo)`
+
+设置渲染窗口。
+
+-   `setWindowInfo`: `SetWindowInfo` - 窗口信息 (见 `SetWindowInfo`)。
+
+#### `openPlayer(openPlayerInfo: OpenPlayerInfo, stateCall: (str: string) => void, stateInfo: MediaStateInfo, statCall: (str: string) => void)`
+
+打开播放器。
+
+-   `openPlayerInfo`: `OpenPlayerInfo`   - 播放器信息 (见 `OpenPlayerInfo`)。
+-   `stateCall`: `(str: string) => void` - 状态回调。
+-   `stateInfo`: `MediaStateInfo`        - 设置为默认值即可。
+-   `statCall`: `(str: string) => void`  - 统计回调。
+
+#### `closePlayer()`
+
+关闭播放器。
+
+#### `exitPlayer()`
+
+退出播放器。
+
+#### `setMute(mute: boolean)`
+
+设置是否静音。
+
+-   `mute`: `boolean` - `true`为静音, `false`为取消静音。
+
+#### `setFaceInfo(width: number, height: number, faceinfo: string)`
+
+设置人脸信息。
+
+-   `width`: `number` - 图像宽度。
+-   `height`: `number` - 图像高度。
+-   `faceinfo`: `string` - 人脸信息 (JSON 字符串)，含有人脸窗口、角度、置信度、关键点等信息，若未检测到人脸则为空字符串。
+
+#### `nativeSourceOpen(isPBO: boolean): number`
+
+打开原生数据源，此函数调用后可以使显存数据到达内存，以便后续进行人脸检测。
+
+-   `isPBO`: `boolean` - 是否使用PBO模式，此处设置为true。
+-   **Returns**: `number` - `0` for success, otherwise failure.
+
+#### `nativeSourceClose()`
+
+关闭原生数据源。
+
+#### `nativeSourceAcquire(): HJNativeSourceData | null`
+
+从原生数据源获取数据。
+
+-   **Returns**: `HJNativeSourceData | null` - 数据或 `null`。
+
+#### `openFaceu(url: string): number`
+
+打开萌颜，萌颜效果必须在人脸检测开启后才能生效。
+
+-   `url`: `string` - 萌颜资源URL。
+-   **Returns**: `number` - `0` for success, otherwise failure.
+
+#### `closeFaceu()`
+
+关闭FaceU。
+
+### HJFaceDetectMgr
+
+#### `openFaceDetect(): Promise<number>`
+
+开启人脸检测模块。
+
+-   **Returns**: `Promise<number>` - A promise that resolves with `0` on success.
+
+#### `closeFaceDetect(): Promise<number>`
+
+关闭人脸检测。
+
+-   **Returns**: `Promise<number>` - A promise that resolves with `0` on success.
+
+#### `registerFaceInfoCb(cb: (width: number, height: number, faceInfo: string) => void)`
+
+注册人脸信息回调。
+
+-   `cb`: `(width: number, height: number, faceInfo: string) => void` - 回调函数。
+
+#### `registerNativeSourceOpenCb(cb: () => number)`
+
+注册原生数据源打开回调。
+
+-   `cb`: `() => number` - 回调函数。
+
+#### `registerNativeSourceAcquireCb(cb: () => HJNativeSourceData | null)`
+
+注册原生数据源获取回调。
+
+-   `cb`: `() => HJNativeSourceData | null` - 回调函数。
+
+#### `registerNativeSourceCloseCb(cb: () => void)`
+
+注册原生数据源关闭回调。
+
+-   `cb`: `() => void` - 回调函数。
+
+### Enums and Interfaces
+
+#### `OpenPlayerInfo`
+
+-   `url`: `string` - 播放URL。
+-   `fps`: `number` - 渲染帧率。
+-   `videoCodecType`: `HJPlayerVideoCodecType` - 视频编解码器类型，可使用软解码和鸿蒙硬加速解码。
+-   `sourceType`: `HJPlayerSourceType` - 播放源类型，如果使用左右分屏透明礼物使用HJPlayerSourceType_SPLITSCREEN，否则一律使用HJPlayerSourceType_SERIES
+-   `playerType`: `HJPlayerType` - 播放类型，HJPlayerType_LIVESTREAM为直播，HJPlayerType_VOD为点播。
+-   `bSplitScreenMirror`: `boolean` -如果使用左右分屏透明礼物播放，是否启动水平轴镜像。
+
+#### `SetWindowInfo`    - 上层窗口设置
+
+-   `surfaceId`: `string`       - 上层窗口ID。
+-   `width`: `number`           - 上层窗口宽度。
+-   `height`: `number`          - 上层窗口高度。 
+-   `state`: `SetWindowState`   -上层窗口状态。
+
+#### `LogMode`
+
+-   `CONSOLE = 1 << 1`    - 打印日志到控制台
+-   `FILE = 1 << 2`       - 打印日志到文件
+
+#### `SetWindowState`
+
+-   `TARGET_CREATE = 0`  - 上层窗口创建时调用
+-   `TARGET_CHANGE = 1`  - 上层窗口分辨率变化时调用
+-   `TARGET_DESTROY = 2` - 上层窗口销毁时调用
+
+#### `HJPlayerVideoCodecType`
+
+-   `HJPlayerVideoCodecType_SoftDefault = 0`  - 软解码
+-   `HJPlayerVideoCodecType_OHCODEC = 1`      - 鸿蒙硬加速解码
+-   `HJPlayerVideoCodecType_VIDEOTOOLBOX = 2`
+-   `HJPlayerVideoCodecType_MEDIACODEC = 3`
+
+#### `HJPlayerSourceType`
+
+-   `HJPlayerSourceType_UNKNOWN = 0`
+-   `HJPlayerSourceType_Bridge = 1`      - 暂时不使用
+-   `HJPlayerSourceType_SPLITSCREEN = 2` - 左右分屏透明礼物播放
+-   `HJPlayerSourceType_SERIES = 3`      - 其他方式播放
+
+#### `HJPlayerNotifyType`
+
+(Includes various notification types for player state)
+
+#### `HJPlayerType`
+
+-   `HJPlayerType_UNKNOWN = 0`
+-   `HJPlayerType_LIVESTREAM = 1` - 直播流播放
+-   `HJPlayerType_VOD = 2`        - 点播流播放

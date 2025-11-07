@@ -97,7 +97,7 @@ void HJGraph::removeThread(HJLooperThread::Ptr i_thread)
 HJGraphPlayer::HJGraphPlayer(const std::string& i_name, size_t i_identify):
 	HJGraph(i_name, i_identify)
 {
-
+	HJFLogi("hjmedia version: {}", HJ_VERSION);
 }
 HJGraphPlayer::~HJGraphPlayer()
 {

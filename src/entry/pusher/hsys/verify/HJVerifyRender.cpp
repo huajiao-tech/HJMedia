@@ -145,7 +145,10 @@ namespace NativeXComponentSample
             s_bGitfPusher = !s_bGitfPusher;
         }
     }
-
+    HJ::HJNAPILiveStream::Ptr HJVerifyRender::getLiveStream()
+    {
+        return m_livestream;
+    }
     int HJVerifyRender::openPusher(const HJPusherVideoInfo& i_videoInfo, const HJPusherAudioInfo& i_audioInfo, const HJPusherRTMPInfo &i_rtmpInfo)
     {
         int i_err = 0;

@@ -134,17 +134,21 @@ int HJRteGraphBaseEGL::init(HJBaseParam::Ptr i_param)
 	} while (false);
 	return i_err;
 }
-int HJRteGraphBaseEGL::eglSurfaceProc(const std::string &i_renderTargetInfo)
+int HJRteGraphBaseEGL::eglSurfaceProc(const std::string &i_renderTargetInfo, std::shared_ptr<HJOGEGLSurface> & o_eglSurface)
 {
 	HJFLogi("HJGraphComVideoCapture eglSurfaceProc enter");
-	int i_err = HJRteGraphTimer::sync([this, i_renderTargetInfo]()
+	int i_err = HJRteGraphTimer::sync([this, i_renderTargetInfo, &o_eglSurface]()
 		{
 			int ret = 0;
 			if (m_renderEnv)
 			{
 				HJFLogi("m_renderEnv eglSurfaceProc enter");
 #if defined(HarmonyOS)
-				ret = m_renderEnv->procEglSurface(i_renderTargetInfo);
+				ret = m_renderEnv->procEglSurface(i_renderTargetInfo, o_eglSurface);
+                if (ret < 0)
+                {
+                    return ret;
+                }
 #endif
 				HJFLogi("m_renderEnv eglSurfaceProc end");
 			}

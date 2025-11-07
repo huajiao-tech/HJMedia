@@ -21,6 +21,7 @@ public:
     
 private:
     std::shared_ptr<HJOGCopyShaderStrip> m_draw = nullptr;
+    bool m_bMirror = false;
 };
 
 NS_HJ_END

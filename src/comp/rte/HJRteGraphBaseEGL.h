@@ -12,7 +12,7 @@
 NS_HJ_BEGIN
 
 class HJOGRenderEnv;
-
+class HJOGEGLSurface;
 class HJRteGraphBaseEGL : public HJRteGraphTimer
 {
 public:
@@ -22,12 +22,17 @@ public:
     
 	virtual int init(HJBaseParam::Ptr i_param);
 	virtual void done();
-    int eglSurfaceProc(const std::string &i_renderTargetInfo);
-    
+#if defined(HarmonyOS)
+    virtual int procSurface(const std::shared_ptr<HJOGEGLSurface> & i_eglSurface, int i_targetState)
+    {
+        return 0;
+    }
+#endif
     const std::shared_ptr<HJOGRenderEnv>& getRenderEnv()
     {
         return m_renderEnv;
     }
+    int eglSurfaceProc(const std::string &i_renderTargetInfo, std::shared_ptr<HJOGEGLSurface> & o_eglSurface);
 protected:
 	//virtual int run() override;    
     

@@ -5,10 +5,13 @@
 #include "HJPrioComFBOBlur.h"
 #include "HJPrioUtils.h"
 #include "HJPrioComFBOBase.h"
+
 #if defined(HarmonyOS)
+#include "HJPBOReadWrapper.h"
 #include "HJOGRenderWindowBridge.h"
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #include "HJOGEGLSurface.h"
+#include "HJOGPointShader.h"
 #endif
 
 NS_HJ_BEGIN
@@ -16,7 +19,8 @@ NS_HJ_BEGIN
 HJPrioComSourceSeries::HJPrioComSourceSeries()
 {
 	HJ_SetInsName(HJPrioComSourceSeries);
-    m_fbo = HJPrioComFBOBase::Create();
+//    m_fbo = HJPrioComFBOBase::Create();
+//    m_faceFbo = HJPrioComFBOBase::Create();
 }
 
 HJPrioComSourceSeries::~HJPrioComSourceSeries()
@@ -54,6 +58,9 @@ int HJPrioComSourceSeries::openEffect(HJBaseParam::Ptr i_param)
 #if defined(HarmonyOS)
 			HJOpenEffectOpenProc(HJPrioComFBOBlur);
             HJOpenEffectOpenProc(HJPrioComFBOBlur);
+            HJOpenEffectOpenProc(HJPrioComFBOBlur);
+            HJOpenEffectOpenProc(HJPrioComFBOBlur);
+            HJOpenEffectOpenProc(HJPrioComFBOBlur);            
 #endif
         }     
     } while (false);
@@ -96,6 +103,19 @@ void HJPrioComSourceSeries::closeEffect(HJBaseParam::Ptr i_param)
 		//notify 
 	//}
 }
+   
+void HJPrioComSourceSeries::openPBO(HJMediaDataReaderCb i_cb)
+{
+#if defined(HarmonyOS)
+    m_pboReader = HJPBOReadWrapper::Create();
+    m_pboReader->setReadCb(i_cb);
+#endif
+}
+
+void HJPrioComSourceSeries::closePBO()
+{
+    m_pboReader = nullptr;
+}
 
 int HJPrioComSourceSeries::update(HJBaseParam::Ptr i_param)
 {
@@ -118,23 +138,64 @@ int HJPrioComSourceSeries::update(HJBaseParam::Ptr i_param)
             {
                 break;
             }    
+            
+            int sourceWidth = HJPrioComSourceBridge::getWidth();
+            int sourceHeight = HJPrioComSourceBridge::getHeight();
+            HJ_CatchMapPlainSetVal(i_param, int, "SourceWidth", sourceWidth);
+            HJ_CatchMapPlainSetVal(i_param, int, "SourceHeight", sourceHeight);        
+            
 #if defined(HarmonyOS)
-            m_fbo->check(HJPrioComSourceBridge::getWidth(), HJPrioComSourceBridge::getHeight());
-            m_fbo->draw([this, i_param]()
+            m_detectFbo = m_pingpangFBO.getDetectFBO();
+            m_renderFbo = m_pingpangFBO.getRenderFBO();
+            
+            m_pingpangFBO.submit(); //submit is used in next pingpang swap
+            
+            m_detectFbo->check(sourceWidth, sourceHeight);
+            i_err = m_detectFbo->draw([this, i_param, sourceWidth, sourceHeight]()
             {
                 int ret = HJPrioComSourceBridge::getBridge()->draw(HJTransferRenderModeInfo::Create(), HJPrioComSourceBridge::getWidth(), HJPrioComSourceBridge::getHeight());
-                if (ret == HJ_OK)
+				if (m_pboReader && (ret == HJ_OK))
                 {
-#if defined (HarmonyOS)    
-                    i_param->remove(HJ_CatchName(HJPrioComBaseFBOInfo::Ptr));
-                    m_LastFboInfo = HJPrioComBaseFBOInfo::Create<HJPrioComBaseFBOInfo>(m_fbo->width(), m_fbo->height(), m_fbo->getMatrix(), m_fbo->texture());
-                    HJ_CatchMapSetVal(i_param, HJPrioComBaseFBOInfo::Ptr, m_LastFboInfo);
-#endif
+                    ret = m_pboReader->process(sourceWidth, sourceHeight);
                 }
-                HJPrioComSourceBridge::stat();
-                return ret;
-            });
+				return ret;
+            });     
+            if (i_err < 0)
+            {
+                break;
+            }
+            
+            m_LastFboInfo = HJPrioComBaseFBOInfo::Create<HJPrioComBaseFBOInfo>(m_renderFbo->width(), m_renderFbo->height(), m_renderFbo->getMatrix(), m_renderFbo->texture());
+            HJ_CatchMapSetVal(i_param, HJPrioComBaseFBOInfo::Ptr, m_LastFboInfo);
+            HJPrioComSourceBridge::stat();   
 #endif
+
+//            m_fbo->check(sourceWidth, sourceHeight);
+//            m_fbo->draw([this, i_param]()
+//            {
+//                int ret = HJPrioComSourceBridge::getBridge()->draw(HJTransferRenderModeInfo::Create(), HJPrioComSourceBridge::getWidth(), HJPrioComSourceBridge::getHeight());
+//                if (ret == HJ_OK)
+//                {
+//                    i_param->remove(HJ_CatchName(HJPrioComBaseFBOInfo::Ptr));
+//                    m_LastFboInfo = HJPrioComBaseFBOInfo::Create<HJPrioComBaseFBOInfo>(m_fbo->width(), m_fbo->height(), m_fbo->getMatrix(), m_fbo->texture());
+//                    HJ_CatchMapSetVal(i_param, HJPrioComBaseFBOInfo::Ptr, m_LastFboInfo);
+//                }
+//                HJPrioComSourceBridge::stat();
+//                return ret;
+//            });
+//            
+//            bool bHasFaceDetect = false;
+//            HJ_CatchMapPlainGetVal(i_param, bool, "bHasFaceDetect", bHasFaceDetect);
+//            if (bHasFaceDetect)
+//            {
+//                m_faceFbo->check(sourceWidth, sourceHeight);
+//                m_faceFbo->draw([this, i_param]()
+//                {
+//                    return HJPrioComSourceBridge::getBridge()->draw(HJTransferRenderModeInfo::Create(), HJPrioComSourceBridge::getWidth(), HJPrioComSourceBridge::getHeight());
+//                });
+//                //HJFLogi("{} face fbo draw=", getInsName());
+//            }  
+            
             
 			i_err = m_graph->foreach([this, i_param](std::shared_ptr<HJPrioCom> i_com)
 				{
@@ -190,10 +251,32 @@ int HJPrioComSourceSeries::render(HJBaseParam::Ptr i_param)
 			std::vector<HJTransferRenderModeInfo::Ptr>& renderModes = renderModeGet(surface->getSurfaceType());
 			for (auto it = renderModes.begin(); it != renderModes.end(); it++)
 			{
+                GLuint textureId = m_LastFboInfo->m_texture;
+                int srcw = m_LastFboInfo->m_width; 
+                int srch = m_LastFboInfo->m_height;
+                float *texMat = m_LastFboInfo->m_matrix;
+                
+                if (surface->getSurfaceType() == HJOGEGLSurfaceType_FaceDetect)
+                {
+                    int width = getWidth();
+                    int height = getHeight();
+                    if ((surface->getTargetWidth() != width) || (surface->getTargetHeight() != height))
+                    {
+                        HJFLogi("HJGPUToRAMImageReceiver srcTarget:<{} {}> change to dstTarget: <{} {}>", surface->getTargetWidth(), surface->getTargetHeight(), width, height);
+                        OH_NativeWindow_NativeWindowHandleOpt((OHNativeWindow*)surface->getWindow(), SET_BUFFER_GEOMETRY, static_cast<int>(width), static_cast<int>(height));
+                        surface->setTargetWidth(width);
+                        surface->setTargetHeight(height);
+                    }
+                    textureId = m_detectFbo->texture();
+                    srcw = m_detectFbo->width(); 
+                    srch = m_detectFbo->height();
+                    texMat = m_detectFbo->getMatrix();
+                }
+                                
 				HJTransferRenderViewPortInfo::Ptr viewpotInfo = HJTransferRenderModeInfo::compute((*it), surface->getTargetWidth(), surface->getTargetHeight());
 #if defined(HarmonyOS)       
 				glViewport(viewpotInfo->x, viewpotInfo->y, viewpotInfo->width, viewpotInfo->height);
-				i_err = m_draw->draw(m_LastFboInfo->m_texture, (*it)->cropMode, m_LastFboInfo->m_width, m_LastFboInfo->m_height, viewpotInfo->width, viewpotInfo->height, m_LastFboInfo->m_matrix, false);
+				i_err = m_draw->draw(textureId, (*it)->cropMode, srcw, srch, viewpotInfo->width, viewpotInfo->height, texMat, false);
 #endif
 				if (i_err < 0)
 				{
@@ -222,7 +305,7 @@ int HJPrioComSourceSeries::init(HJBaseParam::Ptr i_param)
 			break;
 		}
 
-        m_fbo->setInsName(HJFMT("{}_{}", m_fbo->getInsName(), m_insIdx));
+//        m_fbo->setInsName(HJFMT("{}_{}", m_fbo->getInsName(), m_insIdx));
         
 		m_graph = HJPrioGraph::Create();
 		i_err = m_graph->init(i_param);
@@ -250,12 +333,7 @@ void HJPrioComSourceSeries::done()
     {
         m_graph->done();
         m_graph = nullptr;
-    }    
-    if (m_fbo)
-    {
-        m_fbo->done();
-        m_fbo = nullptr;
-    }    
+    }
 	HJPrioComSourceBridge::done();
 }
 

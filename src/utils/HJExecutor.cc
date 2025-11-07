@@ -838,6 +838,23 @@ HJExecutor::Ptr HJExecutorManager::createExecutor(const std::string &name/* = HJ
     });
     return thread;
 }
+//***********************************************************************************//
+const int HJExecutorPool::K_THREAD_MAX_NUM = 4;
+HJExecutorPool::HJExecutorPool(size_t initSize)
+    : m_initSize(initSize)
+{
+    addThread(m_initSize);
+}
+HJExecutorPool::~HJExecutorPool()
+{
+    m_run = false;
+    m_task_cv.notify_all();
+    for (std::thread& thread : m_pool) {
+        //thread.detach();
+        if (thread.joinable())
+            thread.join();
+    }
+}
 
 
 NS_HJ_END

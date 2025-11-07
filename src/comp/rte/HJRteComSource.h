@@ -19,7 +19,13 @@ public:
     virtual ~HJRteComSource();
     
     virtual bool isRenderReady();
-    virtual int update(HJBaseParam::Ptr i_param) override;
+    virtual int update(HJBaseParam::Ptr i_param);
+
+    void setUseFilter(bool i_bUseFilter) { m_bUseFilter = i_bUseFilter; }
+    bool getUseFilter() const { return m_bUseFilter; }
+
+private:
+    bool m_bUseFilter = false;
     //virtual int render(HJBaseParam::Ptr i_param) override;
 };
 

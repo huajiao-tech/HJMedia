@@ -16,6 +16,7 @@ typedef struct HJGlobalSettings
 	int urlLinkMax = 5;
 	int urlLinkTimeout = 15;			// sec
 	int urlConnectTimeout = 3000000;	//us
+	bool netBlockEnable = false;
 } HJGlobalSettings;
 
 class HJGlobalSettingsManager
@@ -42,6 +43,15 @@ public:
     static int getUrlConnectTimeout() {
 		HJ_AUTOS_LOCK(m_mutex);
         return m_settings.urlConnectTimeout;
+	}
+	//
+    static bool getNetBlockEnable() {
+		HJ_AUTOS_LOCK(m_mutex);
+        return m_settings.netBlockEnable;
+	}
+    static void setNetBlockEnable(bool enable) {
+		HJ_AUTOS_LOCK(m_mutex);
+        m_settings.netBlockEnable = enable;
 	}
 private:
 	static std::shared_mutex m_mutex;

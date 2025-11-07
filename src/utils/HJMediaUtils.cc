@@ -5,6 +5,9 @@
 //***********************************************************************************//
 #include "HJMediaUtils.h"
 #include "HJUtilitys.h"
+#include "HJFileUtil.h"
+#include "HJFLog.h"
+#include <unordered_set>
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -151,6 +154,45 @@ int HJMediaUtils::parseAACExtradata(uint8_t* data, size_t size, int& objectType,
 	samplerateIndex = ((data[0] & 0x01) << 1) | ((data[1] >> 7) & 0x01);
 	channelConfig = (data[1] >> 3) & 0x0F;
 	return HJ_OK;
+}
+
+std::string HJMediaUtils::makeLocalUrl(const std::string& localDir, const std::string& url)
+{
+	auto coreUrl = HJUtilitys::getCoreUrl(url);
+	auto suffix = checkMediaSuffix(HJUtilitys::getSuffix(coreUrl));
+	auto localUrl = HJUtilitys::concatenatePath(localDir, HJFMT("{}{}", HJUtilitys::hash(url), suffix));
+	return localUrl;
+}
+
+std::string HJMediaUtils::checkMediaSuffix(const std::string& suffix)
+{
+	static std::unordered_set<std::string> suffixes = {
+		"mp4", "m4a", "m4v", "3gp", "mov", "mj2", "mkv", "webm", "ts", "mts", "m2ts", "vob", "ogv", "ogg", "wmv", "avi", "flv", "m4s", "m3u8", "mp3", "aac", "wav", "wma", "m4b", "m4p", "m4r", "m4v", "m4a", "m4e", "m4x", "m4y", "m4z", "m4w", "m4h", "m4i", "m4j", "m4k", "m4l", "m4m", "m4"
+	};
+	std::string cleanSuffix = suffix;
+	if (!suffix.empty() && suffix[0] == '.') {
+		cleanSuffix = suffix.substr(1);
+	}
+
+	if (suffixes.find(cleanSuffix) != suffixes.end()) {
+		return suffix;
+	}
+	return ".mp4";  //default
+}
+
+std::vector<std::string> HJMediaUtils::enumMediaFiles(const std::string& dir)
+{
+	std::vector<std::string> mediaFiles;
+	if (!HJFileUtil::isDirExist(dir)) {
+		return mediaFiles;
+	}
+	for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+		if (entry.is_regular_file()) {
+			std::string filename = entry.path().filename().string();
+			mediaFiles.push_back(filename);
+		}
+	}
+	return mediaFiles;
 }
 
 NS_HJ_END

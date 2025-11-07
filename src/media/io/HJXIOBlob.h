@@ -8,7 +8,7 @@
 #include "HJXIOFile.h"
 
 NS_HJ_BEGIN
-#define HJ_XIO_BLOCK_SIZE		0x10000	//4 * 1024 * 1024
+#define HJ_XIO_BLOCK_SIZE		1 * 1024 * 1024
 //***********************************************************************************//
 class HJBlock : public HJObject
 {
@@ -17,9 +17,16 @@ public:
 	HJBlock(const int64_t start = 0, const int64_t max = HJ_XIO_BLOCK_SIZE);
 	virtual ~HJBlock();
 
+	enum class BlockStatus {
+		NONE,
+		PENDING,
+		COMPLETED,
+		CORRUPTED
+	};
+
 	size_t write(const uint8_t* buffer, size_t cnt);
 
-	bool isFull() {
+	bool isFull() const {
 		return (m_end - m_start) >= m_max;
 	}
 	void setMax(const int64_t max) {
@@ -37,13 +44,13 @@ public:
 	const int64_t getEnd() const {
 		return m_end;
 	}
-	bool isHit(const int64_t pos) {
+	bool isHit(const int64_t pos) const {
 		return (pos >= m_start && pos <= m_end);
 	}
-	bool isNext(const int64_t pos) {
+	bool isNext(const int64_t pos) const {
 		return (pos > m_end);
 	}
-	bool isPre(const int64_t pos) {
+	bool isPre(const int64_t pos) const {
 		return (pos < m_start);
 	}
 	void setWrited(const bool write) {
@@ -52,6 +59,12 @@ public:
 	const bool getWrited() const {
 		return m_writed;
 	}
+    BlockStatus getStatus() const {
+		return m_status;
+	}
+    void setStatus(const BlockStatus status) {
+		m_status = status;
+	}
 protected:
 	HJBlock::Ptr	m_next = nullptr;
 	HJBuffer::Ptr	m_buffer = nullptr;
@@ -59,6 +72,7 @@ protected:
 	int64_t			m_end = 0;
 	int64_t			m_max = HJ_XIO_BLOCK_SIZE;
 	bool			m_writed = false;
+	BlockStatus		m_status = BlockStatus::NONE;
 };
 
 class HJXIOBlob : public HJXIOBase
@@ -86,7 +100,7 @@ protected:
 	std::unique_ptr<HJXIOFile>		m_file = nullptr;
 	size_t							m_pos = 0;
 	size_t							m_size = 0;
-	std::map<int, HJBlock::Ptr>	m_blocks;
+	std::map<int, HJBlock::Ptr>		m_blocks;
 	size_t							m_blockSize = HJ_XIO_BLOCK_SIZE;
 };
 

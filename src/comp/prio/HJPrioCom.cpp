@@ -37,7 +37,10 @@ int HJPrioCom::render(HJBaseParam::Ptr i_param)
 {
     return HJ_OK;
 }
-
+int HJPrioCom::sendMessage(HJBaseMessage::Ptr i_msg)
+{
+    return HJ_OK;
+}
 bool HJPrioCom::renderModeIsContain(int i_targetType)
 {
     return (m_renderMap.find(i_targetType) != m_renderMap.end());

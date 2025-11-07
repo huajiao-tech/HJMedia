@@ -32,8 +32,12 @@ protected:
 	virtual int initDemuxer(const HJMediaUrl::Ptr& i_url, uint64_t i_delay = 0);
 	virtual void releaseDemuxer();
 	virtual void setInfoMediaType();
+
+protected:
+	virtual int getFrameFromDemuxer(std::string& route);
 	virtual int canDeliverToOutputs(const HJMediaFrame::Ptr& i_currentFrame);
 
+protected:
 	std::atomic<bool> m_resetting{};
 	HJBaseDemuxer::Ptr m_demuxer{};
 	HJSync m_demuxerSync;
@@ -42,7 +46,7 @@ protected:
 	HJMediaFrame::Ptr m_currentFrame{};
 	int64_t m_streamIndexOffset{};
 
-    std::function<void()> m_demuxNotify = nullptr;
+	std::function<void()> m_demuxNotify{};
 };
 
 NS_HJ_END

@@ -27,7 +27,7 @@ add_executable(${PROJ_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 if(WINDOWS)
     target_link_libraries(${PROJ_NAME} 
         Crypt32 IPHLPAPI opengl32 dwmapi
-        HJGraphs HJPlugins
+        HJGraphs HJPlugins HJLocalServer
         HJGui ImGuiFileDialog ImFileDialog implot imgui HJCore HJLinks HJMedia HJStat HJUtils LIBGLFW LIBSPDLOG
     )
     target_link_libraries(${PROJ_NAME} debug libavdeviced optimized libavdevice)
@@ -42,12 +42,10 @@ if(WINDOWS)
     # target_link_libraries(${PROJ_NAME} debug exception_handlerd optimized exception_handler)
 else()
     target_link_libraries(${PROJ_NAME} 
-        LIBABSL 
-        LIBPROTOBUF
-        HJCore
-        HJStat
-        HJUtils
-        HJGui
+        HJGraphs HJPlugins HJLocalServer
+        HJGui ImGuiFileDialog ImFileDialog implot imgui HJCore HJLinks HJMedia HJStat HJUtils LIBGLFW LIBSPDLOG
+    )
+    target_link_libraries(${PROJ_NAME} 
         ${DEPS_FFMPEG_LIB_DIR}/libavdevice.a
         ${DEPS_FFMPEG_LIB_DIR}/libavfilter.a
         ${DEPS_FFMPEG_LIB_DIR}/libavformat.a
@@ -55,19 +53,9 @@ else()
         ${DEPS_FFMPEG_LIB_DIR}/libswresample.a
         ${DEPS_FFMPEG_LIB_DIR}/libswscale.a
         ${DEPS_FFMPEG_LIB_DIR}/libavutil.a
-        x264
-        x265
-        ssl
-        crypto
-        rist
-        srt
-        LIBGLFW
         iconv
         bz2
         z
-        MQMonitor
-        SLPlat 
-        SLBase
     )
 endif()
 

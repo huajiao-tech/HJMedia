@@ -191,11 +191,11 @@ int HJDataWriter::writeYuv(unsigned char** i_pData, int* i_nPitch, int i_width, 
 	return i_err;
 }
 //////////////////////////////////////////////////////
-SLYuvWriter::~SLYuvWriter()
+HJYuvWriter::~HJYuvWriter()
 {
 
 }
-int SLYuvWriter::init(const std::string& i_url, int i_width, int i_height)
+int HJYuvWriter::init(const std::string& i_url, int i_width, int i_height)
 {
 	int i_err = 0;
 	do 
@@ -211,7 +211,7 @@ int SLYuvWriter::init(const std::string& i_url, int i_width, int i_height)
 	return i_err;
 }
 
-int SLYuvWriter::priWrite(unsigned char* i_pdata, int width, int height, int pitch)
+int HJYuvWriter::priWrite(unsigned char* i_pdata, int width, int height, int pitch)
 {
 	int i_err = 0;
 	do 
@@ -225,7 +225,7 @@ int SLYuvWriter::priWrite(unsigned char* i_pdata, int width, int height, int pit
 	} while (0);
 	return i_err;
 }
-int SLYuvWriter::write(unsigned char* i_pYuv)
+int HJYuvWriter::write(unsigned char* i_pYuv)
 {
 	int i_err = 0;
 	do
@@ -241,7 +241,7 @@ int SLYuvWriter::write(unsigned char* i_pYuv)
 	} while (0);
 	return i_err;
 }
-int SLYuvWriter::write(unsigned char** data, int* pitch)
+int HJYuvWriter::write(unsigned char** data, int* pitch)
 {
 	int i_err = 0;
 	do 

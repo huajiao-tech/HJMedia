@@ -91,6 +91,34 @@ export struct PusherPage {
             .margin({ top: 10, bottom: 10 })
         }
       })
+      .template("slider", (item) => {
+        Column() {
+          Row() {
+            Text(item.item.title)
+              .fontSize(16)
+            Text(`${item.item.value}`)
+              .fontSize(16)
+              .fontColor('#007AFF')
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.SpaceBetween)
+          .padding({ top: 16 })
+
+          Slider({
+            value: item.item.value as number,
+            min: item.item.min,
+            max: item.item.max,
+            step: 1
+          })
+            .blockColor('#007AFF')
+            .trackColor('#f0f0f0')
+            .selectedColor('#007AFF')
+            .onChange((value) => {
+              item.item.value = Math.round(value)
+            })
+            .padding({ bottom: 8 })
+        }
+      })
       .templateId((item, index) => {
         return item.type
       })

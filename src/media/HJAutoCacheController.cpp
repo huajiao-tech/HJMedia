@@ -31,7 +31,7 @@ HJAutoCacheController::HJAutoCacheController(
     m_lastPlaybackSpeed(playbackSpeed)
 {
     calculatePlaybackSpeed = std::bind(&HJAutoCacheController::normalSpeedCalculation, this, std::placeholders::_1, std::placeholders::_2);
-    HJFLogi("entry, cacheTargetDuration:{}, cacheLimitedRange:{}, playbackSpeed:{}, stutterRatioMax:{}, stutterRatioDelta:{}, observeTime:{}", cacheTargetDuration, cacheLimitedRange, playbackSpeed, stutterRatioMax, stutterRatioDelta, observeTime);
+    HJFNLogi("entry, cacheTargetDuration:{}, cacheLimitedRange:{}, playbackSpeed:{}, stutterRatioMax:{}, stutterRatioDelta:{}, observeTime:{}", cacheTargetDuration, cacheLimitedRange, playbackSpeed, stutterRatioMax, stutterRatioDelta, observeTime);
 }
 
 double HJAutoCacheController::update(
@@ -58,6 +58,9 @@ double HJAutoCacheController::update(
 
     // 计算并应用新的播放速度
     m_playbackSpeed = (nullptr != calculatePlaybackSpeed) ? calculatePlaybackSpeed(curDuration, stutterRatio) : m_playbackSpeed;
+    if (m_playbackSpeed != m_lastPlaybackSpeed) {
+        HJFNLogi("speed control, duration rangs:[{}, {}, {}], curDuration:{}, stutterRatio:{:.4f}, speed:{:.3f}", getCurUpperLimit(), m_currentTargetDuration, getCurLowerLimit(), curDuration, stutterRatio, m_playbackSpeed);
+    }
     m_lastPlaybackSpeed = m_playbackSpeed;
     m_lastUpdateTime = currentTime;
     
@@ -174,7 +177,7 @@ void HJAutoCacheController::updateControlParams(
             }
 #endif
             m_updateParamsInfo += HJFMT(" - [expect:{}, {}, stutter delta:{:.4f}]", expectTargetDuration, expectLimitedRange, stutterDelta);
-            HJFLogi("control out duration:[{}, {}, {}], expect:[{}, {}], stutterDelta:{:.4f} -- {}", getCurUpperLimit(), m_currentTargetDuration, getCurLowerLimit(), expectTargetDuration, expectLimitedRange, stutterDelta, fmtInfo);
+            HJFNLogi("control out duration:[{}, {}, {}], expect:[{}, {}], stutterDelta:{:.4f} -- {}", getCurUpperLimit(), m_currentTargetDuration, getCurLowerLimit(), expectTargetDuration, expectLimitedRange, stutterDelta, fmtInfo);
         } 
         //else {
         //    JFLogi("control out duration:[{}, {}], stutterDelta:{:.4f} -- {}", m_currentTargetDuration, m_currentLimitedRange, stutterDelta, fmtInfo);

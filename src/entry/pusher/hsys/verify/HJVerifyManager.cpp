@@ -8,7 +8,7 @@
 #include "HJMediaInfo.h"
 #include "HJFFHeaders.h"
 #include "HJTransferInfo.h"
-
+//#include "HJFaceuInfo.h"
 NS_HJ_USING
 
 namespace NativeXComponentSample {
@@ -21,20 +21,24 @@ int HJVerifyManager::s_previewFps = 30;
 int HJVerifyManager::s_videoCodecId = (int)AV_CODEC_ID_H265;
 int HJVerifyManager::s_width = 720;
 int HJVerifyManager::s_height = 1280;
-int HJVerifyManager::s_videobitrate = 2.2 * 1000 * 1000;
+int HJVerifyManager::s_videobitrate = 500 * 1000;//2.2 * 1000 * 1000;
 int HJVerifyManager::s_framerate = 15; 
 int HJVerifyManager::s_gopsize = 2 * s_framerate;
+bool HJVerifyManager::s_roiIsenc = true;
     
 int HJVerifyManager::s_audioCodecId = (int)AV_CODEC_ID_AAC;
 int HJVerifyManager::s_audiobitrate = 64 * 1000;
 int HJVerifyManager::s_fmt = (int)AV_SAMPLE_FMT_S16;
 int HJVerifyManager::s_samplerate = 48000;
 int HJVerifyManager::s_channels = 2;
+bool HJVerifyManager::s_debugPoint = false;
+bool HJVerifyManager::s_bGPUToRAMUsePBO = true;
+bool HJVerifyManager::s_bFaceProtected = true;
 
-std::string HJVerifyManager::s_rtmpUrl = "rtmp://live-push-2.huajiao.com/main/lfs?auth_key=1758091785-0-0-0a7c48ff754428962a93b5bce32da95c";
+std::string HJVerifyManager::s_rtmpUrl = "rtmp://live-push-2.huajiao.com/main/lfs?auth_key=1761644076-0-0-396d482dd972be7a36286a7b8397f8a0";
 //"flv  https://live-pull-1.huajiao.com/main/lfs.flv?auth_key=1756107592-0-0-18b9d1330cbf136b5187f7909dec501c"
 std::string HJVerifyManager::s_localUrl = "/data/storage/el2/base/haps/entry/files/rec.mp4";
-
+std::string HJVerifyManager::s_faceuUrl = "/data/storage/el2/base/haps/entry/files/60031_10";
 HJVerifyManager HJVerifyManager::m_HJVerifyManager;
 
 HJNAPITestLive::Ptr HJVerifyManager::m_testLiveStream = nullptr;
@@ -260,8 +264,32 @@ napi_value HJVerifyManager::tryOpenPreview(napi_env env, napi_callback_info info
     napi_create_int64(env, (int64_t)surfaceId, &nSurfaceId);
     return nSurfaceId;
 }
+napi_value HJVerifyManager::trySetROIOffset(napi_env env, napi_callback_info info)
+{
 
+    if ((env == nullptr) || (info == nullptr))
+    {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "HJVerifyManager", "GetContext env or info is null ");
+        return nullptr;
+    }
 
+    size_t argCnt = 1;
+    napi_value args[1];
+    if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok)
+    {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "HJVerifyManager", "GetContext napi_get_cb_info failed");
+    }
+    int32_t quantoffset = 0;
+    napi_get_value_int32(env, args[0], &quantoffset);
+    
+    HJVerifyRender* render = HJVerifyManager::GetInstance()->GetRender(S_XCOM_ID);
+    HJ::HJNAPILiveStream::Ptr liveStream = render->getLiveStream();
+    if (liveStream)
+    {
+        liveStream->setVideoEncQuantOffset(quantoffset);
+    }   
+    return nullptr;
+}
 
 void HJVerifyManager::priTest(HJVerifyRender* render)
 {
@@ -411,6 +439,110 @@ napi_value HJVerifyManager::tryGiftPusher(napi_env env, napi_callback_info info)
     } 
     return nullptr;    
 }
+
+napi_value HJVerifyManager::tryOpenImgReceiver(napi_env env, napi_callback_info info)
+{
+    HJVerifyRender* render = HJVerifyManager::GetInstance()->GetRender(S_XCOM_ID);
+    HJ::HJNAPILiveStream::Ptr liveStream = render->getLiveStream();
+    if (liveStream)
+    {
+        liveStream->openNativeSource(s_bGPUToRAMUsePBO);
+        liveStream->openFaceu(s_faceuUrl, s_debugPoint);
+        liveStream->setFaceProtected(s_bFaceProtected);
+    }    
+    return nullptr;  
+}
+napi_value HJVerifyManager::tryCloseImageReceiver(napi_env env, napi_callback_info info)
+{
+    HJVerifyRender* render = HJVerifyManager::GetInstance()->GetRender(S_XCOM_ID);
+    HJ::HJNAPILiveStream::Ptr liveStream = render->getLiveStream();
+    if (liveStream)
+    {
+        liveStream->closeFaceu();
+        liveStream->closeNativeSource(); 
+    } 
+    return nullptr;  
+}
+napi_value HJVerifyManager::tryGetMediaData(napi_env env, napi_callback_info info)
+{
+    HJVerifyRender* render = HJVerifyManager::GetInstance()->GetRender(S_XCOM_ID);
+    HJ::HJNAPILiveStream::Ptr liveStream = render->getLiveStream();
+    std::shared_ptr<HJRGBAMediaData> data = nullptr;
+    if (liveStream)
+    {
+       data = liveStream->acquireNativeSource();
+    }
+    if (data)
+        {
+            void* arrayBufferPtr = nullptr;
+            napi_value arrayBuffer = nullptr;
+            size_t bufferSize = data->m_nSize;
+            napi_status status = napi_create_arraybuffer(env, bufferSize, &arrayBufferPtr, &arrayBuffer);
+            if (status != napi_ok || arrayBufferPtr == nullptr) 
+            {
+                napi_throw_error(env, nullptr, "Failed to create ArrayBuffer");
+                return nullptr;
+            }
+            uint8_t *pData = static_cast<uint8_t*>(arrayBufferPtr);
+        
+            int64_t t0 = HJCurrentSteadyMS();
+            memcpy(pData, data->m_buffer->getBuf(), bufferSize);
+            int64_t t1 = HJCurrentSteadyMS();
+            //HJFLogi("memcpy size:{} time is:{} ", bufferSize, (t1 - t0));
+                
+            napi_value resultObj;
+            napi_create_object(env, &resultObj);
+        
+            napi_value jsWidth, jsHeight;
+            napi_create_uint32(env, data->m_width, &jsWidth);
+            napi_create_uint32(env, data->m_height, &jsHeight);
+
+            napi_set_named_property(env, resultObj, "data", arrayBuffer);
+            napi_set_named_property(env, resultObj, "width", jsWidth);
+            napi_set_named_property(env, resultObj, "height", jsHeight);
+            return resultObj; 
+        }
+    return nullptr;  
+}
+napi_value HJVerifyManager::trySetFacePoints(napi_env env, napi_callback_info info)
+{
+    HJVerifyRender* render = HJVerifyManager::GetInstance()->GetRender(S_XCOM_ID);
+    HJ::HJNAPILiveStream::Ptr liveStream = render->getLiveStream();
+    if (liveStream)
+    {
+        if ((env == nullptr) || (info == nullptr))
+        {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "HJVerifyManager", "GetContext env or info is null ");
+            return nullptr;
+        }
+
+        size_t argCnt = 3;
+        napi_value args[3];
+        if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok)
+        {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "HJVerifyManager", "GetContext napi_get_cb_info failed");
+        }
+
+        int32_t w;
+        napi_get_value_int32(env, args[0], &w);
+        int32_t h;
+        napi_get_value_int32(env, args[1], &h);
+        
+        
+        size_t strLen;
+        napi_get_value_string_utf8(env, args[2], nullptr, 0, &strLen);
+
+        std::vector<char> buffer(strLen + 1);
+        napi_get_value_string_utf8(env, args[2], buffer.data(), buffer.size(), nullptr);
+        std::string pointsInfo = std::string(buffer.data());
+        
+        HJFacePointsWrapper::Ptr faceInfo = HJFacePointsWrapper::Create<HJFacePointsWrapper>(w, h, pointsInfo);
+        liveStream->setFaceInfo(faceInfo);
+    } 
+    return nullptr;  
+}
+
+
 //void HJVerifyManager::priTimerRestartRecorder(HJVerifyRender* render)
 //{
 //    if (!m_threadTimer)
@@ -434,6 +566,7 @@ void HJVerifyManager::priConstructParam(HJPusherVideoInfo& o_videoInfo, HJPusher
     o_videoInfo.videoBitrateBit = s_videobitrate;
     o_videoInfo.videoFramerate = s_framerate;
     o_videoInfo.videoGopSize = s_gopsize;
+    o_videoInfo.videoIsROIEnc = s_roiIsenc;
     
     o_audioInfo.audioCodecId = s_audioCodecId;
     o_audioInfo.audioBitrateBit = s_audiobitrate;

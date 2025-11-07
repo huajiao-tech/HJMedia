@@ -1,0 +1,38 @@
+set(PROJ_NAME HJLocalServer)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/db)
+include_directories(${HJ_EXTERNALS_PATH}/generic)
+include_directories(${HJ_EXTERNALS_PATH}/generic/ffmpeg)
+
+set(${PROJ_NAME}_INCLUDE_DIRS 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/db)
+
+# message (STATUS "retrieve_files entry")
+HJ_SUBDIR_LIST(subdir_names ${CMAKE_CURRENT_SOURCE_DIR})
+# message (STATUS "core sub dir names:${subdir_names}")
+
+HJ_RETRIEVE_XFILES(SUBPROJ_SOURCE_FILES ${subdir_names})
+HJ_RETRIEVE_HFILES(SUBPROJ_HEADER_FILES ${subdir_names})
+
+file(GLOB HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
+file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
+list(APPEND HEADER_FILES ${SUBPROJ_HEADER_FILES})
+list(APPEND SOURCE_FILES ${SUBPROJ_SOURCE_FILES})
+
+MAKE_COMMON_CONFIG()
+
+add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
+
+target_link_libraries(${PROJ_NAME} PRIVATE LIBSQLITEORM sqlite3 HJMedia HJUtils LIBCPPHTTPLIB LIBOPENSSL zlib LIBFFMPEG LIBSPDLOG)
+target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
+
+HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
+
+set_target_properties(${PROJ_NAME} PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY ${ARCHIVE_output}
+    LIBRARY_OUTPUT_DIRECTORY ${library_output}
+    RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
+	
+ProjFolder(${PROJ_NAME} "src")

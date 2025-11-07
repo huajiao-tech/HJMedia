@@ -5,6 +5,7 @@
 #include "HJUIItemYuvRender.h"
 #include "HJUIItemPlayerCom.h"
 #include "HJUIItemPlayerPlugin.h"
+#include "HJUIItemSharedMemory.h"
 #include "HJUIItemTest.h"
 
 NS_HJ_BEGIN
@@ -42,6 +43,9 @@ HJUIBaseItem::Ptr HJUIBaseItem::createItem(HJUIItemType type)
 		break;
 	case HJ::HJUIItemType_Test:
 		item = HJUIItemTest::Create();
+		break;
+	case HJ::HJUIItemType_SharedMemory:
+		item = HJUIItemSharedMemory::Create();
 		break;
 	default:
 		break;

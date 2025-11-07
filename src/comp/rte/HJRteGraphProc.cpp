@@ -4,6 +4,7 @@
 #include "HJRteCom.h"
 #include "HJRteGraphProc.h"
 #include "HJRteComSourceBridge.h"
+#include "HJRteComDraw.h"
 
 #if defined(HarmonyOS)
     #include "HJOGRenderWindowBridge.h"
@@ -11,8 +12,13 @@
     #include "HJOGRenderEnv.h"
 #endif
 
+#define TEST 0
+
 NS_HJ_BEGIN
 
+#if defined(HarmonyOS)
+    HJOGBaseShader::Ptr m_testshader = nullptr;
+#endif
 HJRteGraphProc::HJRteGraphProc()
 {
     HJ_SetInsName(HJRteGraphProc);
@@ -59,7 +65,18 @@ int HJRteGraphProc::testRender(std::shared_ptr<HJRteCom> i_com)
                     HJ_CatchMapPlainSetVal(param, int, "targetWidth", targetWidth);
                     HJ_CatchMapPlainSetVal(param, int, "targetHeight", targetHeight);
                     HJ_CatchMapSetVal(param, HJTransferRenderModeInfo::Ptr, info);
-                    m_videoSource->render(param);
+                
+                    //m_videoSource->render(param);
+                
+                    if (!m_testshader)
+                    {
+                        m_testshader = HJOGBaseShader::createShader(HJOGBaseShaderType_Copy_OES);
+                    }
+                    if (m_testshader)
+                    {
+                        glViewport(0, 0, 500, 500);
+                        m_testshader->draw(m_videoSource->getTextureId(), "crop", m_videoSource->getWidth(), m_videoSource->getHeight(), 500, 500);
+                    }
                 
                     HJFLogi("{} com:<{} - {}> info:{} render sub #########", getInsName(), i_link->getSrcComName(), i_link->getDstComName(), i_link->getInfo());
                 } while(false);
@@ -115,7 +132,7 @@ int HJRteGraphProc::testNotifyAndTryRender(std::shared_ptr<HJRteCom> i_header)
                         ret = testNotifyAndTryRender(com);
                         if (ret < 0)
                         {
-                            HJFLoge("{} com:<{} - {}> priNotifyAndTryRender error", getInsName(), i_link->getSrcComName(), i_link->getDstComName());
+                            HJFLoge("{} com:<{} - {}> priRenderFromTopToBottom error", getInsName(), i_link->getSrcComName(), i_link->getDstComName());
                             break;
                         }
                     }
@@ -147,18 +164,23 @@ int HJRteGraphProc::run()
         if (!renderEnv)
         {
             break;
-        }    
+        }   
+        
+#if TEST
         const HJOGEGLSurfaceQueue& queue = renderEnv->getEglSurfaceQueue();
         if (queue.empty())
         {
             break;
         }
-        
+
         HJOGEGLSurface::Ptr eglSurface = *queue.begin();
         i_err = renderEnv->testMakeCurrent(eglSurface->getEGLSurface());
-        
+#else     
+        renderEnv->testMakeOffCurrent();
+#endif   
         graphReset();
         HJBaseParam::Ptr param = HJBaseParam::Create();
+        
         i_err = foreachSource([this, param](std::shared_ptr<HJRteCom> i_com)
         {
             int ret = HJ_OK;
@@ -168,51 +190,64 @@ int HJRteGraphProc::run()
                 if (ret < 0)
                 {
                     break;
-                }    
-                if (m_videoSource->IsStateReady())
+                }   
+                if (m_videoSource->getUseFilter() && m_videoSource->isUpdateResolution())
                 {
-                    HJRteDriftInfo::Ptr driftInfo = HJRteDriftInfo::Create<HJRteDriftInfo>(m_videoSource->getTextureId(), m_videoSource->getWidth(), m_videoSource->getHeight(), HJRteTextureType_OES);
-                    ret = testNotifyAndTryRender(i_com);
-                    if (ret < 0)
+                    int w = m_videoSource->getWidth();
+                    int h = m_videoSource->getHeight();
+                    foreachFilter([w, h](std::shared_ptr<HJRteCom> i_com)
                     {
-                        break;
-                    }
+                        HJRteComDrawFBO::Ptr drawFBO = std::dynamic_pointer_cast<HJRteComDrawFBO>(i_com);
+                        if (drawFBO)
+                        {
+                            drawFBO->adjustResolution(w, h);
+                        }
+                        return HJ_OK;
+                    });
+                    
                 }
-            } while (false);
+            } while(false);
             return ret;
         });
-
-#else
-        //fixme lfs
-        //1. pb make_current offscreen
-
-        //2. reset 
-        graphReset();
-
-        //3. loop
-		HJBaseParam::Ptr param = HJBaseParam::Create();
-		i_err = foreachSource([this, param](std::shared_ptr<HJRteCom> i_com)
-			{
-				int ret = HJ_OK;
-				do
-				{
-					ret = m_videoSource->update(param);
-					if (ret < 0)
-					{
-						break;
-					}
-					if (m_videoSource->IsStateReady())
-					{
-						ret = testNotifyAndTryRender(i_com);
-						if (ret < 0)
-						{
-							break;
-						}
-					}
-				} while (false);
-				return ret;
-			});
-
+        if (i_err < 0)
+        {
+            break;
+        }
+        i_err = foreachTarget([this](std::shared_ptr<HJRteCom> i_com)
+        {
+            HJRteDriftInfo::Ptr driftInfo = nullptr;
+            int ret = renderFromBottomToTop(i_com, driftInfo);
+            return ret;
+        });
+        
+        
+//        i_err = foreachSource([this, param](std::shared_ptr<HJRteCom> i_com)
+//        {
+//            int ret = HJ_OK;
+//            do 
+//            {
+//                
+//                ret = m_videoSource->update(param);
+//                if (ret < 0)
+//                {
+//                    break;
+//                }    
+//                if (m_videoSource->IsStateReady())
+//                {
+//#if TEST 
+//                    testNotifyAndTryRender(m_videoSource);
+//#else
+//                    HJRteDriftInfo::Ptr driftInfo = HJRteDriftInfo::Create<HJRteDriftInfo>(m_videoSource->getTextureId(), HJRteTextureType_OES, HJRteWindowRenderMode_FIT, m_videoSource->getWidth(), m_videoSource->getHeight(), m_videoSource->getTexMatrix());
+//                    ret = renderFromTopToBottom(i_com, driftInfo);
+//                    if (ret < 0)
+//                    {
+//                        break;
+//                    }
+//#endif
+//                }
+//            } while (false);
+//            return ret;
+//        });
 #endif
     } while (false);
     return i_err;
@@ -249,16 +284,17 @@ int HJRteGraphProc::init(HJBaseParam::Ptr i_param)
                 do
                 {
                     m_videoSource = HJRteComSourceBridge::Create();
+                    m_videoSource->setUseFilter(true);
                     m_sources.push_back(m_videoSource);
-                    m_coms.push_back(m_videoSource);
                 
-                    HJRteCom::Ptr uicom = HJRteCom::Create();
-                    uicom->setInsName("uicom");
-                    uicom->setPriority(HJRteComPriority_Target);
-                    m_coms.push_back(uicom);
-                    
-                    m_links.push_back(m_videoSource->addTarget(uicom, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.0, 1.0, 0.5)));
-                    m_links.push_back(m_videoSource->addTarget(uicom, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.5, 1.0, 0.5)));
+//                    HJRteCom::Ptr uicom = HJRteCom::Create();
+//                    uicom->setInsName("uicom");
+//                    uicom->setPriority(HJRteComPriority_Target);
+//
+//                    m_coms.push_back(uicom);
+//                    
+//                    m_links.push_back(m_videoSource->addTarget(uicom, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.0, 1.0, 0.5)));
+//                    m_links.push_back(m_videoSource->addTarget(uicom, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.5, 1.0, 0.5)));
                 
                 } while (false);
                 return ret;
@@ -309,6 +345,23 @@ int HJRteGraphProc::init(HJBaseParam::Ptr i_param)
     } while (false);
     return i_err;
 }
+
+void HJRteGraphProc::graphProcAsync(std::function<int()> i_func)
+{
+    HJRteGraphBaseEGL::async([this, i_func]()
+       {
+           int i_err = i_func();
+           if (i_err < 0)
+           {
+              HJFLoge("{} HJRteGraphProc graphProc error", getInsName());
+               //if (m_renderListener)
+               //{
+               //    m_renderListener(std::move(HJMakeNotification(HJVIDEORENDERGRAPH_EVENT_ERROR_DEFAULT)));
+               //}
+           }
+           return i_err;
+       });
+}
 void HJRteGraphProc::setGiftPusher(bool i_bGiftPusher)
 {
     //HJRteGraphBaseEGL::async([this, bGiftPusher = i_bGiftPusher]()
@@ -351,6 +404,8 @@ void HJRteGraphProc::openEffect(HJBaseParam::Ptr i_param)
 }
 void HJRteGraphProc::closeEffect(HJBaseParam::Ptr i_param)
 {
+
+
     //HJRteGraphBaseEGL::async([this, i_param]()
     //    {
     //        if (m_videoCapture)
@@ -495,7 +550,120 @@ int HJRteGraphProc::openPNGSeq(HJBaseParam::Ptr i_param)
     //}
     return i_err;
 }
+int HJRteGraphProc::connectCom(HJRteCom::Ptr i_srcCom, HJRteCom::Ptr i_dstCom, std::shared_ptr<HJOGBaseShader> i_shader, std::shared_ptr<HJRteComLinkInfo> i_linkInfo)
+{
+    return priConnect(i_srcCom, i_dstCom, i_shader, i_linkInfo);
+}
+int HJRteGraphProc::priConnect(HJRteCom::Ptr i_srcCom, HJRteCom::Ptr i_dstCom, std::shared_ptr<HJOGBaseShader> i_shader, std::shared_ptr<HJRteComLinkInfo> i_linkInfo)
+{
+    m_links.push_back(i_srcCom->addTarget(i_dstCom, i_shader, i_linkInfo));
+    return HJ_OK;
+}
+void HJRteGraphProc::addSource(std::shared_ptr<HJRteCom> i_com)
+{
+    m_sources.push_back(i_com);
+}
+void HJRteGraphProc::addTarget(std::shared_ptr<HJRteCom> i_com)
+{
+    m_targets.push_back(i_com);
+}
+void HJRteGraphProc::addFilter(std::shared_ptr<HJRteCom> i_com)
+{
+    m_filters.push_back(i_com);
+}
+
 #if defined(HarmonyOS)
+int HJRteGraphProc::procSurface(const std::shared_ptr<HJOGEGLSurface> & i_eglSurface, int i_targetState)
+{
+    int i_err = HJ_OK;
+    do 
+    {
+        if (i_targetState == HJTargetState_Create)
+        {
+            HJRteComDrawEGL::Ptr uicom = HJRteComDrawEGL::Create();
+            uicom->setInsName("uicom");
+            //uicom->setPriority(HJRteComPriority_Target);
+            uicom->setSurface(i_eglSurface);
+            m_targets.push_back(uicom);
+            
+////1. test: source->ui            
+//            HJOGBaseShader::Ptr shaderOES = HJOGBaseShader::createShader(HJOGBaseShaderType_Copy_OES);
+//            m_links.push_back(m_videoSource->addTarget(uicom, shaderOES, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.0, 1.0, 0.5)));
+        
+////2. test: source->fbo->ui            
+            HJRteComDrawFBO::Ptr video2D = HJRteComDrawFBO::Create();
+            video2D->setInsName("video2D");
+            video2D->setPriority(HJRteComPriority_VideoSource);
+            m_filters.push_back(video2D);  
+            
+            HJOGBaseShader::Ptr shaderOES = HJOGBaseShader::createShader(HJOGBaseShaderType_Copy_OES);
+            //m_links.push_back(m_videoSource->addTarget(video2D, shaderOES));
+            priConnect(m_videoSource, video2D, shaderOES);
+            
+            HJRteComDrawGrayFBO::Ptr gray = HJRteComDrawGrayFBO::Create();
+            gray->setInsName("gray");
+            gray->setPriority(HJRteComPriority_VideoGray);
+            gray->init(nullptr);
+            m_filters.push_back(gray);
+            //m_links.push_back(video2D->addTarget(gray));
+            priConnect(video2D, gray);
+
+            HJOGBaseShader::Ptr shader2D = HJOGBaseShader::createShader(HJOGBaseShaderType_Copy_2D);
+            //m_links.push_back(gray->addTarget(uicom, shader2D, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.0, 1.0, 0.5))); 
+            priConnect(gray, uicom, shader2D, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.0, 1.0, 0.5));
+
+
+            HJRteComDrawBlurFBO::Ptr blur = HJRteComDrawBlurFBO::Create();
+            blur->setInsName("blur");
+            blur->setPriority(HJRteComPriority_VideoBlur);
+            blur->init(nullptr);
+            m_filters.push_back(blur);
+
+            //not use m_videoSource to blur, use video2D to blur, blur shader is not implement OES, so video2D OES->2D is important
+            priConnect(video2D, blur);
+            priConnect(blur, uicom, shader2D, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.5, 1.0, 0.5, true, false)); 
+            
+    //#if 1    
+    //        HJRteComDrawFBO::Ptr video2D = HJRteComDrawFBO::Create();
+    //        video2D->setInsName("video2D");
+    //        video2D->setPriority(HJRteComPriority_VideoSource);
+    //        m_filters.push_back(video2D);
+    //               
+    //        HJOGBaseShader::Ptr shaderOES = HJOGBaseShader::createShader(HJOGBaseShaderType_Copy_OES);
+    //        m_links.push_back(m_videoSource->addTarget(video2D, shaderOES));
+    //  
+    //        HJRteComDrawGrayFBO::Ptr gray = HJRteComDrawGrayFBO::Create();
+    //        gray->setInsName("gray");
+    //        gray->setPriority(HJRteComPriority_VideoGray);
+    //        m_filters.push_back(gray);
+    //        m_links.push_back(video2D->addTarget(gray));
+    //        
+    //        HJOGBaseShader::Ptr shader2D = HJOGBaseShader::createShader(HJOGBaseShaderType_Copy_2D);
+    //        m_links.push_back(gray->addTarget(uicom, shader2D, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.0, 1.0, 0.5))); 
+    //    
+
+    //        //HJOGBaseShader::Ptr shader2D = HJOGBaseShader::createShader(HJOGBaseShaderType_Copy_2D);
+    //        m_links.push_back(gray->addTarget(uicom, shader2D, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.5, 1.0, 0.5))); 
+    //        
+    //        video2D->init(nullptr);
+    //        gray->init(nullptr);
+    //#else
+    //        HJOGBaseShader::Ptr shader = HJOGBaseShader::createShader(HJOGBaseShaderType_Copy_OES);
+    //        //m_testshader = shader;
+    //        //m_links.push_back(m_videoSource->addTarget(uicom, shader, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.0, 1.0, 1.0)));
+    //        
+    //        m_links.push_back(m_videoSource->addTarget(uicom, shader, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.0, 1.0, 0.5)));
+    //        m_links.push_back(m_videoSource->addTarget(uicom, shader, HJRteComLinkInfo::Create<HJRteComLinkInfo>(0.0, 0.5, 1.0, 0.5)));        
+    //#endif              
+        }
+        else if (i_targetState == HJTargetState_Destroy)
+        {
+            
+        }        
+         
+    } while (false);
+    return i_err;
+}
 HJOGRenderWindowBridge::Ptr HJRteGraphProc::renderWindowBridgeAcquire()
 {
     HJOGRenderWindowBridge::Ptr bridge = nullptr;

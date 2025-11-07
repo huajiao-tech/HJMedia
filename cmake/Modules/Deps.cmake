@@ -18,17 +18,22 @@ find_package(LIBSPDLOG REQUIRED)
 find_package(LIBMINICORO REQUIRED)
 find_package(LIBMINIAUDIO REQUIRED)
 find_package(LIBSTB REQUIRED)
+find_package(LIBCPPHTTPLIB REQUIRED)
+
 #****binaries**********************************************************************************#
 find_package(LIBYUV REQUIRED)
 find_package(LIBOPENSSL REQUIRED)
 find_package(LIBFFMPEG REQUIRED)
 find_package(LIBMBEDTLS REQUIRED)
+# find_package(LIBSQLITE REQUIRED)
+find_package(LIBSQLITEORM REQUIRED)
 
 if(WINDOWS OR MACOSX)
     find_package(LIBGLFW REQUIRED)
+    find_package(LIBGTEST REQUIRED)
 endif()
 
 if(ANDROID OR HarmonyOS)
     find_package(LibX264 REQUIRED)
-    find_package(LIBZLIB REQUIRED)
+    # find_package(LIBZLIB REQUIRED)
 endif()

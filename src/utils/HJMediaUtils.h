@@ -292,6 +292,10 @@ public:
     static HJBuffer::Ptr avcc2annexb(uint8_t* data, size_t size);
     static const HJAACSampleRateType HJAACSamleRate2Type(const int samplerate);
     static int parseAACExtradata(uint8_t* data, size_t size, int& objectType, int& samplerateIndex, int& channelConfig);
+
+    static std::string makeLocalUrl(const std::string& localDir, const std::string& url);
+    static std::string checkMediaSuffix(const std::string& suffix);
+    static std::vector<std::string> enumMediaFiles(const std::string& dir);
 private:
     static HJRectf alignToWidth(const HJRectf targetRect, float ratio);
     static HJRectf alignToHeight(const HJRectf targetRect, float ratio);

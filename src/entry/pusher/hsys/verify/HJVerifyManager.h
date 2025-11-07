@@ -30,10 +30,16 @@ public:
     static napi_value tryClosePreview(napi_env env, napi_callback_info info);
     static napi_value tryOpenRecord(napi_env env, napi_callback_info info);
     static napi_value tryCloseRecord(napi_env env, napi_callback_info info);
-
+    static napi_value trySetROIOffset(napi_env env, napi_callback_info info);
     static napi_value tryGiftOpen(napi_env env, napi_callback_info info);
     static napi_value tryDoubleScreen(napi_env env, napi_callback_info info);
     static napi_value tryGiftPusher(napi_env env, napi_callback_info info);
+    
+    static napi_value tryOpenImgReceiver(napi_env env, napi_callback_info info);
+    static napi_value tryCloseImageReceiver(napi_env env, napi_callback_info info);
+    static napi_value tryGetMediaData(napi_env env, napi_callback_info info);
+    static napi_value trySetFacePoints(napi_env env, napi_callback_info info);
+    
     
     void SetNativeXComponent(std::string& id, OH_NativeXComponent* nativeXComponent);
     HJVerifyRender* GetRender(const std::string& id);
@@ -58,6 +64,7 @@ private:
     static int s_videobitrate;
     static int s_framerate;
     static int s_gopsize;
+    static bool s_roiIsenc;
     
     static int s_audioCodecId;
     static int s_audiobitrate;
@@ -65,8 +72,15 @@ private:
     static int s_samplerate;
     static int s_channels;
     
+    static bool s_debugPoint;
+    
     static std::string s_rtmpUrl;
     static std::string s_localUrl;
+    
+    static std::string s_faceuUrl;
+
+    static bool s_bGPUToRAMUsePBO;
+    static bool s_bFaceProtected;
     
     std::unordered_map<std::string, OH_NativeXComponent*> m_nativeXComponentMap;
     std::unordered_map<std::string, HJVerifyRender*> m_HJVerifyRenderMap;

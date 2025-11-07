@@ -129,9 +129,9 @@ bool HJOGRenderEnv::priIsEglSurfaceHaveWindow(void *i_window)
     }
     return bHaveWindow;
 }
-int HJOGRenderEnv::priUpdateEglSurface(const std::string &i_renderTargetInfo)
+int HJOGRenderEnv::priUpdateEglSurface(const std::string& i_renderTargetInfo, std::shared_ptr<HJOGEGLSurface>& o_eglSurface)
 {
-    int i_err = 0;
+ int i_err = 0;
     do
     {
         HJFLogi("{} renderThread priUpdateEglSurface enter i_renderTargetInfo:{}", m_insName, i_renderTargetInfo);
@@ -152,6 +152,8 @@ int HJOGRenderEnv::priUpdateEglSurface(const std::string &i_renderTargetInfo)
             {
                 if ((*it)->getWindow() == window)
                 {
+                    o_eglSurface = *it;
+                    
                     i_err = m_eglCore->EGLSurfaceRelease((*it)->getEGLSurface());
                     m_eglSurfaceQueue.erase(it);
                     
@@ -192,6 +194,29 @@ int HJOGRenderEnv::priUpdateEglSurface(const std::string &i_renderTargetInfo)
 					surfacePtr->setTargetHeight(targetHeight);
                     surfacePtr->setSurfaceType(targetInfo.type);
                     surfacePtr->setFps(targetInfo.fps);
+                    
+                    HJOGEGLCore::Wtr coreWtr = m_eglCore;
+                    surfacePtr->setMakeCurrentCb([coreWtr, surface]()
+                    {
+                        HJOGEGLCore::Ptr core = coreWtr.lock();
+                        if (core)
+                        {
+                            return core->makeCurrent(surface);
+                        }
+                        return HJ_OK;
+                    });
+                    surfacePtr->setSwapCb([coreWtr, surface]()
+                    {
+                        HJOGEGLCore::Ptr core = coreWtr.lock();
+                        if (core)
+                        {
+                            return core->swap(surface);
+                        }
+                        return HJ_OK;
+                    });
+                    
+                    o_eglSurface = surfacePtr;
+                    
 					m_eglSurfaceQueue.push_back(surfacePtr);
 					HJFLogi("{} renderThread priUpdateEglSurface eglsurfacesize:{}", m_insName, m_eglSurfaceQueue.size());
 				}
@@ -216,7 +241,6 @@ int HJOGRenderEnv::priUpdateEglSurface(const std::string &i_renderTargetInfo)
     } while (false);
     return i_err;
 }
-
 std::string HJOGRenderEnv::priGetStateInfo(int i_state)
 {
     std::string str = "unknown";
@@ -237,9 +261,9 @@ std::string HJOGRenderEnv::priGetStateInfo(int i_state)
     return str;
 }
 
-int HJOGRenderEnv::procEglSurface(const std::string &i_renderTargetInfo)
+int HJOGRenderEnv::procEglSurface(const std::string &i_renderTargetInfo, std::shared_ptr<HJOGEGLSurface>& o_eglSurface)
 {
-    return priUpdateEglSurface(i_renderTargetInfo);
+    return priUpdateEglSurface(i_renderTargetInfo, o_eglSurface);
 }
 
 //const std::shared_ptr<HJOGEGLCore>& HJOGRenderEnv::getEglCore()
@@ -287,6 +311,12 @@ int HJOGRenderEnv::priDrawEveryTarget(const HJOGEGLSurface::Ptr& i_surface, HJRe
 	} while (false);
 	return i_err;
 }
+    
+int HJOGRenderEnv::testMakeOffCurrent()
+{
+    EGLSurface eglOffSurface = m_eglCore->EGLGetOffScreenSurface();
+    return m_eglCore->makeCurrent(eglOffSurface);    
+}
 int HJOGRenderEnv::testMakeCurrent(EGLSurface i_surface)
 {
     return m_eglCore->makeCurrent(i_surface);
@@ -295,43 +325,44 @@ int HJOGRenderEnv::testSwap(EGLSurface i_surface)
 {
     return m_eglCore->swap(i_surface);
 }
-int HJOGRenderEnv::assignMakeCurrent(void *i_window)
-{
-    int i_err = HJ_OK;
-    do 
-    {
-        for (auto it = m_eglSurfaceQueue.begin(); it != m_eglSurfaceQueue.end(); ++it)
-        {
-            if ((*it)->getWindow() == i_window)
-            {
-                i_err = m_eglCore->makeCurrent((*it)->getEGLSurface());
-                break;
-            }
-        }
-    } while (false);
-    return i_err;
-}
-int HJOGRenderEnv::assignSwap(void *i_window)
-{
-    int i_err = HJ_OK;
-    do 
-    {
-        for (auto it = m_eglSurfaceQueue.begin(); it != m_eglSurfaceQueue.end(); ++it)
-        {
-            if ((*it)->getWindow() == i_window)
-            {
-                i_err = m_eglCore->swap((*it)->getEGLSurface());
-                break;
-            }
-        }        
-    } while (false);
-    return i_err;    
-}
+//int HJOGRenderEnv::assignMakeCurrent(void *i_window)
+//{
+//    int i_err = HJ_OK;
+//    do 
+//    {
+//        for (auto it = m_eglSurfaceQueue.begin(); it != m_eglSurfaceQueue.end(); ++it)
+//        {
+//            if ((*it)->getWindow() == i_window)
+//            {
+//                i_err = m_eglCore->makeCurrent((*it)->getEGLSurface());
+//                break;
+//            }
+//        }
+//    } while (false);
+//    return i_err;
+//}
+//int HJOGRenderEnv::assignSwap(void *i_window)
+//{
+//    int i_err = HJ_OK;
+//    do 
+//    {
+//        for (auto it = m_eglSurfaceQueue.begin(); it != m_eglSurfaceQueue.end(); ++it)
+//        {
+//            if ((*it)->getWindow() == i_window)
+//            {
+//                i_err = m_eglCore->swap((*it)->getEGLSurface());
+//                break;
+//            }
+//        }        
+//    } while (false);
+//    return i_err;    
+//}
 int HJOGRenderEnv::foreachRender(int i_graphFps, HJRenderEnvUpdate i_update, HJRenderEnvDraw i_draw)
 {
     int i_err = HJ_OK;
     do 
     {
+        //HJFLogi("{} foreachRender enter {}", m_insName, m_renderIdx);
 		EGLSurface eglOffSurface = m_eglCore->EGLGetOffScreenSurface();
 		i_err = m_eglCore->makeCurrent(eglOffSurface);
 		if (i_err < 0)
@@ -395,6 +426,7 @@ int HJOGRenderEnv::foreachRender(int i_graphFps, HJRenderEnvUpdate i_update, HJR
 			}
 		}
     } while (false);
+    //HJFLogi("{} foreachRender end idx:{}", m_insName, m_renderIdx);
     m_renderIdx++;
     return i_err;
 }

@@ -9,6 +9,7 @@
 
 #if defined(WINDOWS)
 #include "HJPluginAudioWORender.h"
+#include "HJPluginAudioWASRender.h"
 #endif
 
 #include "HJPluginRTMPMuxer.h"
@@ -27,5 +28,6 @@
 #include "HJPluginAVDropping.h"
 
 #include "HJPluginVideoRender.h"
+#include "HJPluginAudioRender.h"
 
 #include "HJTimeline.h"

@@ -194,6 +194,9 @@ public:
     static std::string getTimeToString();
     static std::string formatMSToString(int64_t t);
     static std::tuple<std::string, std::string, std::string> parseRtmpUrl(std::string url);
+    static void splitParam(const std::string& param, std::vector<std::pair<std::string, std::string>>& result);
+    static std::vector<std::pair<std::string, std::string>> parseUrl(const std::string& url);
+    static std::string getCoreUrl(const std::string& url);
 private:
     static bool hexIsSafe(uint8_t b) {
         return b >= ' ' && b < 128;;

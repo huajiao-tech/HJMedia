@@ -15,6 +15,9 @@
 #include "HJFLog.h"
 #include "HJNetManager.h"
 #include "HJGraphPlayerView.h"
+#include "HJLocalServer.h"
+#include "HJGlobalSettings.h"
+#include "HJMov2Live.h"
 
 #if defined(HJ_OS_WIN32)
 #include <crtdbg.h>
@@ -25,7 +28,7 @@
 
 NS_HJ_USING
 //***********************************************************************************//
-class HJApplicationImpl : public HJApplication
+class HJApplicationImpl : public HJApplication, public HJServerDelegate
 {
 public:
     using Ptr = std::shared_ptr<HJApplicationImpl>;
@@ -45,6 +48,13 @@ public:
     void onMQMonitorServer();
     void onMQMonitorClient();
     //
+    void onTestClient();
+    void onTestSever();
+    void onTestLocalServer();
+    void onTestCloseServer();
+    void onMov2Live();
+private:
+    virtual int onLocalServerNotify(HJNotification::Ptr ntfy);
 private:
     HJAppMainMenu::Ptr         m_menu = nullptr;
     HJOverlayView::Ptr         m_overlayView = nullptr;
@@ -61,6 +71,9 @@ private:
     uint64_t                    m_timerCount{0};
     std::mutex                  m_timerMutex;
 	HJNetworkSimulator::Ptr   m_networkSimulator{ nullptr };
+
+	HJDownloader::Ptr     m_downloader{ nullptr };
+	HJHTTPServer::Ptr     m_httpServer{ nullptr };
 };
 
 int HJApplicationImpl::onInit()
@@ -82,9 +95,10 @@ int HJApplicationImpl::onInit()
                     "Trans Muxer",
                     "Trans Codec",
                     "---",
-                    "Test",
-                    "TestDone",
-                    "TestTime",
+                    "TestClient",
+                    "StartServer",
+                    "CloseServer",
+                    "Mov2Live",
                     "TestJson"
                 ]
             },
@@ -126,12 +140,15 @@ int HJApplicationImpl::onInit()
                 onStreamAnalyzer();
             } else if ("Trans Muxer" == name) {
 
-            } else if ("Test" == name) {
-                //onTest();
-            } else if ("TestDone" == name) {
-                //onTestDone();
-            } else if ("TestTime" == name) {
-                //onTestTime();
+            } else if ("TestClient" == name) {
+                onTestClient();
+            } else if ("StartServer" == name) {
+                onTestLocalServer();
+            } else if ("CloseServer" == name) {
+                onTestCloseServer();
+            }
+            else if ("Mov2Live" == name) {
+                onMov2Live();
             } else if ("TestJson" == name) {
                 //onTestJson();
             }
@@ -558,6 +575,69 @@ void HJApplicationImpl::onMQMonitorClient()
     return;
 }
 
+void HJApplicationImpl::onTestClient()
+{
+    if (m_downloader) {
+		return;
+    }
+    std::string url = "http://static.s3.huajiao.com/Object.access/hj-video/Y2p6cG1mamwubXA0";
+    auto localUrl = HJMediaUtils::makeLocalUrl("E:/movies/blob/", url);
+    m_downloader = std::make_shared<HJDownloader>(url, localUrl);
+    m_downloader->setOnProgress([this](int64_t current, int64_t total) {
+        HJLogi("downloading current:{}, total:{}", current, total);
+    });
+    m_downloader->start();
+
+    return;
+}
+
+void HJApplicationImpl::onTestSever()
+{
+    if (m_httpServer){
+        return;
+    }
+ //   HJServerParams params
+	//m_httpServer = std::make_shared<HJHTTPServer>(params);
+ //   m_httpServer->start();
+
+	return;
+}
+
+void HJApplicationImpl::onTestLocalServer()
+{
+    HJParams::Ptr params = HJCreates<HJParams>();
+    (*params)["cache_dir"] = HJConcateDirectory(HJUtilitys::exeDir(), "cache_dir");
+    (*params)["cache_size"] = 600;
+    (*params)["media_dir"] = "E:/movies/blob/server";
+
+    HJLocalServer::getInstance()->init(params, [&](const HJNotification::Ptr ntfy) -> int {
+        HJFLogi("local server notify:{},{}", ntfy->getID(), ntfy->getMsg());
+        return HJ_OK;
+    });
+
+    return;
+}
+
+void HJApplicationImpl::onTestCloseServer()
+{
+    HJLocalServer::getInstance()->done();
+}
+
+void HJApplicationImpl::onMov2Live()
+{
+    auto mov2live = std::make_shared<HJMov2Live>();
+    mov2live->init("E:/movies/blob/server/zzqc.mp4");
+    mov2live->toLive("E:/movies/blob/server/zzqc_live.mp4");
+
+    return;
+}
+
+int HJApplicationImpl::onLocalServerNotify(HJNotification::Ptr ntfy)
+{
+    return HJ_OK;
+}
+
+
 #if defined(HJ_OS_MACOS)
 //-----------------------------------------------------------------------------------
 // AppDelegate
@@ -626,6 +706,11 @@ int main(int argc, const char* argv[])
     cfg.mThreadNum = 0;
     //HJFileUtil::delete_file((cfg.mLogDir + "HJLog.txt").c_str());
     HJContext::Instance().init(cfg);
+
+    HJGlobalSettings settings;
+    settings.useTLSPool = true;
+    settings.useHTTPPool = true;
+    HJGlobalSettingsManager::init(&settings);
 
     HJNetManager::registerAllNetworks();
 

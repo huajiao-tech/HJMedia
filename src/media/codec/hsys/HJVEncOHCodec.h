@@ -44,14 +44,14 @@ public:
     virtual int getFrame(HJMediaFrame::Ptr& frame) override;
     int adjustBitrate(int i_newBitrate);
     int setEof();
-    int64_t getEncIdx();
-    
+    int64_t getEncIdx();    
     NativeWindow *getNativeWindow();
 private:
     static void OnCodecError(OH_AVCodec *codec, int32_t errorCode, void *userData);
     static void OnCodecFormatChange(OH_AVCodec *codec, OH_AVFormat *format, void *userData);
     static void OnNeedInputBuffer(OH_AVCodec *codec, uint32_t index, OH_AVBuffer *buffer, void *userData);
     static void OnNewOutputBuffer(OH_AVCodec *codec, uint32_t index, OH_AVBuffer *buffer, void *userData);
+    
 
     int priStart();
     void priOnCodecError(OH_AVCodec *codec, int32_t errorCode);
@@ -60,6 +60,8 @@ private:
     static std::string s_h264mime; 
     static std::string s_h265mime;
       
+    static std::string s_roi_params_val;
+    
     HJBuffer::Ptr m_headerBuf = nullptr;
     OH_AVCodec *m_encoder = nullptr;
     NativeWindow *m_nativeWindow = nullptr;
@@ -68,6 +70,7 @@ private:
     HJRunnable m_newBufferCb = nullptr;
     bool m_bEof = false;
     int64_t m_index = 0;
+    HJRoiEncodeCb m_roiCb = nullptr;
 };
 
 NS_HJ_END

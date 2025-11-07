@@ -21,7 +21,7 @@ class VideoConfig final : public HJInterpreter {
 public:
     VideoConfig(HJYJsonObject::Ptr obj) : HJInterpreter(obj) {}
 
-    HJ_JSON_AUTO_SERIAL_DESERIAL(codecID, width, height, bitrate, frameRate, gopSize)
+    HJ_JSON_AUTO_SERIAL_DESERIAL(codecID, width, height, bitrate, frameRate, gopSize, videoIsROIEnc)
 
     int codecID;
     int width;
@@ -29,6 +29,7 @@ public:
     int bitrate;
     int frameRate;
     int gopSize;
+    bool videoIsROIEnc;
 };
 
 

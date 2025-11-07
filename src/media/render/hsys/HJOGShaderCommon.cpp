@@ -25,7 +25,7 @@ void main()
 }
 )";
 
-const std::string HJOGShaderCommon::s_fragmentCopyShader = R"(
+const std::string HJOGShaderCommon::s_fragmentCopyPreMultipleShader = R"(
 precision mediump float;
 varying vec2  v_texcood; 
 uniform sampler2D sTexture;
@@ -33,6 +33,29 @@ void main()
 {
     vec4 color = texture2D(sTexture,v_texcood);
     gl_FragColor = vec4(color.rgb * color.a, color.a);    
+}
+)";
+
+const std::string HJOGShaderCommon::s_fragmentCopyPreMultipleShaderOES = R"(
+#extension GL_OES_EGL_image_external : require
+precision mediump float;
+varying vec2  v_texcood;    
+uniform samplerExternalOES sTexture;
+void main() 
+{
+    vec4 color = texture2D(sTexture,v_texcood);
+    gl_FragColor = vec4(color.rgb * color.a, color.a);    
+}
+)"; 
+
+const std::string HJOGShaderCommon::s_fragmentCopyShader = R"(
+precision mediump float;
+varying vec2  v_texcood; 
+uniform sampler2D sTexture;
+void main()
+{
+    vec4 color = texture2D(sTexture,v_texcood);
+    gl_FragColor = vec4(color.rgb, color.a);    
 }
 )";
 
@@ -44,7 +67,7 @@ uniform samplerExternalOES sTexture;
 void main() 
 {
     vec4 color = texture2D(sTexture,v_texcood);
-    gl_FragColor = vec4(color.rgb * color.a, color.a);    
+    gl_FragColor = vec4(color.rgb, color.a);    
 }
 )"; 
 

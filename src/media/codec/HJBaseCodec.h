@@ -107,10 +107,10 @@ public:
         return m_error;
     }
 public:
-    static HJBaseCodec::Ptr createADecoder(int type = 0);
+    static HJBaseCodec::Ptr createADecoder(int type = HJDEVICE_TYPE_NONE);
     static HJBaseCodec::Ptr createVDecoder(HJDeviceType type = HJDEVICE_TYPE_NONE);
     static HJBaseCodec::Ptr createDecoder(const HJMediaType mediaType, HJDeviceType type = HJDEVICE_TYPE_NONE);
-    static HJBaseCodec::Ptr createAEncoder(int type = 0);
+    static HJBaseCodec::Ptr createAEncoder(int type = HJDEVICE_TYPE_NONE);
     static HJBaseCodec::Ptr createVEncoder(HJDeviceType type = HJDEVICE_TYPE_NONE);
     static HJBaseCodec::Ptr createEncoder(const HJMediaType mediaType, HJDeviceType type = HJDEVICE_TYPE_NONE);
 protected:

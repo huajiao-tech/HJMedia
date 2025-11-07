@@ -24,7 +24,7 @@ public:
 	virtual int deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame, size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_videoKeyFrames = nullptr, int64_t* o_audioSamples = nullptr) override;
 
 	virtual void onTimelineUpdated() {
-		internalUpdated();
+		postTask();
 	}
 /*
 	virtual int start();

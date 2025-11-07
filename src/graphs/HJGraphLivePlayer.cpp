@@ -25,6 +25,7 @@ HJGraphLivePlayer::HJGraphLivePlayer(const std::string& i_name, size_t i_identif
     : HJGraphPlayer(i_name, i_identify)
 {
     m_cacheObserver = HJCreates<HJCacheObserver>();
+    m_cacheObserver->setName(i_name);
 }
 
 HJGraphLivePlayer::~HJGraphLivePlayer()
@@ -145,7 +146,8 @@ int HJGraphLivePlayer::internalInit(HJKeyStorage::Ptr i_param)
             m_pluginStatuses["speedControl"].store(HJSTATUS_NONE);
             IF_FAIL_BREAK(ret = connectPlugins(m_audioResampler, m_speedControl, HJMEDIA_TYPE_AUDIO), ret);
 #if defined (WINDOWS)
-            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWORender::Create<HJPluginAudioWORender>(AUDIORENDER, graphInfo), HJErrFatal);
+//            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWORender::Create<HJPluginAudioWORender>(AUDIORENDER, graphInfo), HJErrFatal);
+            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWASRender::Create<HJPluginAudioWASRender>(AUDIORENDER, graphInfo), HJErrFatal);
 #endif
 #if defined (HarmonyOS)
             IF_FALSE_BREAK(m_audioRender = HJPluginAudioOHRender::Create<HJPluginAudioOHRender>(AUDIORENDER, graphInfo), HJErrFatal);
@@ -208,7 +210,9 @@ int HJGraphLivePlayer::internalInit(HJKeyStorage::Ptr i_param)
         if (audioInfo != nullptr) {
             param = std::make_shared<HJKeyStorage>();
             (*param)["audioInfo"] = audioInfo;
+#if !defined (WINDOWS)
             (*param)["thread"] = m_renderThread;
+#endif
             (*param)["timeline"] = m_timeline;
             (*param)["pluginListener"] = pluginListener;
             IF_FAIL_BREAK(ret = m_audioRender->init(param), ret);

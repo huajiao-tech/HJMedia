@@ -330,6 +330,7 @@ public:
 public:
     static HJMediaFrame::Ptr makeVideoFrame(const HJVideoInfo::Ptr& info = nullptr);
     static HJMediaFrame::Ptr makeAudioFrame(const HJAudioInfo::Ptr& info = nullptr);
+    static HJMediaFrame::Ptr makeAudioFrameWithSample(const HJAudioInfo::Ptr& info, const uint8_t* data, size_t size, int64_t pts, int64_t dts, const HJTimeBase& tb = HJ_TIMEBASE_MS);
     static HJMediaFrame::Ptr makeSilenceAudioFrame(const HJAudioInfo::Ptr info = nullptr);
     static HJMediaFrame::Ptr makeSilenceAudioFrame(int channel, int sampleRate, int sampleFmt, int nbSamples = HJ_FRAME_SAMPLES_DEFAULT);
     static HJMediaFrame::Ptr makeDefaultSilenceAudioFrame();

@@ -65,6 +65,7 @@ typedef int32_t HJRet;
 #define HJErrAlreadyInited     HJDefErrID(29)
 #define HJErrAlreadyDone       HJDefErrID(30)
 #define HJErrNotInited         HJDefErrID(31)
+#define HJErrInvalidFile       HJDefErrID(32)
 
 //ffmpeg
 #define HJErrFFNewIC           HJDefErrID(1000)
@@ -99,6 +100,11 @@ typedef int32_t HJRet;
 #define HJErrCodecParams       HJDefErrID(3005)
 #define HJErrCodecEncode       HJDefErrID(3006)
 #define HJErrCodecDecode       HJDefErrID(3007)
+#define HJErrCodecConfig       HJDefErrID(3008)
+#define HJErrCodecCallback     HJDefErrID(3009)
+#define HJErrCodecPrepare      HJDefErrID(3010)
+#define HJErrCodecStart        HJDefErrID(3011)
+#define HJErrCodecBuffer       HJDefErrID(3012)
 
 //IO
 #define HJErrIO                HJDefErrID(4000)

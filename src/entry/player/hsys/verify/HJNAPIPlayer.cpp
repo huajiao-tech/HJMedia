@@ -15,6 +15,10 @@
 #include "HJEntryContext.h"
 #include "HJNetManager.h"
 
+#if defined (HarmonyOS)
+    #include "HJGPUToRAM.h"
+#endif
+
 NS_HJ_BEGIN
 
 std::mutex HJNAPIPlayer::s_playerMutex;
@@ -68,6 +72,9 @@ void HJNAPIPlayer::closePlayer()
         priSetWindow(m_cacheWindow, 0, 0, HJTargetState_Destroy, HJOGEGLSurfaceType_Default, m_renderFps);
         m_cacheWindow = nullptr;
     }    
+    
+    closeNativeSource();
+    
     HJFLogi("{} close player enter", getInsName());
     if (m_exitThread)
     {
@@ -187,6 +194,16 @@ int HJNAPIPlayer::priCreateRenderGraph(const HJPlayerInfo &i_playerInfo)
                 type = HJ_RENDER_NOTIFY_NEED_SURFACE;
                 break;    
             }
+            case HJVIDEORENDERGRAPH_EVENT_FACEU_ERROR:
+            {
+                type = HJ_RENDER_NOTIFY_FACEU_ERROR;
+                break;
+            }
+            case HJVIDEORENDERGRAPH_EVENT_FACEU_COMPLETE:
+            {
+                type = HJ_RENDER_NOTIFY_FACEU_COMPLETE;
+                break;
+            }
             default:
             {
                 break;
@@ -200,6 +217,7 @@ int HJNAPIPlayer::priCreateRenderGraph(const HJPlayerInfo &i_playerInfo)
         };
         (*param)["renderListener"] = (HJListener)renderListener;
         HJ_CatchMapPlainSetVal(param, int, "InsIdx", (int)m_curIdx);
+        HJ_CatchMapPlainSetVal(param, bool, "IsMirror", (bool)i_playerInfo.m_bSplitScreenMirror);  //video decode keyframe push
         i_err = m_prioGraphProc->init(param);
         if (i_err < 0)
         {
@@ -289,7 +307,7 @@ int HJNAPIPlayer::priCreatePlayerGraph(const HJPlayerInfo &i_playerInfo)
             {
             case HJ_PLUGIN_NOTIFY_VIDEORENDER_FIRST_FRAME:
                 type = HJ_PLAYER_NOTIFY_VIDEO_FIRST_RENDER;
-                HJFLogi("{} player notify id:{}, msg:{}", this->getInsName(), HJPluginNofityTypeToString((HJPluginNofityType)ntf->getID()), ntf->getMsg());
+                HJFLogi("{} player notify HJ_PLUGIN_NOTIFY_VIDEORENDER_FIRST_FRAME id:{}, msg:{}", this->getInsName(), HJPluginNofityTypeToString((HJPluginNofityType)ntf->getID()), ntf->getMsg());
                 break;
             case HJ_PLUGIN_NOTIFY_AUDIORENDER_FRAME:
                 type = HJ_PLAYER_NOTIFY_AUDIO_FRAME;
@@ -297,7 +315,7 @@ int HJNAPIPlayer::priCreatePlayerGraph(const HJPlayerInfo &i_playerInfo)
                 break;
             case HJ_PLUGIN_NOTIFY_EOF:
                 type = HJ_PLAYER_NOTIFY_EOF;
-                HJFLogi("{} player notify id:{}, msg:{}", this->getInsName(), HJPluginNofityTypeToString((HJPluginNofityType)ntf->getID()), ntf->getMsg());
+                HJFLogi("{} player notify HJ_PLAYER_NOTIFY_EOF id:{}, msg:{}", this->getInsName(), HJPluginNofityTypeToString((HJPluginNofityType)ntf->getID()), ntf->getMsg());
                 break;
             default:
                 break;
@@ -341,8 +359,7 @@ int HJNAPIPlayer::openPlayer(const HJPlayerInfo &i_playerInfo, HJNAPIPlayerNotif
         
         m_notify = i_notify;
         
-        HJFLogi("{} url:{} fps:{} codecType:{} sourceType:{} playerType:{} ", getInsName(), i_playerInfo.m_url, i_playerInfo.m_fps, (int)i_playerInfo.m_videoCodecType, (int)i_playerInfo.m_sourceType, (int)i_playerInfo.m_playerType);
-        
+        HJFLogi("{} url:{} fps:{} codecType:{} sourceType:{} playerType:{} version:{}", getInsName(), i_playerInfo.m_url, i_playerInfo.m_fps, (int)i_playerInfo.m_videoCodecType, (int)i_playerInfo.m_sourceType, (int)i_playerInfo.m_playerType, HJ_VERSION);
         if (i_statInfo.bUseStat)
         {
             HJFLogi("{} stat start...", getInsName());
@@ -474,6 +491,124 @@ void HJNAPIPlayer::closeEffect(int i_effectType)
     if (m_prioGraphProc)
     {
         m_prioGraphProc->closeEffect(param);
+    }    
+}
+std::shared_ptr<HJRGBAMediaData> HJNAPIPlayer::acquireNativeSource()
+{
+    HJRGBAMediaData::Ptr data = nullptr;
+    if (m_gpuToRamPtr)
+    {
+        data = m_gpuToRamPtr->getMediaRGBAData();
+    }    
+    return data;
+}
+int HJNAPIPlayer::openFaceu(const std::string &i_faceuUrl)
+{
+    int i_err = HJ_OK;
+    do 
+    {
+        if (m_prioGraphProc)
+        {
+            HJBaseParam::Ptr param = HJBaseParam::Create();
+            HJ_CatchMapPlainSetVal(param, std::string, "faceuUrl", i_faceuUrl);
+            i_err = m_prioGraphProc->openFaceu(param);
+            if (i_err < 0)
+            {
+                break;
+            }
+        }
+    } while (false);
+    return i_err;    
+}
+void HJNAPIPlayer::closeFaceu()
+{
+    if (m_prioGraphProc)
+    {   
+        m_prioGraphProc->closeFaceu();
+    }   
+}
+
+int HJNAPIPlayer::openNativeSource(bool i_bUsePBO)
+{
+    int i_err = HJ_OK;
+    do 
+    {
+        if (!m_prioGraphProc)
+        {
+            i_err = -1;
+            break;
+        }
+        if (!m_gpuToRamPtr)
+        {
+            HJFLogi("openNativeSource enter i_bUsePBO:{}", i_bUsePBO);
+            HJGPUToRAMType type = i_bUsePBO ? HJGPUToRAMType_PBO : HJGPUToRAMType_ImageReceiver;
+            m_gpuToRamPtr = HJBaseGPUToRAM::CreateGPUToRAM(type);
+
+            HJBaseParam::Ptr param = HJBaseParam::Create();
+            if (!i_bUsePBO)
+            {
+                HJGPUToRAMImageReceiver::HOImageReceiverSurfaceCb surfaceCb = [this](void *i_window, int i_width, int i_height, bool i_bCreate)
+                {
+                    int state = 0;
+                    if (i_bCreate)
+                    {
+                        state = HJTargetState_Create;
+                    }
+                    else
+                    {
+                        state = HJTargetState_Destroy;
+                    }
+                    return priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_FaceDetect, 30);
+                };
+                HJ_CatchMapSetVal(param, HJGPUToRAMImageReceiver::HOImageReceiverSurfaceCb, surfaceCb);
+            }
+
+            i_err = m_gpuToRamPtr->init(param);
+            if (i_err < 0)
+            {
+                break;
+            }    
+    
+            if (i_bUsePBO)
+            {
+                HJBaseGPUToRAM::Wtr wtr = m_gpuToRamPtr;
+                m_prioGraphProc->openPBO([wtr](HJSPBuffer::Ptr i_buffer, int width, int height)
+                {
+                    HJBaseGPUToRAM::Ptr gpuToRamPtr = wtr.lock();
+                    if (gpuToRamPtr)
+                    {
+                        gpuToRamPtr->setMediaData(i_buffer, width, height);
+                    }
+                    return HJ_OK;
+                });
+            }
+                           
+            m_prioGraphProc->openFaceMgr();
+        }
+    } while (false);
+    HJFLogi("openNativeSource end i_err:{} i_bUsePBO:{}", i_err, i_bUsePBO);
+    return i_err;
+}
+void HJNAPIPlayer::closeNativeSource()
+{
+    if (m_prioGraphProc)
+    {
+        m_prioGraphProc->closePBO();
+        m_prioGraphProc->closeFaceMgr();
+    }
+    
+    if (m_gpuToRamPtr)
+    {
+        m_gpuToRamPtr->done();
+        m_gpuToRamPtr = nullptr;
+    }   
+}
+
+void HJNAPIPlayer::setFaceInfo(HJFacePointsWrapper::Ptr faceInfo)
+{
+    if (m_prioGraphProc)
+    {
+        m_prioGraphProc->setFaceInfo(faceInfo);
     }    
 }
 

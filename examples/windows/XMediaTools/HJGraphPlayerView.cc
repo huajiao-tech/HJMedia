@@ -7,6 +7,7 @@
 #include "HJContext.h"
 #include "HJFLog.h"
 #include "HJFFUtils.h"
+#include "HJGlobalSettings.h"
 //#include "HJByteBuffer.h"
 //#include "IconFontCppHeaders/IconsFontAwesome5.h"
 
@@ -47,11 +48,11 @@ int HJGraphPlayerView::init(const std::string info)
         //m_mediaUrl = "https://live-replay-5.test.huajiao.com/psegments/z1.huajiao-live.HJ_0_qiniu_5_huajiao-live__h265_45752749_1730776617184_3550_T/1730776662-1730776884.m3u8";
         //m_mediaUrl = "https://file-21.huajiao.com/record/main/HJ_0_ali_2_main__h265_271891644_1751257106161_8625_O/replay.m3u8"; 
         //m_mediaUrl = "http://www.w3school.com.cn/example/html5/mov_bbb.mp4";
-        m_mediaUrl = "https://live-pull-3.huajiao.com/main/HJ_0_tc_3_main__h265_272671289_1758075094723_8119_O.flv?txSecret=ee5355aac3911605d50df5967a5cab67&txTime=68CB6A66";
+        //m_mediaUrl = "exasync:https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h265_273151831_1760953590409_3574_O.flv?auth_key=1761040119-0-0-1a394c6054c5f366ca0fc017cbf639bb";
         //m_mediaUrl = "E:/movies/replaym3u8/index.m3u8";
         //m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main_a_h264_270100274_1732602713389_8267_O.flv?auth_key=1732694308-0-0-d6f19de17979da5df6536153270dc20f";
         //m_mediaUrl = "https://al2-flv.live.huajiao.com/live_huajiao_h265/_LC_AL2_non_h265_SD_26624183417212690010010622_OX.flv";//"E:/js/820827.crdownload.flv";
-        //m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_97810010_1733716541801_3403_O.flv?auth_key=1733815629-0-0-e1b5d5cd604208f609de1e6c165c5c8d";
+        m_mediaUrl = "https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h265_97986049_1761187545373_8986_O.flv?auth_key=1761275415-0-0-42ee16d4ef6814f2090b0df73433905d";
         //m_mediaUrl = "http://localhost:8080/live/livestream.flv";
 #elif defined(HJ_OS_MACOS)
         m_mediaUrl = "/Users/zhiyongleng/works/movies/720x1280.mp4";
@@ -1077,7 +1078,16 @@ void HJGraphPlayerView::onCreatePlayer()
     m_player->setSettings(settings);
 
     m_player->init(param);
-    HJMediaUrl::Ptr mediaUrl = std::make_shared<HJMediaUrl>(m_mediaUrl);
+ //   auto coreUrl = HJUtilitys::getCoreUrl(m_mediaUrl);
+	//auto suffix = HJUtilitys::getSuffix(coreUrl);
+    auto localUrl = HJMediaUtils::makeLocalUrl("E:/movies/blob/", m_mediaUrl); //HJFMT("E:/movies/blob/{}{}", HJUtilitys::hash(m_mediaUrl), suffix);
+    HJMediaUrl::Ptr mediaUrl = nullptr;
+    if (HJFileUtil::fileExist(localUrl.c_str())) {
+        mediaUrl = std::make_shared<HJMediaUrl>(localUrl);
+    } else {
+        mediaUrl = std::make_shared<HJMediaUrl>(m_mediaUrl);
+        (*mediaUrl)["local_url"] = localUrl;
+    }
     m_player->openURL(mediaUrl);
 
     return;
@@ -1537,23 +1547,22 @@ void HJGraphPlayerView::onTestByteBuffer()
 
 void HJGraphPlayerView::onNetBlock(const std::string& tips)
 {
-    //if (!m_pusher) {
-    //    return;
-    //}
-    //if(tips == "block") {
-    //    m_pusher->setNetBlock(false);
-    //} else {
-    //    m_pusher->setNetBlock(true);
-    //}
-
-    if (!m_rtmpMuxer) {
-        return;
-    }
     if(tips == "block") {
-        m_rtmpMuxer->setNetBlock(false);
+        HJGlobalSettingsManager::setNetBlockEnable(false);
     } else {
-        m_rtmpMuxer->setNetBlock(true);
+        HJGlobalSettingsManager::setNetBlockEnable(true);
     }
+
+    if (m_rtmpMuxer) 
+    {
+        if (tips == "block") {
+            m_rtmpMuxer->setNetBlock(false);
+        }
+        else {
+            m_rtmpMuxer->setNetBlock(true);
+        }
+    }
+
     return;
 }
 void HJGraphPlayerView::onDataBlock(const std::string& tips)

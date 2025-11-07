@@ -397,7 +397,7 @@ int exasync_open(URLContext* h, const char* arg, int flags, AVDictionary** optio
 		if (e) {
 			std::string blobUrl = std::string(e->value);
 			HJXIOBlob* blob = HJCreator::createp<HJXIOBlob>();
-			res = blob->open(std::make_shared<HJUrl>(blobUrl, HJXFMode_WONLY));
+			res = blob->open(std::make_shared<HJUrl>(blobUrl, HJ_XIO_WRITE));
 			if (HJ_OK != res) {
 				HJFLoge("error, blob open failed:{}", res);
 				return res;

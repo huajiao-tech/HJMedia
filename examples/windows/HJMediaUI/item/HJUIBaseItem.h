@@ -11,6 +11,7 @@ typedef enum HJUIItemType
 	HJUIItemType_PlayerCom,
 	HJUIItemType_PlayerPlugin,
 	HJUIItemType_YuvRender,
+	HJUIItemType_SharedMemory,
 	HJUIItemType_Test,
 	
 } HJUIItemType;

@@ -1061,79 +1061,79 @@ void hjtls_link_set_proc_info(const char* category, const char* key, const int64
 }
 
 /////////////////////////////////////////////////////////////////////////////
-#if defined(HJ_OS_DARWIN)
-static int openssl_init = 0;
-
-#if HAVE_THREADS && OPENSSL_VERSION_NUMBER < 0x10100000L
-#include <openssl/crypto.h>
-pthread_mutex_t *openssl_mutexes;
-static void openssl_lock(int mode, int type, const char *file, int line)
-{
-    if (mode & CRYPTO_LOCK)
-        pthread_mutex_lock(&openssl_mutexes[type]);
-    else
-        pthread_mutex_unlock(&openssl_mutexes[type]);
-}
-#if !defined(WIN32) && OPENSSL_VERSION_NUMBER < 0x10000000
-static unsigned long openssl_thread_id(void)
-{
-    return (intptr_t) pthread_self();
-}
-#endif
-#endif
-
-int ff_openssl_init(void)
-{
-    ff_lock_avformat();
-    if (!openssl_init) {
-        /* OpenSSL 1.0.2 or below, then you would use SSL_library_init. If you are
-         * using OpenSSL 1.1.0 or above, then the library will initialize
-         * itself automatically.
-         * https://wiki.openssl.org/index.php/Library_Initialization
-         */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-        SSL_library_init();
-        SSL_load_error_strings();
-#endif
-#if HAVE_THREADS && OPENSSL_VERSION_NUMBER < 0x10100000L
-        if (!CRYPTO_get_locking_callback()) {
-            int i;
-            openssl_mutexes = (pthread_mutex_t *)av_malloc_array(sizeof(pthread_mutex_t), CRYPTO_num_locks());
-            if (!openssl_mutexes) {
-                ff_unlock_avformat();
-                return AVERROR(ENOMEM);
-            }
-
-            for (i = 0; i < CRYPTO_num_locks(); i++)
-                pthread_mutex_init(&openssl_mutexes[i], NULL);
-            CRYPTO_set_locking_callback(openssl_lock);
-#if !defined(WIN32) && OPENSSL_VERSION_NUMBER < 0x10000000
-            CRYPTO_set_id_callback(openssl_thread_id);
-#endif
-        }
-#endif
-    }
-    openssl_init++;
-    ff_unlock_avformat();
-
-    return 0;
-}
-
-void ff_openssl_deinit(void)
-{
-    ff_lock_avformat();
-    openssl_init--;
-    if (!openssl_init) {
-#if HAVE_THREADS && OPENSSL_VERSION_NUMBER < 0x10100000L
-        if (CRYPTO_get_locking_callback() == openssl_lock) {
-            int i;
-            CRYPTO_set_locking_callback(NULL);
-            for (i = 0; i < CRYPTO_num_locks(); i++)
-                pthread_mutex_destroy(&openssl_mutexes[i]);
-            av_free(openssl_mutexes);
-        }
-#endif
-    }
-    ff_unlock_avformat();
-}
-#endif //HJ_OS_DARWIN
+//#if defined(HJ_OS_DARWIN)
+//static int openssl_init = 0;
+//
+//#if HAVE_THREADS && OPENSSL_VERSION_NUMBER < 0x10100000L
+//#include <openssl/crypto.h>
+//pthread_mutex_t *openssl_mutexes;
+//static void openssl_lock(int mode, int type, const char *file, int line)
+//{
+//    if (mode & CRYPTO_LOCK)
+//        pthread_mutex_lock(&openssl_mutexes[type]);
+//    else
+//        pthread_mutex_unlock(&openssl_mutexes[type]);
+//}
+//#if !defined(WIN32) && OPENSSL_VERSION_NUMBER < 0x10000000
+//static unsigned long openssl_thread_id(void)
+//{
+//    return (intptr_t) pthread_self();
+//}
+//#endif
+//#endif
+//
+//int ff_openssl_init(void)
+//{
+//    ff_lock_avformat();
+//    if (!openssl_init) {
+//        /* OpenSSL 1.0.2 or below, then you would use SSL_library_init. If you are
+//         * using OpenSSL 1.1.0 or above, then the library will initialize
+//         * itself automatically.
+//         * https://wiki.openssl.org/index.php/Library_Initialization
+//         */
+//#if OPENSSL_VERSION_NUMBER < 0x10100000L
+//        SSL_library_init();
+//        SSL_load_error_strings();
+//#endif
+//#if HAVE_THREADS && OPENSSL_VERSION_NUMBER < 0x10100000L
+//        if (!CRYPTO_get_locking_callback()) {
+//            int i;
+//            openssl_mutexes = (pthread_mutex_t *)av_malloc_array(sizeof(pthread_mutex_t), CRYPTO_num_locks());
+//            if (!openssl_mutexes) {
+//                ff_unlock_avformat();
+//                return AVERROR(ENOMEM);
+//            }
+//
+//            for (i = 0; i < CRYPTO_num_locks(); i++)
+//                pthread_mutex_init(&openssl_mutexes[i], NULL);
+//            CRYPTO_set_locking_callback(openssl_lock);
+//#if !defined(WIN32) && OPENSSL_VERSION_NUMBER < 0x10000000
+//            CRYPTO_set_id_callback(openssl_thread_id);
+//#endif
+//        }
+//#endif
+//    }
+//    openssl_init++;
+//    ff_unlock_avformat();
+//
+//    return 0;
+//}
+//
+//void ff_openssl_deinit(void)
+//{
+//    ff_lock_avformat();
+//    openssl_init--;
+//    if (!openssl_init) {
+//#if HAVE_THREADS && OPENSSL_VERSION_NUMBER < 0x10100000L
+//        if (CRYPTO_get_locking_callback() == openssl_lock) {
+//            int i;
+//            CRYPTO_set_locking_callback(NULL);
+//            for (i = 0; i < CRYPTO_num_locks(); i++)
+//                pthread_mutex_destroy(&openssl_mutexes[i]);
+//            av_free(openssl_mutexes);
+//        }
+//#endif
+//    }
+//    ff_unlock_avformat();
+//}
+//#endif //HJ_OS_DARWIN

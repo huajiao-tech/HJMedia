@@ -6,6 +6,11 @@
 #include "HJXIOFile.h"
 
 NS_HJ_BEGIN
+const std::map<int, int> HJXIOFile::XIO_FILE_MODE_MAPS = {
+	{HJ_XIO_READ, HJXF_MODE_RONLY},
+	{HJ_XIO_WRITE, HJXF_MODE_WONLY},
+	{HJ_XIO_RW, HJXF_MODE_RW}
+};
 //***********************************************************************************//
 HJXIOFile::HJXIOFile()
 {
@@ -26,24 +31,27 @@ int HJXIOFile::open(HJUrl::Ptr url)
 		return res;
 	}
 	m_file = std::make_unique<HJFStream>();
+	m_size = 0;
 	const char* path = m_url->getUrl().c_str();
-	std::ios::openmode mode = m_url->getMode();
-    if (HJXFMode_CREATE == mode || HJXFMode_WONLY == mode) {
-//#if !defined(HJ_OS_DARWIN)
-//        mode |= std::ios::_Noreplace;
-//#endif
-    }
-	m_file->open(path, mode);
+	std::ios::openmode fmode = xioToFMode(m_url->getMode());
+	m_file->open(path, fmode);
 	if (!m_file->is_open()) {
 		HJLoge("error, file:" + m_url->getUrl() + " maybe not exist");
 		return HJErrNotFind;
 	}
-    checkState();
-	seek(0, std::ios::end);
-    checkState();
-	m_size = tell();
-    checkState();
-	seek(0, std::ios::beg);
+
+	int mode = m_url->getMode();
+	if (mode == HJ_XIO_READ || mode == HJ_XIO_RW) {
+		if (HJ_OK != seek(0, std::ios::end)) {
+			HJLoge("seek to end failed.");
+			return HJErrIOSeek;
+		}
+		m_size = tell();
+		if (HJ_OK != seek(0, std::ios::beg)) {
+			HJLoge("seek to beg failed.");
+			return HJErrIOSeek;
+		}
+	}
 
 	return res;
 }
@@ -61,13 +69,8 @@ int HJXIOFile::read(void* buffer, size_t cnt)
 	if (!m_file || !buffer) {
 		return HJErrIORead;
 	}
-	int rdcnt = 0;
 	m_file->read((char *)buffer, cnt);
-	rdcnt = (int)m_file->gcount();
-	if (!m_file->good()) {
-		rdcnt = 0;
-	}
-	return rdcnt;
+	return (int)m_file->gcount();
 }
 
 int HJXIOFile::write(const void* buffer, size_t cnt)
@@ -77,8 +80,12 @@ int HJXIOFile::write(const void* buffer, size_t cnt)
 	}
 	m_file->write((const char*)buffer, cnt);
 	if (!m_file->good()){
-		cnt = 0;
+		return HJErrIOWrite;
 	}
+    int64_t pos = tell();
+    if (pos > m_size) {
+        m_size = pos;
+    }
 	return (int)cnt;
 }
 
@@ -90,7 +97,7 @@ int HJXIOFile::seek(int64_t offset, int whence)
     std::ios::openmode mode = m_url->getMode();
     std::ios::seekdir dir = (std::ios::seekdir)whence;
     checkState();
-	if (mode == HJXFMode_WONLY) {
+	if (mode == HJXF_MODE_WONLY) {
 		m_file->seekp(offset, dir);
 	} else {
 		m_file->seekg(offset, dir);
@@ -120,7 +127,7 @@ int64_t HJXIOFile::tell()
 	size_t lar = 0;
 	std::ios::openmode mode = m_url->getMode();
     checkState();
-	if (mode == HJXFMode_WONLY) {
+	if (mode == HJXF_MODE_WONLY) {
 		lar = m_file->tellp();
 	}else {
 		lar = m_file->tellg();
@@ -135,14 +142,10 @@ int64_t HJXIOFile::size()
 
 int HJXIOFile::checkState()
 {
-    int res = HJ_OK;
-    if (m_file->fail()) {
-        //std::ios::iostate stat = m_file->rdstate();
-        if(m_file->fail() || m_file->bad()) {
-            HJLoge("checkState error, stat:" + HJ2STR(m_file->rdstate()));
-            res = HJErrIOFail;
-        }
+    if (m_file->fail() || m_file->bad()) {
+        HJLoge("checkState error, stat:" + HJ2STR(m_file->rdstate()));
         m_file->clear();
+        return HJErrIOFail;
     }
     return HJ_OK;
 }
@@ -150,6 +153,16 @@ int HJXIOFile::checkState()
 bool HJXIOFile::eof()
 {
     return (m_file->eof() || (tell() >= m_size) ) ? true : false;
+}
+
+int HJXIOFile::xioToFMode(int mode)
+{
+	int flags = HJXF_MODE_RW;
+	auto it = XIO_FILE_MODE_MAPS.find(mode);
+	if (it != XIO_FILE_MODE_MAPS.end()) {
+		flags = it->second;
+	}
+	return flags;
 }
 
 NS_HJ_END

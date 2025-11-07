@@ -21,16 +21,18 @@ export function isVideoStabilizationModeSupported(session: camera.VideoSession, 
 export function setVideoStabilizationMode(session: camera.VideoSession): boolean {
   let mode: camera.VideoStabilizationMode = camera.VideoStabilizationMode.AUTO;
   // Check if video stabilization is supported.
-  let isSupported: boolean = isVideoStabilizationModeSupported(session, mode);
-  if (isSupported) {
-    Logger.info(TAG, `setVideoStabilizationMode: ${mode}`);
-    session.setVideoStabilizationMode(mode);
-    let activeVideoStabilizationMode = session.getActiveVideoStabilizationMode();
-    Logger.info(TAG, `activeVideoStabilizationMode: ${activeVideoStabilizationMode}`);
-  } else {
-    Logger.info(TAG, `videoStabilizationMode: ${mode} is not support`);
-  }
-  return isSupported;
+  //6.0.0 front camera, if open stabilization, the screen is not display;
+  // let isSupported: boolean = isVideoStabilizationModeSupported(session, mode);
+  // if (isSupported) {
+  //   Logger.info(TAG, `setVideoStabilizationMode: ${mode}`);
+  //   session.setVideoStabilizationMode(mode);
+  //   let activeVideoStabilizationMode = session.getActiveVideoStabilizationMode();
+  //   Logger.info(TAG, `activeVideoStabilizationMode: ${activeVideoStabilizationMode}`);
+  // } else {
+  //   Logger.info(TAG, `videoStabilizationMode: ${mode} is not support`);
+  // }
+  // return isSupported;
+  return true;
 }
 
 export function getSupportedColorSpaces(session: camera.VideoSession): Array<colorSpaceManager.ColorSpace> {

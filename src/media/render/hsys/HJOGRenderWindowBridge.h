@@ -1,9 +1,8 @@
 #pragma once
 
 #include "HJPrerequisites.h"
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #include "HJTransferInfo.h"
-#include "HJOGCopyShaderStrip.h"
 #include <deque>
 #if defined(HarmonyOS)
 #include <EGL/egl.h>
@@ -18,6 +17,7 @@
 
 NS_HJ_BEGIN
 
+using HJBridgePixelCb = std::function<int(unsigned char *i_pixel, int i_stride)>;
 typedef enum HJOGRenderWindowBridgeState
 {
     HJOGRenderWindowBridgeState_Idle = 0,
@@ -45,7 +45,7 @@ public:
     int draw(HJTransferRenderModeInfo::Ptr i_renderModeInfo, int i_targetWidth, int i_targetHeight);
     int getSurfaceId(uint64_t &o_surfaceId) const;
     int produceFromPixel(HJTransferRenderModeInfo::Ptr i_renderModeInfo, uint8_t* i_pData[3], int i_size[3], int i_width, int i_height);
-    
+    int procPixel(HJBridgePixelCb i_func, int i_width, int i_height);
     bool IsStateAvaiable();
     bool IsStateReady();
     float *getTexMatrix()

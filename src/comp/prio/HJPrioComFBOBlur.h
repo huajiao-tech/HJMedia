@@ -3,7 +3,7 @@
 #if defined(HarmonyOS)
 #include "HJPrioCom.h"
 #include "HJPrioComFBOBase.h"
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 
 NS_HJ_BEGIN
 

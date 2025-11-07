@@ -16,6 +16,7 @@
 !*.mm
 
 !*.sh
+!*.bat
 !DEPS
 !*.huajiao
 !COPYING.LGPLv2.1
@@ -70,6 +71,6 @@
 .vscode/
 .idea/
 third_party/
-build/
-build-windows-x64/
-build_harmony/
+build*/
+GEMINI.md
+AGENT.md

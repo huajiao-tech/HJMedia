@@ -54,12 +54,19 @@ export struct PlayerXComponent {
   playerXComponentController: PlayerXComponentController = new PlayerXComponentController(this.playerXComponentStore)
 
   aboutToAppear(): void {
+    //fixme lfs
+    let playerType = HJPlayerType.HJPlayerType_VOD;
+    if (this.url.startsWith("http://") || this.url.startsWith("https://")) {
+      playerType = HJPlayerType.HJPlayerType_LIVESTREAM;
+    }
+
     this.playerXComponentStore.init({
       url: this.url,
       fps: 30,
       videoCodecType: HJPlayerVideoCodecType.HJPlayerVideoCodecType_OHCODEC,
       sourceType: this.sourceType,
-      playerType: this.playerType
+      playerType: playerType,
+      bSplitScreenMirror: false,
     })
     this.playerXComponentStore.dispatch(new OpenAction())
   }

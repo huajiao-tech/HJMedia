@@ -106,7 +106,6 @@ int HJPluginCapturer::initCapturer(const HJStreamInfo::Ptr& i_streamInfo)
 	}
 	auto streamInfo = i_streamInfo->dup();
 	(*streamInfo)["newBufferCb"] = (HJRunnable)[=] {
-//		internalUpdated();
 		runTask();
 	};
 

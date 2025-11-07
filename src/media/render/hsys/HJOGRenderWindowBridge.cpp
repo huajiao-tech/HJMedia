@@ -11,7 +11,7 @@
 #include <GLES3/gl3.h>
 #include <GLES2/gl2ext.h>    
 #include <sys/mman.h>
-#include "HJOGCopyShaderStrip.h"
+#include "HJOGBaseShader.h"
 #endif
 
 #include "HJOGRenderWindowBridge.h"
@@ -30,6 +30,7 @@ void HJOGRenderWindowBridge::priOnFrameAvailable(void *context)
 {
     HJOGRenderWindowBridge* the = static_cast<HJOGRenderWindowBridge *>(context);
     the->priSetAvailable();
+    //HJFLogi("priOnFrameAvailable enter");
 }
 
 void HJOGRenderWindowBridge::priSetAvailable()
@@ -68,6 +69,7 @@ int HJOGRenderWindowBridge::init()
     int i_err = 0;
     do          
     {
+		HJFLogi("{}, init enter", m_insName);
 #if defined(HarmonyOS)
         glGenTextures(1, &m_texture);
         m_bTextureReady = true;
@@ -95,6 +97,7 @@ int HJOGRenderWindowBridge::init()
         m_nativeWindow = OH_NativeImage_AcquireNativeWindow(m_nativeImage);
 #endif
     } while (false);
+	HJFLogi("{}, init end i_err:{}", m_insName, i_err);
     return i_err;
 }
 void HJOGRenderWindowBridge::done()
@@ -265,7 +268,72 @@ int HJOGRenderWindowBridge::draw(HJTransferRenderModeInfo::Ptr i_renderModeInfo,
     } while (false);
     return i_err;
 }
+int HJOGRenderWindowBridge::procPixel(HJBridgePixelCb i_func, int i_width, int i_height)
+{
+	int i_err = 0;
+	do
+	{
+#if defined(HarmonyOS)
+		OHNativeWindow* window = getNativeWindow();
+		if (m_cacheWidth != i_width || m_cacheHeight != i_height)
+		{
+			m_cacheWidth = i_width;
+			m_cacheHeight = i_height;
 
+			int32_t ret = OH_NativeWindow_NativeWindowHandleOpt(window, SET_BUFFER_GEOMETRY, m_cacheWidth, m_cacheHeight);
+
+			ret = OH_NativeWindow_NativeWindowHandleOpt(window, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGBA_8888);
+
+			int code = SET_USAGE;
+			int32_t usage = NATIVEBUFFER_USAGE_CPU_READ | NATIVEBUFFER_USAGE_CPU_WRITE | NATIVEBUFFER_USAGE_MEM_DMA;
+			ret = OH_NativeWindow_NativeWindowHandleOpt(window, code, usage);
+		}
+		OHNativeWindowBuffer* buffer = nullptr;
+		int fenceFd = 0;
+		OH_NativeWindow_NativeWindowRequestBuffer(window, &buffer, &fenceFd);
+		if (buffer)
+		{
+			BufferHandle* handle = OH_NativeWindow_GetBufferHandleFromNative(buffer);
+			void* mappedAddr = mmap(handle->virAddr, handle->size, PROT_READ | PROT_WRITE, MAP_SHARED, handle->fd, 0);
+
+			if (mappedAddr != MAP_FAILED)
+			{
+				unsigned char* pixel = static_cast<unsigned  char*>(mappedAddr);
+				if ((handle->width == m_cacheWidth) && (handle->height == m_cacheHeight))
+				{  
+                    i_err = i_func(pixel, handle->stride);
+                    if (i_err < 0)
+                    {
+                        HJFLoge("{} i_func error catchwidth:{} catchheight:{}", m_insName, m_cacheWidth, m_cacheHeight);
+                        break;
+                    }
+				}
+				else
+				{
+					HJFLoge("{} map is not match, origin <{} {} > cur:<{} {} >", m_insName, handle->width, handle->height, m_cacheWidth, m_cacheHeight);
+				}
+			}
+			else
+			{
+				HJFLoge("mmap failed");
+			}
+
+			int result = munmap(mappedAddr, handle->size);
+			if (result == -1)
+			{
+				HJFLoge("{} munmap failed result:{}", m_insName, result);
+			}
+			Region region{ nullptr, 0 };
+			OH_NativeWindow_NativeWindowFlushBuffer(window, buffer, fenceFd, region);
+		}
+		else
+		{
+			HJFLoge("OH_NativeWindow_NativeWindowRequestBuffer EMPTYR");
+		}
+#endif
+	} while (false);
+	return i_err;    
+}
 int HJOGRenderWindowBridge::produceFromPixel(HJTransferRenderModeInfo::Ptr i_renderModeInfo, uint8_t* i_pData[3], int i_size[3], int i_width, int i_height)
 {
 	int i_err = 0;

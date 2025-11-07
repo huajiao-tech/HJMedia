@@ -252,7 +252,7 @@ message(STATUS "detected ARCHS_NAME:${ARCHS_NAME}")
 # config framework
 #**********************************************************************************#
 function(HJ_CONFIG_FRAMEWORK LIBNAME)
-    set(PROP_PLIST_FILE "${CMAKE_CURRENT_SOURCE_DIR}/isys/Info.plist")
+    set(PROP_PLIST_FILE "${CMAKE_SOURCE_DIR}/cmake/isys/Info.plist")
 
     if (APPLE) #HJ_BUILD_LIBS_AS_FRAMEWORKS
         set_target_properties(${LIBNAME} PROPERTIES 

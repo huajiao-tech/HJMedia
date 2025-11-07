@@ -125,23 +125,23 @@ int HJRteComSourceBridge::update(HJBaseParam::Ptr i_param)
     return i_err;
 }
 
-int HJRteComSourceBridge::render(HJBaseParam::Ptr i_param)
-{
-    int i_err = 0;
-    do
-    {
-        if (!IsStateReady())
-        {
-            break;
-        }
-        i_err = priRender(i_param, getBridge());
-        if (i_err < 0)
-        {
-            break;
-        }
-    } while (false);
-    return i_err;
-}
+//int HJRteComSourceBridge::render(HJBaseParam::Ptr i_param)
+//{
+//    int i_err = 0;
+//    do
+//    {
+//        if (!IsStateReady())
+//        {
+//            break;
+//        }
+//        i_err = priRender(i_param, getBridge());
+//        if (i_err < 0)
+//        {
+//            break;
+//        }
+//    } while (false);
+//    return i_err;
+//}
 int HJRteComSourceBridge::priRender(const HJBaseParam::Ptr& i_param, const std::shared_ptr<HJOGRenderWindowBridge> & i_bridge)
 {
     int i_err = HJ_OK;
@@ -334,6 +334,23 @@ int HJRteComSourceBridge::getHeight()
     } while (false);
     return height;    
 }
+
+bool HJRteComSourceBridge::isUpdateResolution()
+{
+    bool bUpdate = false;
+    do 
+    {
+        if ((getWidth() != m_width) || (getHeight() != m_height))
+        {
+            m_width = getWidth();
+            m_height = getHeight();
+            bUpdate = (m_width > 0) && (m_height > 0);
+            HJFLogi("{} update resolution {}x{} bUpdate:{}", getInsName(), m_width, m_height, bUpdate);
+        }
+    } while (false);
+    return bUpdate;
+}
+
 float * HJRteComSourceBridge::getTexMatrix()
 {
     float *matrix = nullptr;
@@ -348,7 +365,7 @@ float * HJRteComSourceBridge::getTexMatrix()
     } while (false);
     return matrix;     
 }
-#if defined (HarmonyOS)
+
 GLuint HJRteComSourceBridge::getTextureId()
 {
     GLuint texture = 0;
@@ -363,7 +380,6 @@ GLuint HJRteComSourceBridge::getTextureId()
     } while (false);
     return texture;     
 }
-#endif
 
 const std::shared_ptr<HJOGRenderWindowBridge>& HJRteComSourceBridge::getBridge()
 {
@@ -380,15 +396,14 @@ const std::shared_ptr<HJOGRenderWindowBridge>& HJRteComSourceBridge::getBridge()
 
 void HJRteComSourceBridge::done() 
 {
+#if defined(HarmonyOS)
     if (m_bridge)
     {
-#if defined(HarmonyOS)
         m_bridge->done();
-#endif
         m_bridge = nullptr;
     }
     priReleaseSoftBridge();
-    
+#endif   
     HJRteCom::done();
 }
 
