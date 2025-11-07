@@ -1,0 +1,55 @@
+﻿{
+  "Name": "乌云雷雨",
+  "ID": "800624_1",
+  "Type": 1,
+  "loop": 1,
+  "music": "xihudeshui.mp3",
+  "restart": [0],
+  "framerate": 10,
+  "texture": [
+    {
+      "mframeCount": 40,
+      "radius_Type": 0,
+      "mradius": 0,
+      "mid_Type": 0,
+      "scale_Type": 0,
+      "scale_ratio": 150,
+      "anchor_offset_x": -300,
+      "anchor_offset_y": -550,
+      "asize_offset_x": 600,
+      "asize_offset_y": 680,
+      "mfaceCount": 1,
+      "imageName": "yun_"  
+     },
+    {
+      "mframeCount": 40,
+      "radius_Type": 0,
+      "mradius": 0,
+      "mid_Type": 0,
+      "scale_Type": 0,
+      "scale_ratio": 160,
+      "anchor_offset_x": -375,
+      "anchor_offset_y": -180,
+      "asize_offset_x": 750,
+      "asize_offset_y": 400,
+      "mfaceCount": 1,
+      "imageName": "yanlei_"  
+     },
+    {
+      "mframeCount": 170,
+      "radius_Type": 1,
+      "mradius": 0,
+      "mid_Type": 2,
+      "mid_x": 0.5,
+      "mid_y": 0.5,
+      "scale_Type": 1,
+      "scale_ratio":1,
+      "anchor_offset_x":-360,
+      "anchor_offset_y":-640,
+      "asize_offset_x": 720,
+      "asize_offset_y": 1280,
+      "mfaceCount": 1,
+      "imageName": "bg_"  
+     }
+  ]
+}

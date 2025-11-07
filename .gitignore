@@ -74,4 +74,4 @@ third_party/
 build*/
 GEMINI.md
 AGENT.md
-config
+!config
