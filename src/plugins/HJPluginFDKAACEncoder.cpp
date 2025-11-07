@@ -112,8 +112,8 @@ int HJPluginFDKAACEncoder::runTask(int64_t* o_delay)
 
 HJBaseCodec::Ptr HJPluginFDKAACEncoder::createCodec()
 {
-	return HJBaseCodec::createAEncoder();
-	// return std::make_shared<HJAEncFDKAAC>();
+	//return HJBaseCodec::createAEncoder();
+	return std::make_shared<HJAEncFDKAAC>();
 }
 
 void HJPluginFDKAACEncoder::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
