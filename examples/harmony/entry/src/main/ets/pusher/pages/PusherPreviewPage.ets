@@ -180,7 +180,7 @@ struct PusherPreviewPage {
             } else if (item.item.type == "doubleScreen") {
               this.pusherStore.dispatch(new DoubleScreenAction())
             } else if (item.item.type == "faceu"){
-              this.pusherStore.dispatch(new FaceuAction(item.index, "/data/storage/el2/base/haps/entry/files/90237_1"));//this.getUIContext().getHostContext()?.resourceDir + "/800624_1_1504602801"))
+              this.pusherStore.dispatch(new FaceuAction(item.index, this.getUIContext().getHostContext()?.resourceDir + "/800624_1_1504602801"))
             } else if (item.item.type == "facedetect"){
               this.pusherStore.dispatch(new FaceDetectAction(item.index))
             } else if (item.item.type == "speechRecognizer"){
