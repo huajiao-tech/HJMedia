@@ -28,9 +28,13 @@ extern void video_queue_get_info(video_queue_t *vq, uint32_t *cx, uint32_t *cy,
 				 uint64_t *interval);
 extern void video_queue_write(video_queue_t *vq, uint8_t **data,
 			      uint32_t *linesize, uint64_t timestamp);
+extern void video_queue_write2(video_queue_t* vq, uint8_t** data,
+	uint32_t* linesize, uint64_t timestamp, int width, int height);
 extern enum queue_state video_queue_state(video_queue_t *vq);
 extern bool video_queue_read(video_queue_t *vq, nv12_scale_t *scale, void *dst,
 			     uint64_t *ts);
+extern bool video_queue_read2(video_queue_t* vq, void** dst,
+	uint64_t* ts, int* width, int* height);
 
 #ifdef __cplusplus
 }

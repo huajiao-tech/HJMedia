@@ -8,6 +8,9 @@
 #include "HJFLog.h"
 #include "HJFFUtils.h"
 #include "HJGlobalSettings.h"
+#include "HJDataFuse.h"
+#include "HJUUIDTools.h"
+#include "HJPackerManager.h"
 //#include "HJByteBuffer.h"
 //#include "IconFontCppHeaders/IconsFontAwesome5.h"
 
@@ -52,7 +55,8 @@ int HJGraphPlayerView::init(const std::string info)
         //m_mediaUrl = "E:/movies/replaym3u8/index.m3u8";
         //m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main_a_h264_270100274_1732602713389_8267_O.flv?auth_key=1732694308-0-0-d6f19de17979da5df6536153270dc20f";
         //m_mediaUrl = "https://al2-flv.live.huajiao.com/live_huajiao_h265/_LC_AL2_non_h265_SD_26624183417212690010010622_OX.flv";//"E:/js/820827.crdownload.flv";
-        m_mediaUrl = "https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h265_97986049_1761187545373_8986_O.flv?auth_key=1761275415-0-0-42ee16d4ef6814f2090b0df73433905d";
+        //m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_273615742_1764557847442_7625_O.flv?auth_key=1764645940-0-0-e4652093cc6e880e24853c24771f6e2a";
+        m_mediaUrl = "https://live-pull-0.test.huajiao.com/main/HJ_0_ali_0_main_a_h264_45868601_1764742614311_9962_T.flv?auth_key=1764829014-0-0-b8c1cfaa0c276db18e57e2d6dbd072bc";
         //m_mediaUrl = "http://localhost:8080/live/livestream.flv";
 #elif defined(HJ_OS_MACOS)
         m_mediaUrl = "/Users/zhiyongleng/works/movies/720x1280.mp4";
@@ -1060,6 +1064,46 @@ void HJGraphPlayerView::onCreatePlayer()
                 addPluginInfos(infos);
                 break;
             }
+            case HJ_PLUGIN_NOTIFY_PLUGIN_SEI_INFOS:
+            {
+                const auto& user_sei_datas = ntf->getValue<std::vector<HJSEIData>>("user_sei_datas");
+                //for (const auto& userData : user_sei_datas) {
+                //    std::string userMsg = std::string(userData.data.begin(), userData.data.end());
+                //    HJFLogi("sei nal uuid:{}, msg:{}", userData.uuid, userMsg);
+                //}
+                std::vector<HJRawBuffer> hjsegs{};
+                std::vector<HJRawBuffer> hjnosegs{};
+                for (const auto& userData : user_sei_datas)
+                {
+                    auto isXVib = HJVibeData::verifyXVibHeader(userData.data);
+                    auto seq_id = HJVibeData::parseVibeSeqID(userData.data);
+                    auto valid = HJUUIDTools::verify_uuid_from_main(userData.uuid, seq_id);
+                    if (valid  && isXVib) {
+                        hjsegs.push_back(userData.data);
+                    } else {
+                        hjnosegs.push_back(userData.data);
+                    }
+                }
+                if (hjsegs.size() > 0)
+                {
+                    HJDataFuse::Ptr fuse = HJCreates<HJDataFuse>();
+                    auto raw = fuse->unpack(hjsegs);
+                    std::string outmsg = std::string(raw.begin(), raw.end());
+
+                    std::string msg = "TOOL CFG: width:720 height:1280 fps:25:1 timebase:1:25 vfr:0 vui:1:1:0:5:1:1:1:5:format:1 preset:7 tune:meetingCamera level:50 repeat-header:1 ref:3 long-term:0 open-gop:0 keyint:50:5 rc:1 cqp:32 cbr/abr:1548 crf:0:0:0 vbv-max-bitrate:2012:1 vbv-buf-size:2012:4 vbv-buf-init:0.9 max-frame-ratio:100 ip-factor:2 rc-peakratetol:5 qp:40:22:35:22 aq:5:1 wpp:1 pool-threads:2:64 svc:0 fine-tune:-1 roi:1:1 TOOL CFG: qpInitMin:22 qpInitMax:35 MaxRatePeriod:1 MaxBufPeriod:4 HAD:1 FDM:1 RQT:1 TransformSkip:0 SAO:1 TMVPMode:1 SignBitHidingFlag:1 MvStart:4 BiRefNum:0 FastSkipSub:1 EstimateCostSkipSub0:0 EstimateCostSkipSub1:0 EstimateCostSkipSub2:0 SkipCurFromSplit0:1 SkipCurFromSplit1:2 SkipCurFromSplit2:3 SubDiffThresh0:18 SubDiffThresh1:10 SubDiffThresh2:6 FastMergeSkip:1 SkipUV:1 RefineSkipUV:0 MergeSkipTh0:30000 MergeSkipTh1:30000 MergeSkipTh2:40 MergeSkipTh3:40 MergeSkipTh:0 MergeSkipDepth:0 MergeSkipEstopTh0:350 MergeSkipEstopTh1:250 MergeSkipEstopTh2:150 MergeSkipEstopTh3:100 CbfSkipIntra:1 neiIntraSkipIntra:6 SkipFatherIntra:0 SkipIntraFromRDCost:3 StopIntraFromDist0:11 StopIntraFromDist1:12 StopIntraFromDist2:14 StopIntraFromDist3:16 TopdownContentTh0:32 TopdownContentTh1:32 TopdownContentTh2:32 TopdownContentTh3:32 TopdownContentTh4:32 BottomUpContentTh0:0 BottomUpContentTh1:14 BottomUpContentTh2:12 BottomUpContentTh3:0 BottomUpContentTh4:0 BottomUpContentTh5:12 madth4merge:128 DepthSkipCur:0 CheckCurFromSubSkip:0 DepthSkipSub:3 StopCurFromNborCost:5 SkipFatherBySubmode:0 SkipL1ByNei:0 CheckCurFromNei:0 EarlySkipAfterSkipMerge:2 sccIntra8distTh:5000 sccIntraNxNdistTh:120 TuEarlyStopPu:18 FastSkipInterRdo:1 IntraCheckInInterFastSkipNxN0:17 IntraCheckInInterFastSkipNxN1:40 IntraCheckInIntraFastSkipNxN:0 IntraCheckInIntraSkipNxN:0 AmpSkipAmp:1 Skip2NAll:0 Skip2NFromSub0:600 Skip2NFromSub1:600 Skip2NFromSub2:650 Skip2NRatio0:450 Skip2NRatio1:450 Skip2NRatio2:450 SkipSubFromSkip2n:1 AdaptMergeNum:5 TuStopPu:18 qp2qstepbetter:610 qp2qstepfast:600 InterCheckMerge:1 skipIntraFromPreAnalysis0:18 skipIntraFromPreAnalysis1:18 skipIntraFromPreAnalysis2:18 DisNxNLevel:3 SubdiffSkipSub0:260 SubdiffSkipSub1:200 SubdiffSkipSub2:120 SubdiffSkipSub:0 SubdiffSkipSubRatio0:10 SubdiffSkipSubRatio1:10 SubdiffSkipSubRatio2:60 SubdiffSkipSubRatio:0 StopSubMaxCosth0:2048 StopSubMaxCosth1:0 StopSubMaxCosth2:0 StopSubMaxCosth3:0 CostSkipSub0:12 CostSkipSub1:6 CostSkipSub2:3 CostSkipSub:1 DistSkipSub0:12 DistSkipSub1:8 DistSkipSub2:4 DistSkipSub3:1 SkipSubNoCbf:1 SaoLambdaRatio0:7 SaoLambdaRatio1:8 SaoLambdaRatio2:8 SaoLambdaRatio3:9 AdaptiveSaoLambda[0]:60 AdaptiveSaoLambda[1]:90 AdaptiveSaoLambda[2]:120 AdaptiveSaoLambda[3]:150 SecModeInInter0:6 SecModeInInter1:0 SecModeInInter2:0 SecModeInInter3:4 SecModeInInter4:1 SecModeInIntra0:6 SecModeInIntra1:0 SecModeInIntra2:0 SecModeInIntra3:3 SecModeInIntra4:1 ChromaModeOptInInter0:0 ChromaModeOptInInter1:0 ChromaModeOptInInter2:0 IntraCheckInInterFastSkipUseNborCu:1 disframesao:1 skipTuSplit:16 FastQuantInter0:95 FastQuantInter1:95 FastQuantInterChroma:20 MeInterpMethod:0 MultiRef:1 BiMultiRef:0 BiMultiRefThr:0 MultiRefTh:0 MultiRefFast2nx2nTh:0 MvStart:4 StopSubFromNborCost:0 StopSubFromNborCost2:80 StopSubFromNborCount:0 imecorrect:1 fmecorrect:1 qmeguidefast:1 unifmeskip:3 fasthme:1 FasterFME:1 AdaptHmeRatio0:0 AdaptHmeRatio1:0 AdaptHmeRatio2:0 skipqme0:0 skipqme1:0 skipqme2:0 skipqme3:23 fastqmenumbaseframetype0:3 fastqmenumbaseframetype1:2 fastqmenumbaseframetype2:2 FastSubQme:12 adaptiveFmeAlg0:0 adaptiveFmeAlg1:0 adaptiveFmeAlg2:0 adaptiveFmeAlg3:0 GpbSkipL1Me:0 BackLongTermReference:1 InterSatd2Sad:2 qCompress:0.6 qCompressFirst: 0.5 CutreeLambdaPos: 2 CutreeLambdaNeg: 100 CutreeLambdaFactor: 0 AdaptPSNRSSIM:40 LHSatdscale:0 PMESearchRange:1 LookAheadHMVP:0 hmvp-thres0 LookAheadNoEarlySkip:1 LHSatdScaleTh:80 LHSatdScaleTh2:180 FreqDomainCostIntra0:-1 FreqDomainCostIntra1:-1 FreqDomainCostIntra2:-1 deblock(tc:beta):0, 0 RCWaitRatio1: 0.5 RCWaitRatio2: 0.2 RCConsist:0 QPstep:4 RoundKeyint:0 VbvPredictorSimple:0.5 VbvPredictorSimpleMin:0.5 VbvPredictorNormal:1 VbvPredictorNormalMin:1 VbvPredictorComplex:1 VbvPredictorComplexMin:1 DpbErrorResilience: 0 aud:0 lookahead-use-sad:1 intra-sad0:1 intra-sad1:1 intra-sad2:0 intra-sad3:0 intra-sad4:0 skip-sao-freq:0 skip-sao-den:0 skip-sao-dist:0 adaptive-quant:0 wpp2CachedTuCoeffRows:0 disablemergemode:0 merge-mode-depth:0 skipCudepth0:0 faster-code-coeff:0 rqt-split-first0 intra-fine-search-opt:0 sao-use-merge-mode0:0 sao-use-merge-mode1:0 sao-use-merge-mode2:0 enable-sameblock:0 sameblock-dqp:255 scclock-th:0 skip-child-by-sameblock:0 skip-no-zero-mv-by-sameblock:0 sameblock-disable-merge:0 tzsearchscc-adaptive-stepsize:0 skip-intra-fine-search-rd-thr2:0 skip-sub-from-father-skip:0 prune-split-from-rdcost:0 check-cur-from-subcost:0 skip-dct:0 list1-fast-ref-cost-thr:0 list1-fast-ref-cost-thr2:0 char-aq-cost-min:0 char-target-qp:0 content-early-stop-thresh0:0 content-early-stop-thresh1:0 content-early-stop-thresh2:0 content-early-stop-thresh3:0 sub-diff-skip-sub-chroma-weight:-1 skip-inter-by-intra:0 enable-contrast-enhancement:0 lowdelay-skip-ref:0 enable-adaptive-me:0 search-thresh:0 search-offset:0 skip-l1-by-sub:0 skip-dct-inter4x4:0 same-ctu-skip-sao:0 skip-l1-by-skip-dir:0 skip-bi-by-father:0 skip-l1-by-father:0 skip-l1-by-nei:0 enable-hmvp:0 check-cur-from-nei:0 skip-sub-from-skip-2n-cudepth:5 lp-single-ref-list-cudepth:-1 ime-round:16 camera-subjective-opt:1 enable-chroma-weight:0 disable-tu-early-stop-for-subjective:0 enable-subjective-loss:0 enable-contrast-enhancement:0 go-down-qp-for-subjective:51 skip-2n-from-sub-qp-for-subjective:51 skip-2n-from-sub-chroma-weight-for-subjective:0 skip-2n-from-sub-chroma-weight4-for-subjective:0 complex-block-thr-factor1-for-subjective:3 complex-block-thr-factor2-for-subjective:0 opt-try-go-up-for-subjective:0 large-qp-large-size-intra-use-4-angle:0 aq-adjust-for-subjective:0 enable-subjective-char-qp:0 hyperfast-tune-subjective:0 hyperfast-tune-detail:0 scenecut-dqp:0 skip-dct-offset0:0 skip-dct-offset1:0 skip-dct-offset2:0 skip-lowres-inter:0 lp-single-ref-list-cu-depth:-1 lp-single-ref-frame-cu-depth:-1 slice-depth0-fast-ref:0 fast-bi-pattern-search:0 skip-intranxn-in-bslice:0 intra-stride-inter-frame:0 topdown-father-skip:0 skip-father-by-submode:0 skip-coarse-intra-pred-mode-by-cost:0 skip-inter64x64:0 skip-sub-from-skip-2n-cudepth:5 inter-search-lowres-mv:0 skip-dct:0 stop-split-by-neibor-skip:0 intra-non-std-dct:0 pool-mask:0 max-merge:3 tu-inter-depth:1 tu-intra-depth:1 sr:256 me:1 pme:0 max-dqp-depth:1 cb-qp-offset:4 cr-qp-offset:4 lookahead-threads:1 vbv-adapt:0 vbv-control:0 roi2-strength:0 roi2-uv-delta:0 roi2-height-up-scale:0.25 roi2-height-down-scale:0.25 roi2-margin-left-scale:0 roi2-margin-right-scale:0";
+
+                    if (msg == outmsg) {
+                        HJFLogi("outmsg:{} check ok", outmsg);
+                    }
+                }
+                for (auto &it : hjnosegs) {
+                    std::string outmsg = std::string(it.begin(), it.end());
+                    HJFLogi("outmsg:{} check ok", outmsg);
+                }
+
+
+                break;
+            }
         }
         return HJ_OK;
     };
@@ -1082,12 +1126,13 @@ void HJGraphPlayerView::onCreatePlayer()
 	//auto suffix = HJUtilitys::getSuffix(coreUrl);
     auto localUrl = HJMediaUtils::makeLocalUrl("E:/movies/blob/", m_mediaUrl); //HJFMT("E:/movies/blob/{}{}", HJUtilitys::hash(m_mediaUrl), suffix);
     HJMediaUrl::Ptr mediaUrl = nullptr;
-    if (HJFileUtil::fileExist(localUrl.c_str())) {
+    if (HJFileUtil::fileExist(localUrl)) {
         mediaUrl = std::make_shared<HJMediaUrl>(localUrl);
     } else {
         mediaUrl = std::make_shared<HJMediaUrl>(m_mediaUrl);
         (*mediaUrl)["local_url"] = localUrl;
     }
+    mediaUrl->setDisableMFlag(HJMEDIA_TYPE_VIDEO);
     m_player->openURL(mediaUrl);
 
     return;
@@ -1307,9 +1352,9 @@ void HJGraphPlayerView::onWriteThumb(const HJMediaFrame::Ptr& frame)
     //        HJFLoge("error, create image writer failed:{}", res);
     //        return;
     //    }
-    //    HJFileUtil::delete_file(m_thumbUrl.c_str());
-    //    if (!HJFileUtil::is_dir(m_thumbUrl.c_str())) {
-    //        HJFileUtil::makeDir(m_thumbUrl.c_str());
+    //    HJFileUtil::delete_file(m_thumbUrl);
+    //    if (!HJFileUtil::is_dir(m_thumbUrl)) {
+    //        HJFileUtil::makeDir(m_thumbUrl);
     //    }
     //}
     //if (m_mvf && m_imageWriter) {

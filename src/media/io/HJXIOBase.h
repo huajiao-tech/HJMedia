@@ -63,13 +63,17 @@ public:
 	void setMode(const int mode) {
 		m_mode = mode;
 	}
+public:
+    static HJUrl::Ptr makeUrl(const std::string& url, const int mode) {
+        return std::make_shared<HJUrl>(url, mode);
+    }
 protected:
 	std::string     m_url = "";
 	int				m_mode = HJ_XIO_READ;
 };
 
 //***********************************************************************************//
-class HJXIOBase : public HJObject
+class HJXIOBase : public virtual HJObject
 {
 public:
 	using Ptr = std::shared_ptr<HJXIOBase>;

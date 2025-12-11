@@ -89,6 +89,9 @@ public:
 	virtual int openURL(HJMediaUrl::Ptr i_url) = 0;
 	virtual int setMute(bool i_mute) = 0;
 	virtual bool isMuted() = 0;
+#if defined (WINDOWS)
+	virtual int resetAudioDevice(const std::string& i_deviceName = "") = 0;
+#endif
 
 protected:
 	using FrameSizes = std::unordered_map<std::string, std::atomic<size_t>>;

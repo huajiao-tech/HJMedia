@@ -792,6 +792,46 @@ HJMediaFrame::Ptr HJMediaFrame::deepDup() {
     return mavf;
 }
 
+int HJMediaFrame::addSEI(const HJSEINals::Ptr& nals)
+{
+    if (!isVideo()) {
+        return HJErrNotSupport;
+    }
+    (*this)[HJMediaFrame::STORE_KEY_SEIINFO] = nals;
+
+    return HJ_OK;
+}
+
+HJSEINals::Ptr HJMediaFrame::getSEI()
+{
+    if (!isVideo()) {
+        return nullptr;
+    }
+    HJSEINals::Ptr nals{};
+    if (this->haveValue(HJMediaFrame::STORE_KEY_SEIINFO)) {
+        return this->getValue<HJSEINals::Ptr>(HJMediaFrame::STORE_KEY_SEIINFO);
+    }
+    return deriveSEINals();
+}
+
+HJSEINals::Ptr HJMediaFrame::deriveSEINals()
+{
+    HJSEINals::Ptr nals{};
+    const auto vinfo = getVideoInfo();
+    AVPacket* avf = (AVPacket*)getAVPacket();
+    if (!avf) {
+        return nullptr;
+    }
+    auto seiNalDatas =  HJSEIWrapper::extractSEIFromFrame(avf->data, (size_t)avf->size, (AV_CODEC_ID_H265 == vinfo->getCodecID()));
+    if (seiNalDatas.size() > 0) {
+        nals = HJCreates<HJSEINals>();
+        nals->m_datas = std::move(seiNalDatas);
+        //
+        (*this)[HJMediaFrame::STORE_KEY_SEIINFO] = nals;
+    }
+    return nals;
+}
+
 //***********************************************************************************//
 HJAVFrame::HJAVFrame()
 {

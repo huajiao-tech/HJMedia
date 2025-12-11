@@ -10,11 +10,39 @@ NS_HJ_BEGIN
 class HJPluginAudioWASRender : public HJPluginAudioRender
 {
 public:
+    class DeviceNotificationClient : public IMMNotificationClient
+    {
+    private:
+        LONG m_refCount;
+        HJPluginAudioWASRender* m_parent;
+
+    public:
+        DeviceNotificationClient(HJPluginAudioWASRender* parent);
+
+        // IUnknown methods
+        STDMETHOD_(ULONG, AddRef)();
+        STDMETHOD_(ULONG, Release)();
+        STDMETHOD(QueryInterface)(REFIID riid, void** ppvObject);
+
+        // IMMNotificationClient methods
+        STDMETHOD(OnDeviceStateChanged)(LPCWSTR pwstrDeviceId, DWORD dwNewState);
+        STDMETHOD(OnDeviceAdded)(LPCWSTR pwstrDeviceId);
+        STDMETHOD(OnDeviceRemoved)(LPCWSTR pwstrDeviceId);
+        STDMETHOD(OnDefaultDeviceChanged)(EDataFlow flow, ERole role, LPCWSTR pwstrDefaultDeviceId);
+        STDMETHOD(OnPropertyValueChanged)(LPCWSTR pwstrDeviceId, const PROPERTYKEY key);
+    };
+
+    DeviceNotificationClient* m_notificationClient;
+
+public:
     HJ_DEFINE_CREATE(HJPluginAudioWASRender);
 
     HJPluginAudioWASRender(const std::string& i_name = "HJPluginAudioWASRender", HJKeyStorage::Ptr i_graphInfo = nullptr);
     virtual ~HJPluginAudioWASRender();
     virtual int done() override;
+
+    int resetDevice(const std::string& i_deviceName = "");
+    void onDefaultDeviceChanged();
 
 protected:
     virtual void onInputUpdated() override { }
@@ -23,8 +51,11 @@ protected:
     virtual int runTask(int64_t* o_delay) override;
     virtual void internalSetMute() override { }
 
+    virtual int initDevice(const HJAudioInfo::Ptr& i_audioInfo);
+    virtual void releaseDevice();
+
 private:
-    HANDLE m_audioEvent[2];
+    HANDLE m_audioEvent[3];
 
     IMMDeviceEnumerator* m_deviceEnumerator{};
     IMMDevice* m_device{};

@@ -7,6 +7,7 @@
 #include "HJFFUtils.h"
 #include "HJFLog.h"
 #include "HJGlobalSettings.h"
+#include "HJSEIWrapper.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -82,7 +83,7 @@ int HJFFDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
             ic->flags = AVFMT_FLAG_CUSTOM_IO;
         }
 
-        if (mediaUrl->getUseFast() && HJGlobalSettingsManager::getUseHTTPPool()) {
+        if (mediaUrl->canUseFast() && HJGlobalSettingsManager::getUseHTTPPool()) {
             url = hj_replace_fasthttp(url);
         }
         AVDictionary* fmtOpts = getFormatOptions();
@@ -107,9 +108,12 @@ int HJFFDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
 //            ic->fps_probe_size = 0;
             ic->flags |= AVFMT_FLAG_NOBUFFER;
         }
+        ic->mflag_disable = m_mediaUrl->getDisableMFlag();
+        ic->mflag_timeout = m_mediaUrl->getMFlagTimeout();
+
         t1 = HJTime::getCurrentMillisecond();
 
-        //AVDictionary* opts = setup_find_stream_info_opts(m_ic, m_codecOpts);
+        //AVDictionary* opts = setup_find_stream_info_opts(ic, m_codecOpts);
         res = avformat_find_stream_info(ic, NULL);
         //av_dict_free(&opts);
         if (res < HJ_OK) {
@@ -157,15 +161,15 @@ int HJFFDemuxer::seek(int64_t pos)
     if (!m_mediaInfo || !m_ic) {
         return HJErrNotAlready;
     }
-    //HJLogi("seek entry");
-    
+    HJLogi("seek entry");
+    int64_t t0 = HJCurrentSteadyMS();
     int64_t timestamp = (AV_NOPTS_VALUE != m_mediaInfo->m_startTime) ? (m_mediaInfo->m_startTime + pos) : pos;
     int res = avformat_seek_file(m_ic, -1, INT64_MIN, HJ_MS_TO_US(timestamp), INT64_MAX, 0);
     if (res < HJ_OK) {
         HJFNLoge("avformat seek file error:{}, seek time:{}", res, timestamp);
         return HJErrFFSeek;
     }
-    HJFNLogi("seek end pos:{}, timestamp:{}", pos, timestamp);
+    HJFNLogi("seek end pos:{}, timestamp:{}, consume:{}", pos, timestamp, HJCurrentSteadyMS() - t0);
     
     return HJ_OK;
 }
@@ -446,6 +450,8 @@ int HJFFDemuxer::getFrame(HJMediaFrame::Ptr& frame)
             HJFNLogw("warning, frame duration too short:{}, info:{}", mvf->getDuration(), mvf->formatInfo());
         }
         //
+        //procSEI(mvf);
+        //
         frame = std::move(mvf);
         //
 #if HJ_HAVE_TRACKER
@@ -499,15 +505,15 @@ int HJFFDemuxer::makeMediaInfo()
         st->discard = AVDISCARD_ALL;
     }
     
-    if (m_mediaUrl->isEnbleVideo()) {
+    //if (m_mediaUrl->isEnbleVideo()) {
         m_mediaInfo->m_vstIdx = av_find_best_stream(ic, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
-    }
-    if (m_mediaUrl->isEnableAudio()) {
+    //}
+    //if (m_mediaUrl->isEnableAudio()) {
         m_mediaInfo->m_astIdx = av_find_best_stream(ic, AVMEDIA_TYPE_AUDIO, -1, m_mediaInfo->m_vstIdx, NULL, 0);
-    }
-    if (m_mediaUrl->isEnableSubtitle()) {
+    //}
+    //if (m_mediaUrl->isEnableSubtitle()) {
         m_mediaInfo->m_sstIdx = av_find_best_stream(ic, AVMEDIA_TYPE_SUBTITLE, -1, m_mediaInfo->m_astIdx ? m_mediaInfo->m_astIdx : m_mediaInfo->m_vstIdx, NULL, 0);
-    }
+    //}
     int64_t minStartTime = HJ_INT64_MAX;
     std::vector<int> nidIdxs;
     if (m_mediaInfo->m_vstIdx >= 0)
@@ -810,6 +816,25 @@ int HJFFDemuxer::analyzeProtocol()
     return res;
 }
 
+void HJFFDemuxer::procSEI(const HJMediaFrame::Ptr& mvf)
+{
+    auto seiNals = mvf->getSEI();
+    if (seiNals && seiNals->size() > 0)
+    {
+        std::vector<HJSEIData> userSEIDatas{};
+        const auto& nals = seiNals->getDatas();
+        for (const auto& nal : nals) {
+            auto userDatas = HJSEIWrapper::parseSEINals(nal);
+            for (const auto& userData : userDatas) {
+                std::string userMsg = std::string(userData.data.begin(), userData.data.end());
+                HJFNLogi("sei nal uuid:{}, msg:{}", userData.uuid, userMsg);
+            }
+            if (userDatas.size() > 0) {
+                userSEIDatas.insert(userSEIDatas.end(), userDatas.begin(), userDatas.end());
+            }
+        }
+    }
+}
 
 //***********************************************************************************//
 NS_HJ_END

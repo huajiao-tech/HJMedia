@@ -101,7 +101,7 @@ int HJApplication::init()
 #if defined(HJ_OS_WINDOWS)
         fontName = "c:/Windows/Fonts/msyh.ttc";
 #elif defined(HJ_OS_MACOS)
-        fontName = "/System/Library/Fonts/PingFang.ttc"; //Songti.ttc
+        fontName = "/System/Library/Fonts/Times.ttc"; //Songti.ttc PingFang.ttc"
 #endif
         //static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
         //ImFontConfig icons_config;

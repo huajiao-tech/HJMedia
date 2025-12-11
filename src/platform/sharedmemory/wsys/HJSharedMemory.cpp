@@ -8,10 +8,12 @@
 
 NS_HJ_BEGIN
 
-HJSharedMemoryProducer::HJSharedMemoryProducer()
+HJSharedMemoryProducer::HJSharedMemoryProducer(const std::string& i_name, HJKeyStorage::Ptr i_graphInfo)
+	:m_name(i_name)
 {
 
 }
+
 HJSharedMemoryProducer::~HJSharedMemoryProducer()
 {
 	priDone();
@@ -71,6 +73,30 @@ int HJSharedMemoryProducer::write(std::shared_ptr<HJMediaFrame> i_frame)
 	} while (false);
     return i_err;
 }
+
+int HJSharedMemoryProducer::write2(std::shared_ptr<HJMediaFrame> i_frame)
+{
+	int i_err = SHAREDMEM_RET_OK;
+	do
+	{
+		if (!m_vq)
+		{
+			i_err = SHAREDMEM_RET_NO_READY;
+			break;
+		}
+
+		HJAVFrame::Ptr avFrame = i_frame->getMFrame();
+		AVFrame* frame = avFrame->getAVFrame();
+		//HJFLoge("video render frame: {}, {}, {}", frame->width, frame->height, frame->pts);
+
+		uint32_t linesize[3] = { frame->linesize[0], frame->linesize[1], frame->linesize[2] };
+		uint64_t timestamp = HJCurrentSteadyMS();
+
+		video_queue_write2(m_vq, frame->data, linesize, timestamp, frame->width, frame->height);
+	} while (false);
+	return i_err;
+}
+
 void HJSharedMemoryProducer::done()
 {
 	priDone();

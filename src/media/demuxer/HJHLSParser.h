@@ -19,12 +19,16 @@ public:
 
     virtual int init(const HJMediaUrl::Ptr& mediaUrl);
 
-    const auto& getHLSMdiaUrls() {
+    const auto& getHLSMediaUrls() {
         return m_hlsMediaUrls;
     }
+
+    void reset();
+private:
+    void writeHLSMediaUrls(int index, HJBuffer::Ptr buffer);
 private:
     HJMediaUrl::Ptr                 m_mediaUrl{ nullptr };
-    HJXIOContext::Ptr              m_xio{ nullptr };
+    HJXIOContext::Ptr               m_xio{ nullptr };
     std::vector<HJMediaUrl::Ptr>    m_hlsMediaUrls;
 };
 

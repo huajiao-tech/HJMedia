@@ -5,6 +5,8 @@
 //***********************************************************************************//
 #include "HJXIOBlob.h"
 #include "HJFLog.h"
+#include <algorithm>
+#include <cstring>
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -32,6 +34,48 @@ size_t HJBlock::write(const uint8_t* buffer, size_t cnt)
 	m_end = m_start + m_buffer->size();
 
 	return wcnt;
+}
+
+HJBuffer::Ptr HJBlock::ensureBuffer(size_t capacity)
+{
+	if (!m_buffer) {
+		const size_t allocSize = capacity > 0 ? capacity : static_cast<size_t>(m_max);
+		m_buffer = std::make_shared<HJBuffer>(allocSize);
+		m_buffer->setSize(0);
+	}
+	return m_buffer;
+}
+
+size_t HJBlock::writeAt(size_t offset, const uint8_t* buffer, size_t cnt)
+{
+	if (!buffer || cnt == 0 || offset >= static_cast<size_t>(m_max)) {
+		return 0;
+	}
+	const size_t writable = std::min(cnt, static_cast<size_t>(m_max) - offset);
+	auto buf = ensureBuffer(static_cast<size_t>(m_max));
+	const size_t required = offset + writable;
+	if (buf->size() < required) {
+		buf->setSize(required);
+	}
+	std::memcpy(buf->data() + offset, buffer, writable);
+	const int64_t newEnd = m_start + static_cast<int64_t>(required);
+	if (newEnd > m_end) {
+		m_end = newEnd;
+	}
+	return writable;
+}
+
+size_t HJBlock::readAt(size_t offset, uint8_t* buffer, size_t cnt) const
+{
+	if (!m_buffer || !buffer || cnt == 0) {
+		return 0;
+	}
+	if (offset >= m_buffer->size()) {
+		return 0;
+	}
+	const size_t readable = std::min(cnt, m_buffer->size() - offset);
+	std::memcpy(buffer, m_buffer->data() + offset, readable);
+	return readable;
 }
 
 //***********************************************************************************//

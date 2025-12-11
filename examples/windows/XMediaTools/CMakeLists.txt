@@ -27,8 +27,8 @@ add_executable(${PROJ_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 if(WINDOWS)
     target_link_libraries(${PROJ_NAME} 
         Crypt32 IPHLPAPI opengl32 dwmapi
-        HJGraphs HJPlugins HJLocalServer
-        HJGui ImGuiFileDialog ImFileDialog implot imgui HJCore HJLinks HJMedia HJStat HJUtils LIBGLFW LIBSPDLOG
+        HJGraphs HJPlugins HJLocalServer HJPlatform
+        HJGui ImGuiFileDialog ImFileDialog glfw implot imgui HJCore HJLinks HJMedia HJDataFuse HJStat HJUtils LIBSPDLOG
     )
     target_link_libraries(${PROJ_NAME} debug libavdeviced optimized libavdevice)
     target_link_libraries(${PROJ_NAME} debug libavfilterd optimized libavfilter)
@@ -43,16 +43,16 @@ if(WINDOWS)
 else()
     target_link_libraries(${PROJ_NAME} 
         HJGraphs HJPlugins HJLocalServer
-        HJGui ImGuiFileDialog ImFileDialog implot imgui HJCore HJLinks HJMedia HJStat HJUtils LIBGLFW LIBSPDLOG
+        HJGui ImGuiFileDialog ImFileDialog glfw implot imgui HJCore HJLinks HJMedia HJDataFuse HJStat HJUtils LIBSPDLOG LIBFFMPEG LIBX265 LIBX264 LIBSRT
     )
     target_link_libraries(${PROJ_NAME} 
-        ${DEPS_FFMPEG_LIB_DIR}/libavdevice.a
-        ${DEPS_FFMPEG_LIB_DIR}/libavfilter.a
-        ${DEPS_FFMPEG_LIB_DIR}/libavformat.a
-        ${DEPS_FFMPEG_LIB_DIR}/libavcodec.a
-        ${DEPS_FFMPEG_LIB_DIR}/libswresample.a
-        ${DEPS_FFMPEG_LIB_DIR}/libswscale.a
-        ${DEPS_FFMPEG_LIB_DIR}/libavutil.a
+        # ${DEPS_FFMPEG_LIB_DIR}/libavdevice.a
+        # ${DEPS_FFMPEG_LIB_DIR}/libavfilter.a
+        # ${DEPS_FFMPEG_LIB_DIR}/libavformat.a
+        # ${DEPS_FFMPEG_LIB_DIR}/libavcodec.a
+        # ${DEPS_FFMPEG_LIB_DIR}/libswresample.a
+        # ${DEPS_FFMPEG_LIB_DIR}/libswscale.a
+        # ${DEPS_FFMPEG_LIB_DIR}/libavutil.a
         iconv
         bz2
         z

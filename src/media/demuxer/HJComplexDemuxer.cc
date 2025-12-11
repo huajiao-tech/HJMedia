@@ -53,6 +53,7 @@ int HJComplexDemuxer::init(const HJMediaUrlVector& mediaUrls)
         {
             auto source = std::make_shared<HJFFDemuxerEx>(murl);
             source->setLowDelay(m_lowDelay);
+            source->setTimeOffsetEnable(true);
             //
             m_sources.emplace_back(source);
             //
@@ -250,7 +251,7 @@ void HJComplexDemuxer::checkUrls()
     for (const auto& murl : m_mediaUrls) 
     {
         const auto& url = murl->getUrl();
-        if (HJUtilitys::endWith(url, "m3u8"))
+        if (HJUtilitys::containWith(url, ".m3u8"))
         {
             HJHLSParser::Ptr hlsParser = std::make_shared<HJHLSParser>();
             res = hlsParser->init(murl);
@@ -258,7 +259,7 @@ void HJComplexDemuxer::checkUrls()
                 HJFLoge("error, hls parser url failed:{}", res);
                 break;
             }
-            const auto& hlsMUrls = hlsParser->getHLSMdiaUrls();
+            const auto& hlsMUrls = hlsParser->getHLSMediaUrls();
             mediaUrls.insert(mediaUrls.end(), hlsMUrls.begin(), hlsMUrls.end());
             //for (const auto & item : hlsMUrls) {
             //    mediaUrls.emplace_back(item);

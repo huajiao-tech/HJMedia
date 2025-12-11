@@ -51,12 +51,15 @@ private:
     static void OnCodecFormatChange(OH_AVCodec *codec, OH_AVFormat *format, void *userData);
     static void OnNeedInputBuffer(OH_AVCodec *codec, uint32_t index, OH_AVBuffer *buffer, void *userData);
     static void OnNewOutputBuffer(OH_AVCodec *codec, uint32_t index, OH_AVBuffer *buffer, void *userData);
-    
+
+    //ROI
+    static void OnNeedInputParameter(OH_AVCodec *codec, uint32_t index, OH_AVFormat *parameter, void *userData);
 
     int priStart();
     void priOnCodecError(OH_AVCodec *codec, int32_t errorCode);
     void priOnCodecFormatChange(OH_AVCodec *codec, OH_AVFormat *format);
     void priOnNewOutputBuffer(OH_AVCodec *codec, uint32_t index, OH_AVBuffer *buffer); 
+    void priOnInputParameter(OH_AVCodec *codec, uint32_t index, OH_AVFormat *parameter);
     static std::string s_h264mime; 
     static std::string s_h265mime;
       

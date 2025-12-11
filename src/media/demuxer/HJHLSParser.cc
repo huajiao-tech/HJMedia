@@ -3,17 +3,28 @@
 //AUTHOR:
 //CREATE TIME:
 //***********************************************************************************//
-#pragma once
+
 #include "HJHLSParser.h"
 #include "HJFFUtils.h"
 #include "HJFLog.h"
 #include "HJException.h"
+#include "HJXIOFile.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
 HJHLSParser::~HJHLSParser()
 {
-    m_xio = nullptr;
+    reset();
+}
+
+void HJHLSParser::reset()
+{
+    if (m_xio) {
+        m_xio->close();
+        m_xio = nullptr;
+    }
+    m_hlsMediaUrls.clear();
+    m_mediaUrl = nullptr;
 }
 
 int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
@@ -62,6 +73,8 @@ int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
                     const char* endflags = "#EXT-X-ENDLIST\n";
                     urlBuffer->write((const uint8_t*)endflags, strlen(endflags));
                     //
+                    // writeHLSMediaUrls(m_hlsMediaUrls.size(), urlBuffer);
+                    //
                     m_hlsMediaUrls.emplace_back(std::move(hlsMediaUrl));
                     segCnt = 0;
                 } else {
@@ -77,6 +90,11 @@ int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
                     urlBuffer = std::make_shared<HJBuffer>(comUrlBuffer);
                     (*hlsMediaUrl)[HJBaseDemuxer::KEY_WORLDS_URLBUFFER] = urlBuffer;
                 }
+                if (!hlsMediaUrl) {
+                    HJLoge("error, hlsMediaUrl is null");
+                    res = HJErrInvalidUrl;
+                    break;
+                }
                 duration = hlsMediaUrl->getDuration() + atof(ptr) * HJ_MS_PER_SEC/*AV_TIME_BASE*/;
                 hlsMediaUrl->setDuration(duration);
                 urlBuffer->write((const uint8_t*)line, len);
@@ -86,9 +104,15 @@ int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
             else if (av_strstart(line, "#EXT-X-ENDLIST", &ptr)) {
                 urlBuffer->write((const uint8_t*)line, len);
                 //
+                // writeHLSMediaUrls(m_hlsMediaUrls.size(), urlBuffer);
+                //
                 m_hlsMediaUrls.emplace_back(std::move(hlsMediaUrl));
                 segCnt = 0;
-            } else if(line[0]) 
+            }
+            else if (av_strstart(line, "#EXT-X-PLAYLIST-TYPE:", &ptr)) {
+                
+            }
+            else if(line[0]) 
             {
                 if (!urlBuffer) {
                     HJLoge("error, hls buffer is null");
@@ -100,17 +124,16 @@ int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
                     ff_make_absolute_url(tmp_str, sizeof(tmp_str), url.c_str(), line);
                     if (!tmp_str[0]) {
                         HJLoge("error, hls url get failed");
+                        res = HJErrInvalidUrl;
                         break;
                     }
-                    char* tmpUrl = av_strdup(tmp_str);
-                    if (!tmpUrl) {
-                        HJLoge("error, hls tmp url get failed");
-                        break;
-                    }
-                    //HJFLogi("absolute url:{}", tmpUrl);
-                    HJMediaUrl::Ptr subUrl = std::make_shared<HJMediaUrl>(tmpUrl);
+                    //HJFLogi("absolute url:{}", tmp_str);
+                    HJMediaUrl::Ptr subUrl = std::make_shared<HJMediaUrl>(tmp_str);
+                    subUrl->setUseFast(false);
                     subUrl->setDuration(duration);
-                    hlsMediaUrl->addSubUrl(subUrl);
+                    if (hlsMediaUrl) {
+                        hlsMediaUrl->addSubUrl(subUrl);
+                    }
                     //
                     is_segment = false;
                 }
@@ -144,6 +167,15 @@ int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
     }
 #endif
 
-	return HJ_OK;
+	return res;
 }
+
+void HJHLSParser::writeHLSMediaUrls(int index, HJBuffer::Ptr buffer)
+{
+    HJXIOFile::Ptr file = std::make_shared<HJXIOFile>();
+    HJUrl::Ptr tmpUrl = std::make_shared<HJUrl>(HJFMT("E:/movies/hls/{}.m3u8", index), HJ_XIO_WRITE);
+    int ret = file->open(tmpUrl);
+    file->write(buffer->data(), buffer->size());
+}
+
 NS_HJ_END

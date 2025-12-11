@@ -26,16 +26,18 @@ public:
 	}
 	virtual ~HJBlockFile() noexcept;
 
-	int init(const std::string& file);
+	int init(const std::string& url);
 	void done();
 
 	bool isFileComplete();
 	void markBlockComplete(size_t block_index);
+
+	std::vector<size_t> getCompleteBlocks();
 	std::vector<size_t> getIncompleteBlocks();
 	std::pair<size_t, size_t> getBlockRange(size_t block_index);
 	void flush();
 private:
-	std::string m_file{""};
+	std::string m_url{""};
 	size_t m_file_size{ 0 };
 	size_t m_block_size{0};
 	size_t m_total_blocks{0};

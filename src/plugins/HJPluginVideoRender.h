@@ -4,6 +4,8 @@
 #include "HJTimeline.h"
 #if defined (HarmonyOS)
 #include "HJOGRenderWindowBridge.h"
+#elif defined (WINDOWS)
+#include "HJSharedMemory.h"
 #endif
 
 NS_HJ_BEGIN
@@ -51,6 +53,8 @@ protected:
 	HJMediaFrame::Ptr m_currentFrame{};
 #if defined (HarmonyOS)
 	HJOGRenderWindowBridge::Ptr m_bridge{};
+#elif defined (WINDOWS)
+	HJSharedMemoryProducer::Ptr m_sharedMemoryProducer{};
 #endif
 	bool m_onlyFirstFrame{}; 
 	HJDeviceType m_deviceType{ HJDEVICE_TYPE_NONE };

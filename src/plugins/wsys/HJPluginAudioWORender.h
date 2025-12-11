@@ -18,6 +18,8 @@ public:
 	}
 	virtual void onOutputUpdated() override;
 
+	int resetDevice(const std::string& i_deviceName = "") { };
+
 protected:
 	virtual int runTask(int64_t* o_delay = nullptr) override;
 	virtual void internalSetMute() override;

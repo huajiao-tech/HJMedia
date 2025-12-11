@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "HJPrerequisites.h"
+#include "HJAny.h"
 #include <memory>
 #include "shared-memory-queue.h"
 #include "HJSPBuffer.h"
@@ -22,11 +23,12 @@ class HJSharedMemoryProducer
 public:
 	HJ_DEFINE_CREATE(HJSharedMemoryProducer);
 
-	HJSharedMemoryProducer();
+	HJSharedMemoryProducer(const std::string& i_name = "HJSharedMemoryProducer", HJKeyStorage::Ptr i_graphInfo = nullptr);
 	virtual ~HJSharedMemoryProducer();
 
 	int init(int i_width, int i_height, int i_fps);
 	int write(std::shared_ptr<HJMediaFrame> i_frame);
+	int write2(std::shared_ptr<HJMediaFrame> i_frame);
 	void done();
 
 private:
@@ -39,6 +41,7 @@ private:
 	uint64_t m_interval = 0;
 
 	HJSPBuffer::Ptr m_buffer = nullptr;
+	std::string m_name{};
 };
 
 class HJSharedMemoryConsumer

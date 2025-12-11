@@ -565,12 +565,19 @@ public:
     int getLoopCnt() {
         return m_loopCnt;
     }
-    void setDisableMFlag(int flag) {
+    void setDisableMFlag(const int flag) {
         m_disableMFlag = flag;
     }
     int getDisableMFlag() const {
         return m_disableMFlag;
     }
+    void setMFlagTimeout(const int timeout) {
+        m_mflagTimeout = timeout;
+    }
+    int64_t getMFlagTimeout() const {
+        return m_mflagTimeout;
+    }
+
     bool isEnbleVideo() const {
         return !(m_disableMFlag & HJMEDIA_TYPE_VIDEO);
     }
@@ -591,6 +598,13 @@ public:
     }
     bool getUseFast() const {
         return m_useFast;
+    }
+    bool isM3u8() const {
+        if(m_url.empty()) return false;
+        return HJUtilitys::containWith(m_url, ".m3u8");
+    }
+    bool canUseFast() const {
+        return m_useFast && !isM3u8();
     }
 
     virtual void clone(const HJMediaUrl::Ptr& other) {
@@ -637,6 +651,7 @@ protected:
     int64_t         m_timeout = 3000000;                 //us
     int             m_loopCnt = 1;                       //0=1, HJ_INT_MAX;
     int             m_disableMFlag = HJMEDIA_TYPE_NONE;  //disable video | audio | subtitle
+    int64_t         m_mflagTimeout = 0;                  //ms
     bool            m_useFast = true;                    //use fast http or https
     //
     std::set<HJMediaUrl::Ptr>   m_subUrls;

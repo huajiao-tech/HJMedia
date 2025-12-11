@@ -25,7 +25,7 @@ int HJLocalServer::init(HJParams::Ptr params, HJListener listener)
         parseParams(params);
     }
     if (!HJFileUtil::isDirExist(m_params.cache_dir)) {
-        auto isOK = HJFileUtil::create_path(m_params.cache_dir.c_str());
+        auto isOK = HJFileUtil::create_path(m_params.cache_dir);
         if (!isOK) {
             HJFLoge("create cache dir failed, path:{}", m_params.cache_dir);
             return HJErrInvalidPath;
@@ -63,6 +63,8 @@ std::string HJLocalServer::getPlayUrl(std::string rid, std::string url, int leve
 
 int HJLocalServer::preloadCacheFile(std::string rid, std::string url, int preCacheSize, int level)
 {
+
+
     return HJ_OK;
 }
 
@@ -131,6 +133,7 @@ int HJLocalServer::setupStorage()
         m_storageManager->init();
         //
         m_cacheManager = HJCreateu<HJCacheManager>(m_params);
+        m_cacheManager->setStorageManager(m_storageManager);
     } catch (const HJException& e) {
         HJFLoge("create storage manager failed, error:{}", e.what());
         return HJErrInvalidParams;

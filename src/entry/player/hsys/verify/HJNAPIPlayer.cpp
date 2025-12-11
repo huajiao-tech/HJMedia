@@ -233,6 +233,8 @@ int HJNAPIPlayer::priCreatePlayerGraph(const HJPlayerInfo &i_playerInfo)
     do 
     {
         HJMediaUrl::Ptr mediaUrl = std::make_shared<HJMediaUrl>(i_playerInfo.m_url);
+        mediaUrl->setDisableMFlag(i_playerInfo.m_disableMFlag);
+        
         auto param = std::make_shared<HJKeyStorage>();
         
         HJDeviceType nHJDeviceType = HJDEVICE_TYPE_NONE;

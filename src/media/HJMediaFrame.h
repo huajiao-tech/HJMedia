@@ -6,6 +6,7 @@
 #pragma once
 #include "HJMediaInfo.h"
 #include "HJTicker.h"
+#include "HJSEIWrapper.h"
 
 typedef struct AVPacket AVPacket;
 typedef struct AVFrame AVFrame;
@@ -327,6 +328,10 @@ public:
     virtual void clone(const HJMediaFrame::Ptr& other);
     virtual HJMediaFrame::Ptr dup();
     virtual HJMediaFrame::Ptr deepDup();
+
+    int addSEI(const HJSEINals::Ptr& nals);
+    HJSEINals::Ptr getSEI();
+    HJSEINals::Ptr deriveSEINals();
 public:
     static HJMediaFrame::Ptr makeVideoFrame(const HJVideoInfo::Ptr& info = nullptr);
     static HJMediaFrame::Ptr makeAudioFrame(const HJAudioInfo::Ptr& info = nullptr);

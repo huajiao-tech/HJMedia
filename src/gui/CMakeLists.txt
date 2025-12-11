@@ -64,7 +64,7 @@ set(HJGUI_INCLUDE_DIRS
 MAKE_COMMON_CONFIG()
 
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
-target_link_libraries(${PROJ_NAME} PRIVATE HJCore HJMedia HJUtils LIBFFMPEG ImGuiFileDialog ImFileDialog implot imgui LIBSTB LIBSPDLOG LIBGLFW)
+target_link_libraries(${PROJ_NAME} PRIVATE HJCore HJMedia HJUtils LIBFFMPEG ImGuiFileDialog ImFileDialog implot imgui LIBSTB LIBSPDLOG glfw)
 target_include_directories(${PROJ_NAME} INTERFACE ${HJGUI_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

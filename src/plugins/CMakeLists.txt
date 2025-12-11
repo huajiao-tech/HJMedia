@@ -36,6 +36,9 @@ MAKE_COMMON_CONFIG()
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
 target_link_libraries(${PROJ_NAME} PRIVATE HJGraphs HJStat libfdkaac HJMedia HJComp HJUtils LIBFFMPEG LIBSPDLOG)
+if (WINDOWS)
+    target_link_libraries(${PROJ_NAME} PRIVATE HJPlatform)
+endif()
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

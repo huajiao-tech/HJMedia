@@ -143,6 +143,8 @@ typedef int32_t HJRet;
 #define HJErrNetRecv           HJDefErrID(8006)
 #define HJErrNetSend           HJDefErrID(8007)
 #define HJErrNetDeadlineExceeded   HJDefErrID(8008)   //DEADLINE_EXCEEDED
+#define HJErrNetCanceled       HJDefErrID(8009)
+#define HJErrDownloadFailed    HJDefErrID(8010)
 
 //rtmp
 #define HJErrRTMPUnkown        HJDefErrID(9000)

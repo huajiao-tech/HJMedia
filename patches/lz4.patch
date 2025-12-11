@@ -1,38 +1,38 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-deleted file mode 100644
-index 9af2803..0000000
---- a/CMakeLists.txt
-+++ /dev/null
-@@ -1,32 +0,0 @@
--set(PROJ_NAME lz4)
--
--include_directories(${CMAKE_CURRENT_SOURCE_DIR})
--
--set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/lib)
--
--set(HEADER_FILES
--    lib/lz4.h
--    lib/lz4hc.h
--)
--
--set(SOURCE_FILES
--    lib/lz4.c
--    lib/lz4hc.c
--)
--# message (STATUS "HEADER_FILES:${HEADER_FILES} SOURCE_FILES:${SOURCE_FILES}")
--
--MAKE_COMMON_CONFIG()
--
--add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
--
--# target_link_libraries(${PROJ_NAME} PRIVATE imgui glfw LIBSTB)
--target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
--
--HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
--
--set_target_properties(${PROJ_NAME} PROPERTIES
--    ARCHIVE_OUTPUT_DIRECTORY ${ARCHIVE_output}
--    LIBRARY_OUTPUT_DIRECTORY ${library_output}
--    RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
--
--ProjFolder(${PROJ_NAME} "third_party")
+new file mode 100644
+index 0000000..9af2803
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,32 @@
++set(PROJ_NAME lz4)
++
++include_directories(${CMAKE_CURRENT_SOURCE_DIR})
++
++set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/lib)
++
++set(HEADER_FILES
++    lib/lz4.h
++    lib/lz4hc.h
++)
++
++set(SOURCE_FILES
++    lib/lz4.c
++    lib/lz4hc.c
++)
++# message (STATUS "HEADER_FILES:${HEADER_FILES} SOURCE_FILES:${SOURCE_FILES}")
++
++MAKE_COMMON_CONFIG()
++
++add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
++
++# target_link_libraries(${PROJ_NAME} PRIVATE imgui glfw LIBSTB)
++target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
++
++HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
++
++set_target_properties(${PROJ_NAME} PROPERTIES
++    ARCHIVE_OUTPUT_DIRECTORY ${ARCHIVE_output}
++    LIBRARY_OUTPUT_DIRECTORY ${library_output}
++    RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
++
++ProjFolder(${PROJ_NAME} "third_party")

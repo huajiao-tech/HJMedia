@@ -36,7 +36,7 @@ protected:
 protected:
 	virtual int getFrameFromDemuxer(std::string& route);
 	virtual int canDeliverToOutputs(const HJMediaFrame::Ptr& i_currentFrame);
-
+	void proSEI(const HJMediaFrame::Ptr& mvf);
 protected:
 	std::atomic<bool> m_resetting{};
 	HJBaseDemuxer::Ptr m_demuxer{};
@@ -47,6 +47,7 @@ protected:
 	int64_t m_streamIndexOffset{};
 
 	std::function<void()> m_demuxNotify{};
+	HJListener m_listener{};
 };
 
 NS_HJ_END

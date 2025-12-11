@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 
 NS_HJ_BEGIN
 //***********************************************************************************//
-bool HJFileUtil::create_path(const char* file, unsigned int mod) {
+bool HJFileUtil::create_path(const std::string& file, unsigned int mod) {
     try {
         fs::path path(file);
         // 递归创建目录
@@ -36,7 +36,7 @@ bool HJFileUtil::create_path(const char* file, unsigned int mod) {
     }
 }
 
-bool HJFileUtil::makeDir(const char* file) {
+bool HJFileUtil::makeDir(const std::string& file) {
 #ifdef _WIN32
     return create_path(file, 0);
 #else
@@ -44,10 +44,9 @@ bool HJFileUtil::makeDir(const char* file) {
 #endif
 }
 
-std::ofstream HJFileUtil::create_file(const char* file, const char* mode) {
+std::ofstream HJFileUtil::create_file(const std::string& file, const char* mode) {
     fs::path path(file);
-    // 自动创建父目录
-    if (!fs::exists(path.parent_path()) && !create_path(path.parent_path().string().c_str())) {
+    if (!fs::exists(path.parent_path()) && !create_path(path.parent_path().string())) {
         return std::ofstream();
     }
 
@@ -70,7 +69,7 @@ std::ofstream HJFileUtil::create_file(const char* file, const char* mode) {
     return std::ofstream(path, open_mode);
 }
 
-bool HJFileUtil::is_dir(const char* path) {
+bool HJFileUtil::is_dir(const std::string& path) {
     try {
         return fs::is_directory(fs::path(path));
     } catch (const fs::filesystem_error& e) {
@@ -79,26 +78,26 @@ bool HJFileUtil::is_dir(const char* path) {
     }
 }
 
-bool HJFileUtil::is_special_dir(const char* path) {
+bool HJFileUtil::is_special_dir(const std::string& path) {
     fs::path p(path);
     return p.filename() == "." || p.filename() == "..";
 }
 
-int HJFileUtil::delete_file(const char* path) {
+int HJFileUtil::delete_file(const std::string& path) {
     try {
         return static_cast<int>(fs::remove_all(fs::path(path)));
     } catch (const fs::filesystem_error& e) {
-        HJFLogw("error, delete_file failed:{}", e.what());
+        HJFLogw("error, delete file failed:{}", e.what());
         return -1;
     }
 }
 
-bool HJFileUtil::fileExist(const char* path) {
+bool HJFileUtil::fileExist(const std::string& path) {
     try {
         fs::path p(path);
         return fs::exists(p) && fs::is_regular_file(p);
     } catch (const fs::filesystem_error& e) {
-        HJFLogw("error, fileExist failed:{}", e.what());
+        HJFLogw("error, file exist failed:{}", e.what());
         return false;
     }
 }
@@ -113,11 +112,11 @@ bool HJFileUtil::isDirExist(const std::string& dir)
     }
 }
 
-std::string HJFileUtil::loadFile(const char* path) {
+std::string HJFileUtil::loadFile(const std::string& path) {
     try {
         std::ifstream ifs(path, std::ios::binary);
         if (!ifs) {
-            HJFLogw("error, loadFile: open failed:{}", path ? path : "null");
+            HJFLogw("error, loadFile: open failed:{}", path);
             return "";
         }
         // 预分配内存提升性能
@@ -133,13 +132,13 @@ std::string HJFileUtil::loadFile(const char* path) {
 }
 
 std::string HJFileUtil::readFile(const std::string& fileName) {
-    return loadFile(fileName.c_str()); // 合并实现，避免冗余
+    return loadFile(fileName.c_str());
 }
 
-bool HJFileUtil::saveFile(const std::string& data, const char* path, const std::string& mode) {
+bool HJFileUtil::saveFile(const std::string& data, const std::string& path, const std::string& mode) {
     fs::path p(path);
     // 确保父目录存在
-    if (!fs::exists(p.parent_path()) && !create_path(p.parent_path().string().c_str())) {
+    if (!fs::exists(p.parent_path()) && !create_path(p.parent_path().string())) {
         return false;
     }
 
@@ -161,8 +160,8 @@ bool HJFileUtil::saveFile(const std::string& data, const char* path, const std::
     return ofs.good();
 }
 
-bool HJFileUtil::saveFile(const char* data, size_t len, const char* path) {
-    if (!data || len == 0 || !path) return false;
+bool HJFileUtil::saveFile(const std::string& data, size_t len, const std::string& path) {
+    if (data.empty() || len == 0 || path.empty()) return false;
     return saveFile(std::string(data, len), path);
 }
 
@@ -213,7 +212,7 @@ void HJFileUtil::scanDir(const std::string& path_in, const std::function<bool(co
             bool is_dir = entry.is_directory();
             
             // 跳过隐藏文件（.开头）和特殊目录
-            if (entry.path().filename().string().front() == '.' || is_special_dir(entry_path.c_str())) {
+            if (entry.path().filename().string().front() == '.' || is_special_dir(entry_path)) {
                 continue;
             }
 
@@ -247,7 +246,7 @@ uint64_t HJFileUtil::fileSize(FILE* fp, bool remain_size) {
     return remain_size ? (end - current) : end;
 }
 
-uint64_t HJFileUtil::fileSize(const char* path) {
+uint64_t HJFileUtil::fileSize(const std::string& path) {
     try {
         return fs::file_size(fs::path(path));
     } catch (const fs::filesystem_error& e) {

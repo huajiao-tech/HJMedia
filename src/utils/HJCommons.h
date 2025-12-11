@@ -73,6 +73,7 @@ static inline std::shared_ptr<T>HJLockWtr(std::weak_ptr<T> const& wp) {
     return wp.lock();
 }
 
+using HJRawBuffer = std::vector<uint8_t>;
 //***********************************************************************************//
 
 

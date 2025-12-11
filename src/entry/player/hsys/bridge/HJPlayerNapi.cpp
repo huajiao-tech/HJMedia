@@ -111,7 +111,8 @@ napi_value HJPlayerNapi::openPlayer(napi_env env, napi_callback_info info)
                                        .m_videoCodecType = config->videoCodecType,
                                        .m_sourceType = static_cast<HJPrioComSourceType>(config->sourceType),
                                        .m_playerType = static_cast<HJPlayerType>(config->playerType),
-                                       .m_bSplitScreenMirror = config->bSplitScreenMirror
+                                       .m_bSplitScreenMirror = config->bSplitScreenMirror,
+                                       .m_disableMFlag = config->disableMFlag
                                    },
                                    [nPlayerPtr](int i_type, const std::string &i_msgInfo) {
                                        auto data = new HJYJsonDocument{};

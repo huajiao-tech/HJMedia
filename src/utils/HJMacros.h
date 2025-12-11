@@ -17,6 +17,10 @@
 #define HJ_TYPE_NAME(type)         typeid(type).name()
 #define HJ_VAR_NAME(variable)      (#variable)
 
+#ifndef HJ_UNUSED
+#define HJ_UNUSED(x) (void)(x)
+#endif
+
 #define HJ_AUTO_LOCK(mtx)    std::lock_guard<decltype(mtx)> lock(mtx);
 #define HJ_AUTOU_LOCK(mtx)   std::unique_lock<decltype(mtx)> lock(mtx);
 #define HJ_AUTOS_LOCK(mtx)   std::shared_lock<decltype(mtx)> lock(mtx);

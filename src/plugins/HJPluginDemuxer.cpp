@@ -1,6 +1,7 @@
 #include "HJPluginDemuxer.h"
 #include "HJGraph.h"
 #include "HJFLog.h"
+#include "HJSEIWrapper.h"
 
 NS_HJ_BEGIN
 
@@ -24,6 +25,7 @@ int HJPluginDemuxer::internalInit(HJKeyStorage::Ptr i_param)
 	GET_PARAMETER(std::function<void()>, demuxNotify);
 	GET_PARAMETER(HJMediaUrl::Ptr, mediaUrl);
 	GET_PARAMETER(HJLooperThread::Ptr, thread);
+	m_listener = i_param->getValue<HJListener>("pluginListener");
 
 	auto param = HJKeyStorage::dupFrom(i_param);
 	(*param)["createThread"] = (thread == nullptr);
@@ -470,8 +472,37 @@ int HJPluginDemuxer::getFrameFromDemuxer(std::string& route)
 			return HJ_EOF;
 		}
 
+		proSEI(m_currentFrame);
+
 		return HJ_OK;
 	});
+}
+
+void HJPluginDemuxer::proSEI(const HJMediaFrame::Ptr& mvf)
+{
+	if (!m_listener) {
+		return;
+	}
+	auto seiNals = mvf->getSEI();
+	if (seiNals && seiNals->size() > 0)
+	{
+		std::vector<HJSEIData> userSEIDatas{};
+		const auto& nals = seiNals->getDatas();
+		for (const auto& nal : nals) {
+			auto userDatas = HJSEIWrapper::parseSEINals(nal);
+			//for (const auto& userData : userDatas) {
+			//	std::string userMsg = std::string(userData.data.begin(), userData.data.end());
+			//	HJFLogi("{}, sei nal uuid:{}, msg:{}", getName(), userData.uuid, userMsg);
+			//}
+			if (userDatas.size() > 0) {
+				userSEIDatas.insert(userSEIDatas.end(), userDatas.begin(), userDatas.end());
+			}
+		}
+		auto ntfy = HJMakeNotification(HJ_PLUGIN_NOTIFY_PLUGIN_SEI_INFOS);
+		(*ntfy)["user_sei_datas"] = userSEIDatas;
+		m_listener(std::move(ntfy));
+	}
+	return;	
 }
 
 NS_HJ_END

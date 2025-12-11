@@ -62,6 +62,8 @@ int HJGraphVodPlayer::internalInit(HJKeyStorage::Ptr i_param)
 #if defined (HarmonyOS)
         GET_PARAMETER(HJOGRenderWindowBridge::Ptr, mainBridge);
         IF_FALSE_BREAK(mainBridge, HJErrInvalidParams);
+#elif defined (WINDOWS)
+        GET_PARAMETER(std::string, audioDeviceName);
 #endif
 
         auto graphInfo = std::make_shared<HJKeyStorage>();
@@ -106,12 +108,11 @@ int HJGraphVodPlayer::internalInit(HJKeyStorage::Ptr i_param)
             addPlugin(m_audioResampler);
             m_pluginStatuses["HJPluginAudioResampler"].store(HJSTATUS_NONE);
             IF_FAIL_BREAK(ret = connectPlugins(m_audioDecoder, m_audioResampler, HJMEDIA_TYPE_AUDIO), ret);
-#if defined (WINDOWS)
-//            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWORender::Create<HJPluginAudioWORender>(AUDIORENDER, graphInfo), HJErrFatal);
-            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWASRender::Create<HJPluginAudioWASRender>(AUDIORENDER, graphInfo), HJErrFatal);
-#endif
 #if defined (HarmonyOS)
             IF_FALSE_BREAK(m_audioRender = HJPluginAudioOHRender::Create<HJPluginAudioOHRender>(AUDIORENDER, graphInfo), HJErrFatal);
+#elif defined (WINDOWS)
+//            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWORender::Create<HJPluginAudioWORender>(AUDIORENDER, graphInfo), HJErrFatal);
+            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWASRender::Create<HJPluginAudioWASRender>(AUDIORENDER, graphInfo), HJErrFatal);
 #endif
             addPlugin(m_audioRender);
             m_audioDurations[AUDIORENDER].store(0);
@@ -135,6 +136,10 @@ int HJGraphVodPlayer::internalInit(HJKeyStorage::Ptr i_param)
         if (deviceType == HJDEVICE_TYPE_NONE) {
 #if defined (HarmonyOS)
             (*param)["bridge"] = mainBridge;
+#elif defined (WINDOWS)
+            IF_FALSE_BREAK(m_sharedMemoryProducer = HJSharedMemoryProducer::Create<HJSharedMemoryProducer>("HJSharedMemoryProducer" + HJFMT("_{}", insIdx)), HJErrFatal);
+            m_sharedMemoryProducer->init(1920, 1080, 30);
+            (*param)["sharedMemoryProducer"] = m_sharedMemoryProducer;
 #endif
             IF_FAIL_BREAK(ret = m_videoRender->init(param), ret);
 
@@ -157,7 +162,11 @@ int HJGraphVodPlayer::internalInit(HJKeyStorage::Ptr i_param)
             param = std::make_shared<HJKeyStorage>();
             (*param)["audioInfo"] = audioInfo;
             (*param)["timeline"] = m_timeline;
-#if !defined (WINDOWS)
+#if defined (WINDOWS)
+            if (!audioDeviceName.empty()) {
+                (*param)["audioDeviceName"] = audioDeviceName;
+            }
+#else
             (*param)["thread"] = m_renderThread;
 #endif
             (*param)["pluginListener"] = pluginListener;
@@ -211,6 +220,13 @@ void HJGraphVodPlayer::internalRelease()
     }
 
     HJGraph::internalRelease();
+
+#if defined (WINDOWS)
+    if (m_sharedMemoryProducer) {
+        m_sharedMemoryProducer->done();
+        m_sharedMemoryProducer = nullptr;
+    }
+#endif
 }
 
 int HJGraphVodPlayer::setInfo(const Information i_info)
@@ -439,6 +455,22 @@ bool HJGraphVodPlayer::isMuted()
         return m_audioRender->isMuted();
     });
 }
+
+#if defined (WINDOWS)
+int HJGraphVodPlayer::resetAudioDevice(const std::string& i_deviceName)
+{
+    return SYNC_CONS_LOCK([=] {
+        CHECK_DONE_STATUS(HJErrAlreadyDone);
+
+        if (!m_audioRender) {
+            return HJErrNotInited;
+        }
+
+        return m_audioRender->resetDevice(i_deviceName);
+        return HJ_OK;
+    });
+}
+#endif
 
 int HJGraphVodPlayer::canDemuxerDeliverToOutputs(Information io_info)
 {

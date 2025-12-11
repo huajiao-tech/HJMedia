@@ -142,7 +142,7 @@ int HJPluginAudioWORender::runTask(int64_t* o_delay)
 void HJPluginAudioWORender::internalSetMute()
 {
 	if (m_render) {
-		DWORD dwVolume = m_muted ? 0x0000 : 0xFFFF;
+		DWORD dwVolume = m_muted ? 0x00000000 : 0xFFFFFFFF;
 		MMRESULT result = waveOutSetVolume(m_render, dwVolume);
 		if (result != MMSYSERR_NOERROR) {
 			HJFLoge("{}, waveOutSetVolume error({})", getName(), result);

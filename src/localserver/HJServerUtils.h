@@ -9,7 +9,8 @@
 
 NS_HJ_BEGIN
 //***********************************************************************************//
-#define HJ_HTTP_PORT_DEFAULT     8125
+#define HJ_HTTP_PORT_DEFAULT        8125
+#define HJ_FILE_BLOCK_SIZE_DEFAULT  32*1024
 //
 typedef struct HJServerParams
 {
@@ -47,5 +48,12 @@ typedef enum HJServerNotifyType
     HJ_SERVER_NOTIFY_CACHE_COMPLETE,
     HJ_SERVER_NOTIFY_CACHE_FAILED,
 } HJServerNotifyType;
+
+class HJServerUtils
+{
+public:
+    static std::string getCategory(int priority);
+    static std::pair<std::string, std::string> makeLocalUrl(const std::string& url, const std::string& rid, const std::string& cache_dir);
+};
 
 NS_HJ_END

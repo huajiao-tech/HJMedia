@@ -708,6 +708,47 @@ std::string HJUtilitys::getThreadName() {
 #endif
 }
 
+static inline uint8_t hexVal(char c)
+{
+    if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(10 + (c - 'a'));
+    return 0xFF;
+}
+
+std::vector<uint8_t> HJUtilitys::parseUuidTo16Bytes(const std::string& uuid)
+{
+    // 允许: 16字节原始; 32位hex(无-); 36位hex(带-)
+    if (uuid.size() == 16) {
+        return std::vector<uint8_t>(uuid.begin(), uuid.end());
+    }
+    std::string hex;
+    hex.reserve(32);
+    for (char c : uuid) {
+        if (c == '-' || c == '{' || c == '}' || c == ' ') continue;
+        hex.push_back(c);
+    }
+    if (hex.size() != 32) return {};
+    std::vector<uint8_t> out; out.reserve(16);
+    for (size_t i = 0; i < 32; i += 2) {
+        uint8_t h = hexVal(hex[i]); uint8_t l = hexVal(hex[i + 1]);
+        if (h == 0xFF || l == 0xFF) return {};
+        out.push_back(static_cast<uint8_t>((h << 4) | l));
+    }
+    return out;
+}
+
+std::string HJUtilitys::uuidBytesToHex(const uint8_t* p16)
+{
+    static const char* kHex = "0123456789abcdef";
+    std::string s; s.resize(32);
+    for (int i = 0; i < 16; ++i) {
+        s[i * 2] = kHex[(p16[i] >> 4) & 0x0F];
+        s[i * 2 + 1] = kHex[(p16[i]) & 0x0F];
+    }
+    return s;
+}
+
 std::string HJUtilitys::getTimeStr(const char* fmt, time_t time) {
     if (!time) {
         time = ::time(nullptr);

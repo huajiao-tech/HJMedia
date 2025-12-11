@@ -105,5 +105,36 @@ inline HJMessage::Ptr HJMakeMessage(const size_t identify, const std::string& ms
 //***********************************************************************************//
 using HJListener = std::function<int(const HJNotification::Ptr)>;
 
+//***********************************************************************************//
+class HJNotifyDelegate : public virtual HJObject
+{
+public:
+    HJ_DECLARE_PUWTR(HJNotifyDelegate);
+
+    virtual int onNotify(HJNotification::Ptr ntfy) = 0;
+};
+
+class HJNotifyBase : public HJObject
+{
+public:
+    HJ_DECLARE_PUWTR(HJNotifyBase);
+    HJNotifyBase() = default;
+    HJNotifyBase(const HJNotifyDelegate::Wtr& delegate)
+        : m_delegate(delegate) {
+    }
+    virtual ~HJNotifyBase() = default;
+
+protected:
+    virtual int notify(HJNotification::Ptr ntfy) {
+        auto lockedDelegate = HJLockWtr<HJNotifyDelegate>(m_delegate);
+        if (lockedDelegate) {
+            return lockedDelegate->onNotify(std::move(ntfy));
+        }
+        return HJ_OK;
+    }
+protected:
+    HJNotifyDelegate::Wtr m_delegate{};
+};
+
 NS_HJ_END
 

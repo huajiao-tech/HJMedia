@@ -67,6 +67,7 @@ export struct PlayerXComponent {
       sourceType: this.sourceType,
       playerType: playerType,
       bSplitScreenMirror: false,
+      disableMFlag: 0,
     })
     this.playerXComponentStore.dispatch(new OpenAction())
   }

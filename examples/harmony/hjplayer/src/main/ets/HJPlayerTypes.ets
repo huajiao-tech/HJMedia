@@ -5,6 +5,7 @@ export interface OpenPlayerInfo {
   sourceType: HJPlayerSourceType
   playerType: HJPlayerType
   bSplitScreenMirror: boolean
+  disableMFlag: number
 }
 
 export enum HJPlayerVideoCodecType {
@@ -47,4 +48,13 @@ export enum HJPlayerType {
   HJPlayerType_UNKNOWN = 0,
   HJPlayerType_LIVESTREAM = 1,
   HJPlayerType_VOD = 2,
+}
+
+export enum HJPlayerMediaType
+{
+    HJPLAYER_MEDIA_TYPE_NONE       = 0x0000,
+    HJPLAYER_MEDIA_TYPE_VIDEO      = 0x0001,
+    HJPLAYER_MEDIA_TYPE_AUDIO      = 0x0002,
+    HJPLAYER_MEDIA_TYPE_DATA       = 0x0004,
+    HJPLAYER_MEDIA_TYPE_SUBTITLE   = 0x0008,
 }

@@ -69,6 +69,62 @@ HJVEncOHCodec::~HJVEncOHCodec()
 	} while (false);
 	HJFLogi("{} ~HJVEncOHCodec end", m_name);
 }
+void HJVEncOHCodec::priOnInputParameter(OH_AVCodec *codec, uint32_t index, OH_AVFormat *parameter)
+{
+	if (m_roiCb)
+	{
+        std::string roiParam = "";
+        //const char *roiInfo = "0,0-128,64=50";
+        
+		HJRoiInfoVectorPtr roiInfo = nullptr;
+		m_roiCb(roiInfo, HJ_ROI_CB_FLAG_TRY_ACQUIRE);
+        if (roiInfo)
+        {
+            HJRoiInfo& info = (*roiInfo)[0];
+            roiParam = HJFMT("{},{}-{},{}={}", info.y, info.x, (info.y + info.h), (info.x + info.w), (int)info.quant_offset);
+            //roiParam = HJFMT("{},{}-{},{}={}", 544,230,956,510, (int)info.quant_offset);
+            HJFLogi("find face :{}", roiParam);
+        } 
+#if USE_ROI_20        
+        if (OH_GetSdkApiVersion() >= 20)
+        {
+            //OH_AVFormat_SetStringValue(parameter, OH_MD_KEY_VIDEO_ENCODER_ROI_PARAMS, roiParam.c_str());
+            //OH_AVFormat_SetStringValue(parameter, "video_encoder_roi_params", roiParam.c_str());
+            if (s_roi_params_val.empty())
+            {
+                void* handle = dlopen(NULL, RTLD_LAZY); // 查找已加载的库                                            
+                if (handle) 
+                {
+                    const char** key_ptr = (const char**)dlsym(handle, "OH_MD_KEY_VIDEO_ENCODER_ROI_PARAMS");
+                    if (key_ptr != NULL) 
+                    {
+                        s_roi_params_val = *key_ptr;
+                        HJFLogi("find face :{}  key_ptr:{}", roiParam, s_roi_params_val);
+                    }
+                    dlclose(handle);    
+                }       
+            }
+            if (!s_roi_params_val.empty())
+            {
+                OH_AVFormat_SetStringValue(parameter, s_roi_params_val.c_str(), roiParam.c_str());
+            }
+        }    
+#endif       
+        OH_AVErrCode res = OH_VideoEncoder_PushInputParameter(codec, index);    
+        if (res != AV_ERR_OK)
+	    {
+		    HJFLoge("OH_VideoEncoder_PushInputParameter error i_err:{}", res);
+        }
+	}
+}
+void HJVEncOHCodec::OnNeedInputParameter(OH_AVCodec *codec, uint32_t index, OH_AVFormat *parameter, void *userData)
+{
+    HJVEncOHCodec *enc = static_cast<HJVEncOHCodec *>(userData);
+    if (enc)
+    {
+        enc->priOnInputParameter(codec, index, parameter);
+    }
+}
 
 int HJVEncOHCodec::init(const HJStreamInfo::Ptr &info)
 {
@@ -109,7 +165,23 @@ int HJVEncOHCodec::init(const HJStreamInfo::Ptr &info)
 		OH_AVFormat_SetIntValue(format, OH_MD_KEY_I_FRAME_INTERVAL, 1000 * videoInfo->m_gopSize / videoInfo->m_frameRate); // ms for example, (2 * 1000 / fps)
 		OH_AVFormat_SetIntValue(format, OH_MD_KEY_PROFILE, 0);
         HJFLogi("init begin w:{} h:{} fps:{} bitrate:{}", videoInfo->m_width, videoInfo->m_height, videoInfo->m_frameRate, videoInfo->m_bitrate);
+
+		if (info->haveValue("ROIEncodeCb"))
+    	{
+        	m_roiCb = info->getValueObj<HJRoiEncodeCb>("ROIEncodeCb");
+    	}
         
+        if (m_roiCb)
+        {
+            OH_VideoEncoder_OnNeedInputParameter inParaCb = OnNeedInputParameter;
+            res = OH_VideoEncoder_RegisterParameterCallback(m_encoder, inParaCb, this);
+            if (res != AV_ERR_OK)
+		    {
+			    HJFLoge("OH_VideoEncoder_RegisterParameterCallback error i_err:{}", res);
+			    res = HJErrCodecInit;
+			    break;
+		    }
+        }
         
 		res = OH_VideoEncoder_Configure(m_encoder, format);
         OH_AVFormat_Destroy(format);

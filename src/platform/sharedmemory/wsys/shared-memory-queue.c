@@ -24,11 +24,18 @@ struct queue_header {
 	uint32_t reserved[8];
 };
 
+struct frame_header {
+	uint64_t timestamp;
+	int width;
+	int height;
+};
+
 struct video_queue {
 	HANDLE handle;
 	bool ready_to_read;
 	struct queue_header *header;
-	uint64_t *ts[3];
+//	uint64_t *ts[3];
+	struct frame_header *frame_header[3];
 	uint8_t *frame[3];
 	long last_inc;
 	int dup_counter;
@@ -98,9 +105,16 @@ video_queue_t *video_queue_create(uint32_t cx, uint32_t cy, uint64_t interval)
 
 	for (size_t i = 0; i < 3; i++) {
 		uint32_t off = offset_frame[i];
-		vq.ts[i] = (uint64_t *)(((uint8_t *)vq.header) + off);
+//		vq.ts[i] = (uint64_t *)(((uint8_t *)vq.header) + off);
+		vq.frame_header[i] = (struct frame_header*)(((uint8_t*)vq.header) + off);
 		vq.frame[i] = ((uint8_t *)vq.header) + off + FRAME_HEADER_SIZE;
 	}
+/*
+	if (!FlushViewOfFile(vq.header, size)) {
+		// ´¦Àí´íÎó
+		return NULL;
+	}
+*/
 	pvq = malloc(sizeof(vq));
 	if (!pvq) {
 		CloseHandle(vq.handle);
@@ -169,9 +183,43 @@ void video_queue_write(video_queue_t *vq, uint8_t **data, uint32_t *linesize,
 	unsigned long idx = get_idx(inc);
 	size_t size = linesize[0] * qh->cy;
 
-	*vq->ts[idx] = timestamp;
+//	*vq->ts[idx] = timestamp;
+	vq->frame_header[idx]->timestamp = timestamp;
 	memcpy(vq->frame[idx], data[0], size);
 	memcpy(vq->frame[idx] + size, data[1], size / 2);
+
+	qh->read_idx = inc;
+	qh->state = SHARED_QUEUE_STATE_READY;
+}
+
+void video_queue_write2(video_queue_t* vq, uint8_t** data,
+	uint32_t* linesize, uint64_t timestamp, int width, int height)
+{
+	struct queue_header* qh = vq->header;
+	long inc = ++qh->write_idx;
+
+	unsigned long idx = get_idx(inc);
+	size_t size = width * height;
+
+	vq->frame_header[idx]->timestamp = timestamp;
+	vq->frame_header[idx]->width = width;
+	vq->frame_header[idx]->height = height;
+
+	for (int i = 0; i < height; i++) {
+		uint8_t* src = data[0] + i * linesize[0];
+		uint8_t* dst = vq->frame[idx] + i * width;
+		memcpy(dst, src, width);
+	}
+	for (int i = 0; i < height / 2; i++) {
+		uint8_t* src = data[1] + i * linesize[1];
+		uint8_t* dst = vq->frame[idx] + size + i * width / 2;
+		memcpy(dst, src, width / 2);
+	}
+	for (int i = 0; i < height / 2; i++) {
+		uint8_t* src = data[2] + i * linesize[2];
+		uint8_t* dst = vq->frame[idx] + size * 5 / 4 + i * width / 2;
+		memcpy(dst, src, width / 2);
+	}
 
 	qh->read_idx = inc;
 	qh->state = SHARED_QUEUE_STATE_READY;
@@ -187,7 +235,8 @@ enum queue_state video_queue_state(video_queue_t *vq)
 	if (!vq->ready_to_read && state == SHARED_QUEUE_STATE_READY) {
 		for (size_t i = 0; i < 3; i++) {
 			size_t off = vq->header->offsets[i];
-			vq->ts[i] = (uint64_t *)(((uint8_t *)vq->header) + off);
+//			vq->ts[i] = (uint64_t *)(((uint8_t *)vq->header) + off);
+			vq->frame_header[i] = (struct frame_header*)(((uint8_t*)vq->header) + off);
 			vq->frame[i] = ((uint8_t *)vq->header) + off +
 				       FRAME_HEADER_SIZE;
 		}
@@ -218,8 +267,39 @@ bool video_queue_read(video_queue_t *vq, nv12_scale_t *scale, void *dst,
 
 	unsigned long idx = get_idx(inc);
 
-	*ts = *vq->ts[idx];
+//	*ts = *vq->ts[idx];
+	*ts = vq->frame_header[idx]->timestamp;
 
 	nv12_do_scale(scale, dst, vq->frame[idx]);
+	return true;
+}
+
+bool video_queue_read2(video_queue_t* vq, void** dst,
+	uint64_t* ts, int* width, int* height)
+{
+	struct queue_header* qh = vq->header;
+	long inc = qh->read_idx;
+
+	if (qh->state != SHARED_QUEUE_STATE_READY) {
+		return false;
+	}
+
+	if (inc == vq->last_inc) {
+		if (++vq->dup_counter == 100) {
+			return false;
+		}
+	}
+	else {
+		vq->dup_counter = 0;
+		vq->last_inc = inc;
+	}
+
+	unsigned long idx = get_idx(inc);
+
+	*dst = vq->frame[idx];
+	*ts = vq->frame_header[idx]->timestamp;
+	*width = vq->frame_header[idx]->width;
+	*height = vq->frame_header[idx]->height;
+
 	return true;
 }

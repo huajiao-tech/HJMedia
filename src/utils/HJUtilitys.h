@@ -70,7 +70,7 @@ public:
     static std::string &strToUpper(std::string &str);
     static std::string strToUpper(std::string &&str);
     //替换子字符串
-    static void replace(std::string &str, const std::string &old_str, const std::string &new_str) ;
+    static void replace(std::string &str, const std::string &old_str, const std::string &new_str);
     //判断是否为ip
 //    static bool isIP(const char *str);
     static bool isLocalhost(const std::string& url);
@@ -126,6 +126,13 @@ public:
     static const std::string getPrefix(const std::string& str);
     
     static std::string limitString(const char *name, size_t max_size);
+
+    static std::vector<uint8_t> makeBytes(const char* s) {
+        return std::vector<uint8_t>(s, s + std::strlen(s));
+    }
+    static std::vector<uint8_t> makeBytes(const std::string& str) {
+        return std::vector<uint8_t>(str.begin(), str.end());
+    }
     /**
      * 设置线程名
      */
@@ -190,6 +197,10 @@ public:
         }
         return ss.str();
     }
+
+    static std::vector<uint8_t> parseUuidTo16Bytes(const std::string& uuid);
+    static std::string uuidBytesToHex(const uint8_t* p16);
+
     static std::string getTimeStr(const char* fmt, time_t time = 0);
     static std::string getTimeToString();
     static std::string formatMSToString(int64_t t);

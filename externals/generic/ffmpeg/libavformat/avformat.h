@@ -1884,6 +1884,9 @@ typedef struct AVFormatContext {
      * @see skip_estimate_duration_from_pts
      */
     int64_t duration_probesize;
+
+    int mflag_disable;
+    int64_t mflag_timeout;
 } AVFormatContext;
 
 /**

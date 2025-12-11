@@ -271,7 +271,7 @@ protected:
 class HJExecutorPool : public HJObject
 {
 public:
-    HJ_INSTANCE_DECL(HJExecutorPool);
+    HJ_DECLARE_PUWTR(HJExecutorPool);
     
     HJExecutorPool(size_t initSize = HJExecutorPool::K_THREAD_MAX_NUM);
     virtual ~HJExecutorPool();
@@ -314,7 +314,7 @@ public:
         m_task_cv.notify_one();
     }
 
-    void cancelTask(const std::string& rid)
+    bool cancelTask(const std::string& rid)
     {
         HJ_AUTOU_LOCK(m_lock);
         for (auto& it : m_tasks) {
@@ -323,14 +323,13 @@ public:
                 if ((*iter)->getName() == rid) {
                     (*iter)->cancel();
                     iter = deque.erase(iter);
-                    return;
-                }
-                else {
+                    return true;
+                } else {
                     ++iter;
                 }
             }
         }
-        return;
+        return false;
     }
 
     int getIdlCount() const { return m_idlThrNum; }

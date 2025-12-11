@@ -37,6 +37,8 @@ private:
     HJMediaFrame::Ptr procEofFrame();
     double getRotation(AVStream *st);
     int analyzeProtocol();
+    //
+    void procSEI(const HJMediaFrame::Ptr& mvf);
 private:
     AVFormatContext*    m_ic = NULL;
     int64_t			    m_lastAudioDTS{ HJ_NOTS_VALUE };   //ms

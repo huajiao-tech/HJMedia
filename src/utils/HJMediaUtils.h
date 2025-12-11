@@ -174,6 +174,15 @@ struct HJRange
 {
     T begin;
     T end;
+
+    T size() const { return end - begin + 1; }
+    bool empty() const { return begin == end; }
+    bool contains(const T& value) const { return value >= begin && value < end; }
+    bool intersects(const HJRange& other) const { return other.begin < end && other.end > begin; }
+    bool operator==(const HJRange& other) const { return begin == other.begin && end == other.end; }
+    bool operator!=(const HJRange& other) const { return begin!= other.begin || end!= other.end; }
+    HJRange& operator+=(const T& value) { begin += value; end += value; return *this; }
+    HJRange& operator-=(const T& value) { begin -= value; end -= value; return *this; }
 };
 using HJRangei     = HJRange<int32_t>;
 using HJRange64i   = HJRange<int64_t>;
@@ -292,8 +301,17 @@ public:
     static HJBuffer::Ptr avcc2annexb(uint8_t* data, size_t size);
     static const HJAACSampleRateType HJAACSamleRate2Type(const int samplerate);
     static int parseAACExtradata(uint8_t* data, size_t size, int& objectType, int& samplerateIndex, int& channelConfig);
+    /**
+    * @brief 生成AAC AudioSpecificConfig extradata (通常为2字节)
+    * @param samplerate 采样率 (e.g., 48000, 44100)
+    * @param channels 声道数 (e.g., 1=mono, 2=stereo)
+    * @param profile AAC profile类型，默认为AAC-LC
+    * @return HJ_OK成功，其他值失败
+    */
+    static HJBuffer::Ptr makeAACExtraData(int samplerate, int channels, HJAACProfileType profile = HJ_AAPROFILE_LC);
 
     static std::string makeLocalUrl(const std::string& localDir, const std::string& url);
+    static std::string getLocalUrl(const std::string& localDir, const std::string& remoteUrl, const std::string& rid = "");
     static std::string checkMediaSuffix(const std::string& suffix);
     static std::vector<std::string> enumMediaFiles(const std::string& dir);
 private:

@@ -119,7 +119,7 @@ int HJThumbnailExtractor::run()
         {
             HJLogi("run get decode video frame:" + outFrame->formatInfo());
             std::string workDir = m_thumbInfo->m_workDir + "/";// + HJ2STR(m_mediaUrl->getUrlHash()) + "/";
-            HJFileUtil::makeDir(workDir.c_str());
+            HJFileUtil::makeDir(workDir);
             //
             std::string outUrl = workDir + HJ2STR(m_seekPos);
             if(m_thumbInfo->m_format == "png") {
@@ -132,7 +132,7 @@ int HJThumbnailExtractor::run()
                 HJLoge("error, image writer frame failed, res:" + HJ2STR(res));
                 break;
             }
-            if(HJFileUtil::fileExist(outUrl.c_str())) {
+            if(HJFileUtil::fileExist(outUrl)) {
                 notify(HJThumbnailNotify_Url, outUrl);
             }
         } else {

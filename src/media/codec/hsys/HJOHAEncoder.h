@@ -34,6 +34,8 @@ private:
     static void OnNewOutputBuffer(OH_AVCodec *codec, uint32_t index, OH_AVBuffer *buffer, void *userData);
 
     static HJMediaFrame::Ptr makeFrame(OH_AVBuffer *buffer, const HJAudioInfo::Ptr& info, const int64_t firstTime, int64_t& outTime);
+
+    void makeCodecParams();
 private:
     OH_AVCodec*             m_encoder = nullptr;
     HJOHACodecUserData::Ptr m_userData = nullptr;

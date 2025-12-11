@@ -15,6 +15,7 @@ class HJBaseParser : public HJObject
 {
 public:
     using Ptr = std::shared_ptr<HJBaseParser>;
+    virtual ~HJBaseParser() = default;
 
     virtual int init(const AVCodecParameters* codecParams) = 0;
     virtual int parse(HJBuffer::Ptr inData) = 0;

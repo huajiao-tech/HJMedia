@@ -166,7 +166,7 @@ void HJHTTPServer::handlePlayMedias(const httplib::Request& req, httplib::Respon
     }
     HJFLogi("http request req info url:{}, rid:{}, level:{}", reqInfo.url, reqInfo.rid, reqInfo.level);
 
-    if (HJURL_MODE_LOCAL == reqInfo.urlMode && !HJFileUtil::fileExist(reqInfo.url.c_str())) {
+    if (HJURL_MODE_LOCAL == reqInfo.urlMode && !HJFileUtil::fileExist(reqInfo.url)) {
         res.status = 404;
         return;
     }
@@ -177,9 +177,10 @@ void HJHTTPServer::handlePlayMedias(const httplib::Request& req, httplib::Respon
         res.set_header("ETag", reqInfo.rid);
     }
     res.set_header("X-Cache", "HIT"); // HIT, MISS
-    res.set_header("X-Cache-Hits", 0);
+    res.set_header("X-Cache-Hits", "0");
 
-#if 0
+#if 1
+    auto file_path = reqInfo.url;
     auto file_size = fs::file_size(file_path);
 
     if (req.has_header("Range")) {
@@ -287,7 +288,11 @@ HJServerRequest HJHTTPServer::getRequest(const httplib::Request& req)
     }
     if (req.has_param("u")) {
         request.url = req.get_param_value("u");
-        request.urlMode = HJURL_MODE_REMOTE;
+        if (HJUtilitys::startWith(request.url, "http://") || HJUtilitys::startWith(request.url, "https://")) {
+            request.urlMode = HJURL_MODE_REMOTE;
+        } else {
+            request.urlMode = HJURL_MODE_LOCAL;
+        }
     }
     if (req.has_param("level")) {
         request.level = std::stoi(req.get_param_value("level"));

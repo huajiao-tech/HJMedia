@@ -10,6 +10,9 @@ int HJPluginAudioRender::internalInit(HJKeyStorage::Ptr i_param)
 	MUST_GET_PARAMETER(HJAudioInfo::Ptr, audioInfo);
 	MUST_GET_PARAMETER(HJTimeline::Ptr, timeline);
 	GET_PARAMETER(HJLooperThread::Ptr, thread);
+#if defined (WINDOWS)
+	GET_PARAMETER(std::string, audioDeviceName);
+#endif
 
 	auto param = HJKeyStorage::dupFrom(i_param);
 	(*param)["createThread"] = (thread == nullptr);
@@ -27,6 +30,9 @@ int HJPluginAudioRender::internalInit(HJKeyStorage::Ptr i_param)
 	})) {
 		m_audioInfo = audioInfo;
 		m_timeline = timeline;
+#if defined (WINDOWS)
+		m_audioDeviceName = audioDeviceName;
+#endif
 
 		return HJ_OK;
 	}

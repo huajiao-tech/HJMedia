@@ -1,6 +1,8 @@
 #include "HJPluginVideoOHEncoder.h"
 #include "HJVEncOHCodec.h"
 #include "HJFLog.h"
+#include "HJSEIWrapper.h"
+#include "HJFFHeaders.h"
 
 NS_HJ_BEGIN
 
@@ -20,6 +22,7 @@ int HJPluginVideoOHEncoder::internalInit(HJKeyStorage::Ptr i_param)
 //	(*param)["thread"] = thread;
 	(*param)["createThread"] = false;
 	if (pluginListener) {
+		m_listener = pluginListener;
 		(*param)["pluginListener"] = pluginListener;
 	}
 
@@ -109,6 +112,7 @@ int HJPluginVideoOHEncoder::runTask(int64_t* o_delay)
 			ret = HJ_WOULD_BLOCK;
 			break;
 		}
+		requireSEI(outFrame);
 
 		route += "_6";
 		deliverToOutputs(outFrame);
@@ -178,6 +182,33 @@ int HJPluginVideoOHEncoder::adjustBitrate(int i_newBitrate)
 		m_bitrate = i_newBitrate;
 		return HJ_OK;
 	});
+}
+
+void HJPluginVideoOHEncoder::requireSEI(HJMediaFrame::Ptr& mvf)
+{
+	if(!mvf || !m_listener) {
+		return;
+	}
+	auto info = mvf->getVideoInfo();
+
+	auto ntfy = HJMakeNotification(HJ_PLUGIN_NOTIFY_PLUGIN_SEI_REQUIRE);
+	(*ntfy)["timestamp"] = mvf->getPTS();
+	(*ntfy)["key_frame"] = mvf->isKeyFrame();
+	m_listener(ntfy);
+	//
+	std::vector<HJSEIData> userSEIDatas = ntfy->getValue<std::vector<HJSEIData>>("user_sei_datas");
+	if (userSEIDatas.empty()) {
+		return;
+	}
+	HJSEINals::Ptr seiNals = HJCreates<HJSEINals>();
+	for (auto& seiData : userSEIDatas) {
+		bool isH265 = (AV_CODEC_ID_H265 == info->m_codecID);
+		auto out_nal = HJSEIWrapper::makeSEINal({ seiData }, isH265, HJSEIWrapper::HJNALFormat::AVCC);
+		seiNals->addData(out_nal);
+	}
+	(*mvf)[HJMediaFrame::STORE_KEY_SEIINFO] = seiNals;
+
+	return;
 }
 
 NS_HJ_END

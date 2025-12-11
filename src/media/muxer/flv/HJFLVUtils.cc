@@ -7,6 +7,8 @@
 #include "HJFFUtils.h"
 #include "HJFLog.h"
 #include "HJESParser.h"
+#include "HJSEIWrapper.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -45,14 +47,36 @@ int HJFLVPacket::init(HJMediaFrame::Ptr frame, int64_t tsOffset)
 	{
 		m_type = HJMEDIA_TYPE_VIDEO;
 		m_codecid = frame->getVideoInfo()->getCodecID();
+		//
+		uint8_t* data = pkt->data;
+		int data_size = pkt->size;
+		//SEI
+		std::vector<uint8_t> nalsWithSeiData{};
+		HJSEINals::Ptr seiNals{};
+		if (frame->haveValue(HJMediaFrame::STORE_KEY_SEIINFO)) 
+		{
+			seiNals = frame->getValue<HJSEINals::Ptr>(HJMediaFrame::STORE_KEY_SEIINFO);
+			if (seiNals && !seiNals->empty()) 
+			{
+				bool isH265 = (AV_CODEC_ID_H265 == m_codecid);
+				nalsWithSeiData = HJSEIWrapper::insertSEIToFrame(pkt->data, pkt->size, seiNals->getDatas(), isH265);
+				if (nalsWithSeiData.size() <= 0) {
+					HJLoge("error, insert sei data failed");
+					return HJErrFatal;
+				}
+				data = nalsWithSeiData.data();
+				data_size = nalsWithSeiData.size();
+			}
+		}
+		//
 		switch (m_codecid)
 		{
 		case AV_CODEC_ID_H264: {
-			m_data = HJESParser::proc_avc_data(pkt->data, pkt->size, &m_keyFrame, &m_priority);
+			m_data = HJESParser::proc_avc_data(data, data_size, &m_keyFrame, &m_priority);
 			break;
 		}
 		case AV_CODEC_ID_H265: {
-			m_data = HJESParser::proc_hevc_data(pkt->data, pkt->size, &m_keyFrame, &m_priority);
+			m_data = HJESParser::proc_hevc_data(data, data_size, &m_keyFrame, &m_priority);
 			break;
 		}
 		case AV_CODEC_ID_AV1: {

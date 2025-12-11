@@ -23,6 +23,8 @@ int HJPluginVideoRender::internalInit(HJKeyStorage::Ptr i_param)
 
 #if defined (HarmonyOS)
 	GET_PARAMETER(HJOGRenderWindowBridge::Ptr, bridge);
+#elif defined (WINDOWS)
+	GET_PARAMETER(HJSharedMemoryProducer::Ptr, sharedMemoryProducer);
 #endif
 	GET_PARAMETER(bool, onlyFirstFrame);
 	GET_PARAMETER(HJDeviceType, deviceType);
@@ -44,6 +46,8 @@ int HJPluginVideoRender::internalInit(HJKeyStorage::Ptr i_param)
 	});
 #if defined (HarmonyOS)
 	m_bridge = bridge;
+#elif defined (WINDOWS)
+	m_sharedMemoryProducer = sharedMemoryProducer;
 #endif
 	m_onlyFirstFrame = onlyFirstFrame;
 	m_deviceType = deviceType;
@@ -282,7 +286,7 @@ int HJPluginVideoRender::runTask(int64_t* o_delay)
 				m_timeline->setTimestamp(currentFrame->m_streamIndex, currentFrame->getPTS(), 1.0);
 			}
 
-			if (m_deviceType == HJDEVICE_TYPE_NONE) {
+			if (m_deviceType == HJDEVICE_TYPE_NONE) {	// software
 				route += "_23";
 #if defined (HarmonyOS)
 				if (m_bridge) {
@@ -298,6 +302,10 @@ int HJPluginVideoRender::runTask(int64_t* o_delay)
 					nLineSize[1] = frame->linesize[1];
 					nLineSize[2] = frame->linesize[2];
 					m_bridge->produceFromPixel(HJTransferRenderModeInfo::Create(), pData, nLineSize, frame->width, frame->height);
+				}
+#elif defined (WINDOWS)
+				if (m_sharedMemoryProducer) {
+					m_sharedMemoryProducer->write2(currentFrame);
 				}
 #endif
 			}

@@ -243,7 +243,7 @@ int HJVDecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
                 break;
             }
             avf->time_base = av_rational_from_hj_rational(m_timeBase);
-            avf->pts = avf->best_effort_timestamp;  //pts ������ best_effort_timestamp����best_effort_timestampΪ׼
+            avf->pts = avf->best_effort_timestamp;
 			mvf->setPTSDTS(avf->best_effort_timestamp, avf->best_effort_timestamp, m_timeBase);
             mvf->setDuration(avf->duration, m_timeBase);
 			//mvf->m_pts = av_time_to_ms(avf->best_effort_timestamp, avf->time_base);

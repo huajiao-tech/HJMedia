@@ -21,6 +21,9 @@ public:
 	virtual bool hasAudio() override;
 	virtual int setMute(bool i_mute) override;
 	virtual bool isMuted() override;
+#if defined (WINDOWS)
+	virtual int resetAudioDevice(const std::string& i_deviceName = "") override;
+#endif
 
 private:
 	// HJAudioInfo::Ptr audioInfo
@@ -47,16 +50,16 @@ private:
 	HJPluginVideoRender::Ptr m_videoMainRender{};
 	HJPluginVideoRender::Ptr m_videoSoftRender{};
 	HJPluginVideoFFDecoder::Ptr m_videoFFDecoder{};
-#if defined (WINDOWS)
-	HJPluginAudioWASRender::Ptr m_audioRender{};
-#elif defined (HarmonyOS)
+#if defined (HarmonyOS)
 	HJPluginVideoOHDecoder::Ptr m_videoHWDecoder{};
     HJPluginAudioOHRender::Ptr m_audioRender{};
-#else
-    HJPluginAudioRender::Ptr m_audioRender{};
+#elif defined (WINDOWS)
+//	HJPluginAudioWORender::Ptr m_audioRender{};
+	HJPluginAudioWASRender::Ptr m_audioRender{};
+	HJSharedMemoryProducer::Ptr m_sharedMemoryProducer{};
 #endif
 
-	HJDeviceType m_deviceType{};
+//	HJDeviceType m_deviceType{};
 
 private:
 	void priHeartbeatRegist(const std::string& i_uniqueName, int i_interval);

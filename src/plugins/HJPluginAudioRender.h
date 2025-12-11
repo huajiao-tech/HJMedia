@@ -50,6 +50,9 @@ protected:
 	bool m_buffering{};
 	bool m_muted{};
     std::atomic<bool> m_eof{};
+#if defined (WINDOWS)
+	std::string m_audioDeviceName{};
+#endif
 };
 
 NS_HJ_END

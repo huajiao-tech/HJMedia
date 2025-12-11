@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HJPluginCodec.h"
+#include "HJNotify.h"
 
 NS_HJ_BEGIN
 
@@ -34,10 +35,12 @@ protected:
 //	virtual void resetCodec(HJMediaFrame::Ptr frame) override;
 	virtual void deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame) override;
 
+	void requireSEI(HJMediaFrame::Ptr& mvf);
 private:
 	HJOHSurfaceCb m_surfaceCb{};
 	void* m_nativeWindow{};
 	int m_bitrate{};
+	HJListener m_listener{};
 };
 
 NS_HJ_END

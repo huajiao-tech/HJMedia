@@ -24,6 +24,15 @@ typedef enum HJPlayerType
     HJPlayerType_VOD        = 2,
 } HJPlayerType;
 
+typedef enum HJPlayerMediaType
+{
+    HJPLAYER_MEDIA_TYPE_NONE       = 0x0000,
+    HJPLAYER_MEDIA_TYPE_VIDEO      = 0x0001,
+    HJPLAYER_MEDIA_TYPE_AUDIO      = 0x0002,
+    HJPLAYER_MEDIA_TYPE_DATA       = 0x0004,
+    HJPLAYER_MEDIA_TYPE_SUBTITLE   = 0x0008,
+} HJPlayerMediaType;
+
 typedef struct HJPlayerInfo
 {
     std::string m_url = "";
@@ -32,6 +41,7 @@ typedef struct HJPlayerInfo
     HJPrioComSourceType m_sourceType = HJPrioComSourceType_SERIES;
     HJPlayerType m_playerType = HJPlayerType_LIVESTREAM;
     bool m_bSplitScreenMirror = false;
+    int m_disableMFlag = HJPLAYER_MEDIA_TYPE_NONE;
 } HJPlayerInfo;
 
 typedef enum HJPlayerNotifyType

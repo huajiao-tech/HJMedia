@@ -59,12 +59,21 @@ public:
 	const bool getWrited() const {
 		return m_writed;
 	}
+	size_t length() const {
+		return static_cast<size_t>(m_max);
+	}
+	size_t dataSize() const {
+		return m_buffer ? m_buffer->size() : 0;
+	}
     BlockStatus getStatus() const {
 		return m_status;
 	}
     void setStatus(const BlockStatus status) {
 		m_status = status;
 	}
+	size_t writeAt(size_t offset, const uint8_t* buffer, size_t cnt);
+	size_t readAt(size_t offset, uint8_t* buffer, size_t cnt) const;
+	HJBuffer::Ptr ensureBuffer(size_t capacity = 0);
 protected:
 	HJBlock::Ptr	m_next = nullptr;
 	HJBuffer::Ptr	m_buffer = nullptr;

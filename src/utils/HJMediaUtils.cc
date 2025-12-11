@@ -150,10 +150,65 @@ const HJAACSampleRateType HJMediaUtils::HJAACSamleRate2Type(const int samplerate
 
 int HJMediaUtils::parseAACExtradata(uint8_t* data, size_t size, int& objectType, int& samplerateIndex, int& channelConfig)
 {
+	// AudioSpecificConfig 结构:
+	// byte 0: [audioObjectType(5)] [samplingFrequencyIndex高3位(3)]
+	// byte 1: [samplingFrequencyIndex低1位(1)] [channelConfiguration(4)] [reserved(3)]
 	objectType = (data[0] >> 3) & 0x1F;
-	samplerateIndex = ((data[0] & 0x01) << 1) | ((data[1] >> 7) & 0x01);
+	samplerateIndex = ((data[0] & 0x07) << 1) | ((data[1] >> 7) & 0x01);  // 4位: 高3位来自byte0低3位，低1位来自byte1最高位
 	channelConfig = (data[1] >> 3) & 0x0F;
 	return HJ_OK;
+}
+/**
+ * @brief 生成AAC AudioSpecificConfig extradata
+ * 
+ * AudioSpecificConfig 结构 (ISO 14496-3):
+ * - 5 bits: audioObjectType (AAC-LC = 2)
+ * - 4 bits: samplingFrequencyIndex
+ * - 4 bits: channelConfiguration  
+ * - 3 bits: 保留位 (设置为0)
+ * 
+ * 例如 48kHz stereo AAC-LC: 0x11 0x90
+ *   audioObjectType = 2 (0b00010)
+ *   samplingFrequencyIndex = 3 (0b0011) for 48000Hz
+ *   channelConfiguration = 2 (0b0010) for stereo
+ *   结果: 0b00010_001 0b1_0010_000 = 0x11 0x90
+ */
+HJBuffer::Ptr HJMediaUtils::makeAACExtraData(int samplerate, int channels, HJAACProfileType profile)
+{
+    // 获取采样率索引
+    auto srType = HJMediaUtils::HJAACSamleRate2Type(samplerate);
+    if (HJ_AACSR_NONE == srType) {
+        HJFLoge("Unsupported AAC sample rate: {}", samplerate);
+        return nullptr;
+    }
+    int samplingFrequencyIndex = (int)srType;
+
+    // audioObjectType: AAC-LC=2, AAC-Main=1, AAC-SSR=3, AAC-LTP=4
+    // profile枚举值与audioObjectType关系: profile + 1 = audioObjectType
+    int audioObjectType = (int)profile + 1;
+    int channelConfiguration = channels;
+
+    // 分配 extradata 内存 (2字节 + padding)
+    const int AAC_EXTRADATA_SIZE = 2;
+	HJBuffer::Ptr extraBuffer = std::make_shared<HJBuffer>(AAC_EXTRADATA_SIZE);
+	uint8_t* extradata = extraBuffer->data();
+    if (!extradata) {
+        HJLoge("Failed to allocate AAC extradata");
+        return nullptr;
+    }
+
+    // 构建 AudioSpecificConfig
+    // byte 0: [audioObjectType(5)] [samplingFrequencyIndex高3位(3)]
+    // byte 1: [samplingFrequencyIndex低1位(1)] [channelConfiguration(4)] [reserved(3)]
+    extradata[0] = ((audioObjectType & 0x1F) << 3) | ((samplingFrequencyIndex >> 1) & 0x07);
+    extradata[1] = ((samplingFrequencyIndex & 0x01) << 7) | ((channelConfiguration & 0x0F) << 3);
+
+	extraBuffer->setSize(AAC_EXTRADATA_SIZE);
+
+    HJFLogi("AAC extradata generated: 0x{:02x} 0x{:02x} (sr:{}, ch:{}, profile:{})", 
+		extradata[0], extradata[1], samplerate, channels, audioObjectType);
+
+    return extraBuffer;
 }
 
 std::string HJMediaUtils::makeLocalUrl(const std::string& localDir, const std::string& url)
@@ -162,6 +217,14 @@ std::string HJMediaUtils::makeLocalUrl(const std::string& localDir, const std::s
 	auto suffix = checkMediaSuffix(HJUtilitys::getSuffix(coreUrl));
 	auto localUrl = HJUtilitys::concatenatePath(localDir, HJFMT("{}{}", HJUtilitys::hash(url), suffix));
 	return localUrl;
+}
+
+std::string HJMediaUtils::getLocalUrl(const std::string& localDir, const std::string& remoteUrl, const std::string& rid)
+{
+    auto suffix = HJMediaUtils::checkMediaSuffix(HJUtilitys::getSuffix(remoteUrl));
+    std::string name = rid.empty() ? HJ2STR(HJUtilitys::hash(remoteUrl)) : rid;
+	auto localUrl = HJUtilitys::concatenatePath(localDir, HJFMT("{}{}", name, suffix));
+    return localUrl;
 }
 
 std::string HJMediaUtils::checkMediaSuffix(const std::string& suffix)

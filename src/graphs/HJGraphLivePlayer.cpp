@@ -73,7 +73,7 @@ int HJGraphLivePlayer::internalInit(HJKeyStorage::Ptr i_param)
         };
         GET_PARAMETER(HJMediaUrl::Ptr, mediaUrl);
         GET_PARAMETER(HJDeviceType, deviceType);
-        m_deviceType = deviceType;
+//        m_deviceType = deviceType;
 #if defined (HarmonyOS)
         GET_PARAMETER(HJOGRenderWindowBridge::Ptr, mainBridge);
         IF_FALSE_BREAK(mainBridge, HJErrInvalidParams);
@@ -81,6 +81,8 @@ int HJGraphLivePlayer::internalInit(HJKeyStorage::Ptr i_param)
         if (deviceType == HJDEVICE_TYPE_OHCODEC) {
             IF_FALSE_BREAK(softBridge, HJErrInvalidParams);
         }
+#elif defined (WINDOWS)
+        GET_PARAMETER(std::string, audioDeviceName);
 #endif
 
         auto graphInfo = std::make_shared<HJKeyStorage>();
@@ -145,12 +147,11 @@ int HJGraphLivePlayer::internalInit(HJKeyStorage::Ptr i_param)
             addPlugin(m_speedControl);
             m_pluginStatuses["speedControl"].store(HJSTATUS_NONE);
             IF_FAIL_BREAK(ret = connectPlugins(m_audioResampler, m_speedControl, HJMEDIA_TYPE_AUDIO), ret);
-#if defined (WINDOWS)
-//            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWORender::Create<HJPluginAudioWORender>(AUDIORENDER, graphInfo), HJErrFatal);
-            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWASRender::Create<HJPluginAudioWASRender>(AUDIORENDER, graphInfo), HJErrFatal);
-#endif
 #if defined (HarmonyOS)
             IF_FALSE_BREAK(m_audioRender = HJPluginAudioOHRender::Create<HJPluginAudioOHRender>(AUDIORENDER, graphInfo), HJErrFatal);
+#elif defined (WINDOWS)
+//            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWORender::Create<HJPluginAudioWORender>(AUDIORENDER, graphInfo), HJErrFatal);
+            IF_FALSE_BREAK(m_audioRender = HJPluginAudioWASRender::Create<HJPluginAudioWASRender>(AUDIORENDER, graphInfo), HJErrFatal);
 #endif
             addPlugin(m_audioRender);
             m_audioDurations[AUDIORENDER].store(0);
@@ -179,6 +180,10 @@ int HJGraphLivePlayer::internalInit(HJKeyStorage::Ptr i_param)
         if (deviceType == HJDEVICE_TYPE_NONE) {
 #if defined (HarmonyOS)
             (*param)["bridge"] = mainBridge;
+#elif defined (WINDOWS)
+            IF_FALSE_BREAK(m_sharedMemoryProducer = HJSharedMemoryProducer::Create<HJSharedMemoryProducer>("HJSharedMemoryProducer" + HJFMT("_{}", insIdx)), HJErrFatal);
+            m_sharedMemoryProducer->init(1920, 1080, 30);
+            (*param)["sharedMemoryProducer"] = m_sharedMemoryProducer;
 #endif
             IF_FAIL_BREAK(ret = m_videoMainRender->init(param), ret);
 
@@ -210,7 +215,11 @@ int HJGraphLivePlayer::internalInit(HJKeyStorage::Ptr i_param)
         if (audioInfo != nullptr) {
             param = std::make_shared<HJKeyStorage>();
             (*param)["audioInfo"] = audioInfo;
-#if !defined (WINDOWS)
+#if defined (WINDOWS)
+            if (!audioDeviceName.empty()) {
+                (*param)["audioDeviceName"] = audioDeviceName;
+            }
+#else
             (*param)["thread"] = m_renderThread;
 #endif
             (*param)["timeline"] = m_timeline;
@@ -290,6 +299,13 @@ void HJGraphLivePlayer::internalRelease()
     }
 
     HJGraph::internalRelease();
+
+#if defined (WINDOWS)
+    if (m_sharedMemoryProducer) {
+        m_sharedMemoryProducer->done();
+        m_sharedMemoryProducer = nullptr;
+    }
+#endif
 
     HJFLogi("{}, internalRelease() end", getName());
 }
@@ -640,6 +656,21 @@ bool HJGraphLivePlayer::isMuted()
         return m_audioRender->isMuted();
     });
 }
+
+#if defined (WINDOWS)
+int HJGraphLivePlayer::resetAudioDevice(const std::string& i_deviceName)
+{
+    return SYNC_CONS_LOCK([=] {
+        CHECK_DONE_STATUS(HJErrAlreadyDone);
+
+        if (!m_audioRender) {
+            return HJErrNotInited;
+        }
+
+        return m_audioRender->resetDevice(i_deviceName);
+    });
+}
+#endif
 
 int HJGraphLivePlayer::canDemuxerDeliverToOutputs(Information io_info)
 {

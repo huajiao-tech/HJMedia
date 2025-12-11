@@ -166,6 +166,8 @@ int HJARenderMini::init(const HJAudioInfo::Ptr& info, HJARenderBase::ARCallback 
     //m_frameStors = std::make_shared<HJMediaStorage>(HJ_DEFAULT_STORAGE_CAPACITY);
     m_nipMuster = std::make_shared<HJNipMuster>();
 
+    // m_waveWriter = HJCreates<HJWavWriter>("E:/movies/out/test.wav");
+
     m_runState = HJRun_Init;
     HJLogi("end");
 
@@ -201,6 +203,7 @@ void HJARenderMini::outAudioCallback(ma_device* dev, void* output, const void* i
 #endif
             if (avf) {
                 memcpy(output, avf->data[0], avf->linesize[0]);
+                // render->m_waveWriter->write(avf->data[0], avf->linesize[0]);
             }
         }
         else {

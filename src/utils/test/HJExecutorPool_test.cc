@@ -180,4 +180,5 @@ TEST_F(HJExecutorPoolTest, GracefulShutdown) {
     // This isn't a strict check, but it confirms workers were active.
     EXPECT_GE(started_count, 0); 
     EXPECT_LE(started_count, 2);
+    HJFLogi("started_count:{}", started_count);
 }

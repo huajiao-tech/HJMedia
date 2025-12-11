@@ -98,7 +98,7 @@ int HJUIItemPlayerCom::run()
 			m_player = HJGraphComPlayer::Create();
 			HJBaseParam::Ptr param = HJBaseParam::Create();
 
-			HJMediaUrl::Ptr mediaUrl = std::make_shared<HJMediaUrl>("E:/video/huajiaoline2_noaudio.flv"); //("E:/video/special_video/H264-265-264_RES.flv");// 
+			HJMediaUrl::Ptr mediaUrl = std::make_shared<HJMediaUrl>("E:/video/play.mp4"); //("E:/video/special_video/H264-265-264_RES.flv");// 
 			HJ_CatchMapSetVal(param, HJMediaUrl::Ptr, mediaUrl);
 			HJ_CatchMapSetVal(param, HJBaseNotify, (HJBaseNotify)notifyFun);
 			(*param)["HJDeviceType"] = (int)HJPlayerVideoCodecType_SoftDefault;

@@ -21,6 +21,9 @@ public:
 	virtual bool hasAudio() override;
 	virtual int setMute(bool i_mute) override;
 	virtual bool isMuted() override;
+#if defined (WINDOWS)
+	virtual int resetAudioDevice(const std::string& i_deviceName = "") override;
+#endif
 
 private:
 	// HJAudioInfo::Ptr audioInfo
@@ -43,13 +46,13 @@ private:
 	HJPluginVideoFFDecoder::Ptr m_videoSFDecoder{};
 	HJPluginAudioResampler::Ptr m_audioResampler{};
 	HJPluginVideoRender::Ptr m_videoRender{};
-#if defined (WINDOWS)
-	HJPluginAudioWASRender::Ptr m_audioRender{};
-#elif defined (HarmonyOS)
+#if defined (HarmonyOS)
 	HJPluginVideoOHDecoder::Ptr m_videoHWDecoder{};
     HJPluginAudioOHRender::Ptr m_audioRender{};
-#else
-    HJPluginAudioRender::Ptr m_audioRender{};
+#elif defined (WINDOWS)
+//	HJPluginAudioWORender::Ptr m_audioRender{};
+	HJPluginAudioWASRender::Ptr m_audioRender{};
+	HJSharedMemoryProducer::Ptr m_sharedMemoryProducer{};
 #endif
 };
 

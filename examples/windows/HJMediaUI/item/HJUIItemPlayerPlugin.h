@@ -5,6 +5,7 @@
 #include <glad/gl.h> //#define GLAD_GL_IMPLEMENTATION  only implementation once;
 #include "HJDataDequeue.h"
 #include "HJAsyncCache.h"
+#include "shared-memory-queue.h"
 
 NS_HJ_BEGIN
 
@@ -42,6 +43,8 @@ private:
 
 	std::shared_ptr<HJGraphPlayer> m_player = nullptr;
 //	std::shared_ptr<HJGraphVodPlayer> m_player = nullptr;
+	video_queue_t* m_vq{};
+	enum queue_state m_prevState = SHARED_QUEUE_STATE_INVALID;
 
 	std::shared_ptr<HJStatContext> m_statCtx = nullptr;
 };

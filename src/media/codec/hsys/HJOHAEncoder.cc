@@ -102,6 +102,7 @@ int HJOHAEncoder::init(const HJStreamInfo::Ptr& info)
         done();
         return HJErrCodecPrepare;
     }
+    makeCodecParams();
 
     res = OH_AudioCodec_Start(m_encoder);
     if (res != AV_ERR_OK) {
@@ -335,6 +336,7 @@ HJMediaFrame::Ptr HJOHAEncoder::makeFrame(OH_AVBuffer *buffer, const HJAudioInfo
             // Create encoded audio frame (compressed data packet)
             auto audioInfo = std::dynamic_pointer_cast<HJAudioInfo>(info->dup());
             audioInfo->m_dataType = HJDATA_TYPE_ES;
+            audioInfo->setSampleCnt(1024);
             int64_t pts = attr.pts;
             if(HJ_NOPTS_VALUE == outTime) {
                 outTime = pts;
@@ -349,6 +351,46 @@ HJMediaFrame::Ptr HJOHAEncoder::makeFrame(OH_AVBuffer *buffer, const HJAudioInfo
     } while (false);
     
     return mavf;
+}
+
+void HJOHAEncoder::makeCodecParams()
+{
+     HJAudioInfo::Ptr audioInfo = std::dynamic_pointer_cast<HJAudioInfo>(m_info);
+     if (!audioInfo) {
+         return;
+     }
+     AVCodecParameters* codecParams = avcodec_parameters_alloc();
+     if (!codecParams) {
+         return;
+     }
+     codecParams->codec_type = AVMEDIA_TYPE_AUDIO;
+     codecParams->codec_id = (AVCodecID)audioInfo->m_codecID;
+     codecParams->format = audioInfo->m_sampleFmt;
+     codecParams->sample_rate = audioInfo->m_samplesRate;
+     codecParams->ch_layout = *audioInfo->getAVChannelLayout();
+    //  av_channel_layout_default(&codecParams->ch_layout, audioInfo->m_channels);
+     codecParams->bit_rate = audioInfo->m_bitrate;
+    codecParams->codec_tag = 0;
+    codecParams->bits_per_coded_sample = 0;
+    codecParams->bits_per_raw_sample = 0;
+    
+    if(AV_CODEC_ID_AAC == audioInfo->m_codecID) {
+        // AAC specific extradata
+        auto extraBuffer = HJMediaUtils::makeAACExtraData(audioInfo->m_samplesRate, audioInfo->m_channels);
+        if (extraBuffer) {
+            codecParams->extradata = (uint8_t*)av_mallocz(extraBuffer->size() + AV_INPUT_BUFFER_PADDING_SIZE);
+            if (codecParams->extradata) {
+                memcpy(codecParams->extradata, extraBuffer->data(), extraBuffer->size());
+                codecParams->extradata_size = extraBuffer->size();
+            }
+        }
+    } else {
+        codecParams->extradata = nullptr;
+        codecParams->extradata_size = 0;
+    }
+     m_info->setAVCodecParams(codecParams);
+
+     return;
 }
 
 NS_HJ_END

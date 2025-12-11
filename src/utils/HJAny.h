@@ -99,6 +99,9 @@ public:
     uint64_t getUInt64(const std::string& key) {
         return getValue<uint64_t>(key);
     }
+    size_t getSizet(const std::string& key) {
+        return getValue<size_t>(key);
+    }
     float getFloat(const std::string& key) {
         const std::any* anyObj = getStorage(key);
         if (anyObj) {

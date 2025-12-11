@@ -8,6 +8,7 @@
 #include "HJARenderBase.h"
 #include "HJAudioConverter.h"
 #include "HJAudioFifo.h"
+// #include "HJWavWriter.h"
 
 struct ma_context;
 struct ma_device_config;
@@ -32,6 +33,8 @@ public:
 
     //
     virtual void setVolume(const float volume) override;
+
+    // HJWavWriter::Ptr      m_waveWriter = nullptr;
 private:
     static void outAudioCallback(ma_device* dev, void* output, const void* input, unsigned int cnt);
 private:
@@ -42,6 +45,7 @@ private:
     HJAudioConverter::Ptr  m_converter = nullptr;
     HJAFifoProcessor::Ptr  m_fifoProcessor = nullptr;
     HJNipMuster::Ptr       m_nipMuster = nullptr;
+    
 };
 
 NS_HJ_END

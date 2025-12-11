@@ -38,8 +38,11 @@ void runHJExecutorPoolTests(int argc, const char* argv[]) {
 
     // Set a filter to run only the tests from the HJExecutorPoolTest suite.
     // The wildcard '*' ensures all tests within this suite are run.
-    ::testing::GTEST_FLAG(filter) = "HJExecutorPoolTest*";
-
+    //::testing::GTEST_FLAG(filter) = "HJExecutorPoolTest*";
+    ::testing::GTEST_FLAG(filter) = "HJSEITest*";
+    ::testing::GTEST_FLAG(filter) = "HJPackerManagerTest*";
+    ::testing::GTEST_FLAG(filter) = "HJM3U8ParserTest*";
+    
     // Run the tests
     int test_result = RUN_ALL_TESTS();
     HJFLogi("Test run finished with result: {}", test_result);
@@ -71,7 +74,7 @@ int main(int argc, const char* argv[])
     cfg.mMediaDir = "/Users/zhiyongleng/works/movies";
 #endif
     cfg.mThreadNum = 0;
-    //HJFileUtil::delete_file((cfg.mLogDir + "HJLog.txt").c_str());
+    //HJFileUtil::delete_file((cfg.mLogDir + "HJLog.txt"));
     HJContext::Instance().init(cfg);
 
     runHJExecutorPoolTests(argc, argv);

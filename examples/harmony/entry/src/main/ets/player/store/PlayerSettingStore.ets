@@ -6,7 +6,7 @@ import { WindowUtils } from '../../util/WindowUtils';
 @ObservedV2
 export class PlayerSettingState implements State {
   @Trace playerConfigArray: MediaConfig[] = [
-    new MediaConfig("string", 'URL 播放地址', 'https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h265_273025848_1762496868248_4170_O.flv?auth_key=1762583589-0-0-43d9aa5c7e35cf3969fd3827dd036ed2'),
+    new MediaConfig("string", 'URL 播放地址', 'https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_271834642_1764573098266_3253_O.flv?auth_key=1764659652-0-0-be4d10607b8490ea8d81d8ab12bf2b27'),
     new MediaConfig("boolean", '是否横屏', false),
     // new MediaConfig("boolean", '是否保持屏幕常亮', false),
   ]

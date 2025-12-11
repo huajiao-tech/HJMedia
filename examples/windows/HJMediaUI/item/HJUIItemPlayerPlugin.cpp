@@ -24,6 +24,9 @@ HJUIItemPlayerPlugin::HJUIItemPlayerPlugin()
 HJUIItemPlayerPlugin::~HJUIItemPlayerPlugin()
 {
 	priDone();
+	if (m_vq) {
+		video_queue_close(m_vq);
+	}
 }
 int HJUIItemPlayerPlugin::priTryGetParam()
 {
@@ -85,8 +88,8 @@ int HJUIItemPlayerPlugin::run()
 		{
 			auto param = std::make_shared<HJKeyStorage>();
 
-			std::string url = "https://live-pull-3.huajiao.com/main/HJ_0_tc_3_main__h265_271553121_1757485208455_3062_O.flv?txSecret=af606f6afc73f4e464dab82e0e3f046a&txTime=68C26A28";
-//			std::string url = "F:/Sequence/0.mp4";
+//			std::string url = "https://live-pull-3.huajiao.com/main/HJ_0_tc_3_main__h265_180277754_1764313668502_1106_O.flv?txSecret=497c3a676f441d8cb9aefb2b7ebb5852&txTime=692A9F2B";
+			std::string url = /*"F:/Sequence/1FF51A933E8ED536.mp3";/*/"F:/Sequence/0.mp4";
 			HJGraphType graphType = HJGraphType_LIVESTREAM;
 			if ((url.compare(0, 8, "https://") == 0) || (url.compare(0, 7, "http://") == 0))
 			{
@@ -118,6 +121,9 @@ int HJUIItemPlayerPlugin::run()
 						m_asyncCache.enqueue(frame);
 					}				
 				}
+				else if (ntf->getID() == HJ_PLUGIN_NOTIFY_EOF) {
+
+				}
 
 				return HJ_OK;
 			};
@@ -129,17 +135,94 @@ int HJUIItemPlayerPlugin::run()
 			audioInfo->m_sampleFmt = 1;
 			audioInfo->m_bytesPerSample = 2;
 			(*param)["audioInfo"] = audioInfo;
+#if defined (WINDOWS)
+			LPWSTR deviceName = L"扬声器 (Realtek(R) Audio)";
+			int utf8Size = WideCharToMultiByte(
+				CP_UTF8,                // 目标编码：UTF-8
+				0,                      // 标志（一般填 0）
+				deviceName,			    // 输入的宽字符串
+				-1,                     // 自动计算长度（-1 表示以 NULL 结尾）
+				NULL,                   // 输出缓冲区（NULL 表示计算所需大小）
+				0,                      // 输出缓冲区大小（0 表示计算）
+				NULL,                   // 默认字符（一般 NULL）
+				NULL                    // 是否使用默认字符（一般 NULL）
+			);
+			if (utf8Size > 0) {
+				// 分配足够的内存存储 UTF-8 字符串
+				char* utf8Name = (char*)malloc(utf8Size);
+				if (utf8Name) {
+					WideCharToMultiByte(
+						CP_UTF8, 0, deviceName, -1,
+						utf8Name, utf8Size, NULL, NULL
+					);
 
+					std::string audioDeviceName = utf8Name;
+					free(utf8Name);
+//					(*param)["audioDeviceName"] = audioDeviceName;
+				}
+			}
+#endif
 			m_player->init(param);
 			HJMediaUrl::Ptr mediaUrl = std::make_shared<HJMediaUrl>(url);
 			m_player->openURL(mediaUrl);
+			m_vq = video_queue_open();
 		}
 
 		priTryGetParam();
 
+		if (m_vq) {
+			auto state = video_queue_state(m_vq);
+			if (state != m_prevState)
+			{
+				m_prevState = state;
+				if (state == SHARED_QUEUE_STATE_STOPPING)
+				{
+					if (m_vq) {
+						video_queue_close(m_vq);
+						m_vq = nullptr;
+					}
+				}
+				else if (state == SHARED_QUEUE_STATE_INVALID)
+				{
+				}
+			}
+
+			if (state == SHARED_QUEUE_STATE_READY)
+			{
+				void* data{};
+				uint64_t ts;
+				int width{}, height{};
+				if (video_queue_read2(m_vq, &data, &ts, &width, &height)) {
+					size_t size = width * height;
+					HJYuvInfo::Ptr yuvInfo = HJYuvInfo::Create();
+					yuvInfo->m_y = (uint8_t*)data;
+					yuvInfo->m_u = (uint8_t*)data + size;
+					yuvInfo->m_v = (uint8_t*)data + size * 5 / 4;
+					yuvInfo->m_width = width;
+					yuvInfo->m_height = height;
+					yuvInfo->m_yLineSize = width;
+					yuvInfo->m_uLineSize = width / 2;
+					yuvInfo->m_vLineSize = width / 2;
+					m_yuvTexCvt->update(yuvInfo);
+
+					ImGui::Begin("DrawImg");
+					ImGui::SetWindowSize(ImVec2(yuvInfo->m_width, yuvInfo->m_height));
+					ImGui::Image((void*)(intptr_t)m_yuvTexCvt->getTextureId(), ImVec2(yuvInfo->m_width, yuvInfo->m_height));
+					ImGui::End();
+				}
+				else {
+					int a = 0;
+				}
+			}
+			else {
+				int a = 0;
+			}
+		}
+/*
 		HJMediaFrame::Ptr hFrame = m_asyncCache.acquire();
 		if (hFrame)
 		{
+
 			HJAVFrame::Ptr avFrame = hFrame->getMFrame();
 			AVFrame* frame = avFrame->getAVFrame();
 			//HJFLoge("video render frame: {}, {}, {}", frame->width, frame->height, frame->pts);
@@ -163,6 +246,7 @@ int HJUIItemPlayerPlugin::run()
 
 			m_asyncCache.recovery(hFrame);
 		}
+*/
 		//if (m_state == HJUIItemState_ready)
 		//{
 		//	//std::string url = "E:/video/yuv/dance1_504_896.yuv";

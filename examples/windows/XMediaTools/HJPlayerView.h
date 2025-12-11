@@ -10,9 +10,9 @@
 #include "HJGuis.h"
 #include "HJImguiUtils.h"
 #include "HJMediaPlayer.h"
-//#include "HJMediaMuxer.h"
-//#include "HJJPusher.h"
-//#include "HJHLSParser.h"
+#include "HJSEIWrapper.h"
+#include "HJPackerManager.h"
+#include "HJDataFuse.h"
 
 NS_HJ_BEGIN
 #define HJ_TRY_PLAY_CNT_MAX	10
@@ -65,6 +65,10 @@ private:
 	void onNetBlock(const std::string& tips);
 	void onDataBlock(const std::string& tips);
 	void onNetBitrate(int bitrate);
+
+	HJSEINals::Ptr makeSEINals();
+	HJSEINals::Ptr makePacketSEINals();
+	
 	//
 	void setMediaInfo(const HJMediaInfo::Ptr minfo) {
 		HJ_AUTO_LOCK(m_mutex);
@@ -95,7 +99,7 @@ protected:
 	HJImageButton::Ptr		m_btnPush = nullptr;
 	bool					m_isAsyncUrl = false;
 	bool					m_showMuxer = false;
-	bool					m_showPusher = false;
+	bool					m_showPusher = true;
 	bool					m_showMInfoWindow = false;
 	bool					m_thumbnail = false;
 	//HJImageView::Ptr		m_imgView = nullptr;
@@ -113,7 +117,7 @@ protected:
 	//
 	std::string				m_mediaUrl = "";
 	std::string				m_muxerUrl = "E:/movies/outs/";
-	std::string				m_pushUrl = "rtmp://live-push-0.test.huajiao.com/main/kjl979?auth_key=1755677478-0-0-5427cdf5460ca7a8f9884ebe72ab20c7";
+	std::string				m_pushUrl = "rtmp://live-push-0.test.huajiao.com/main/test1?auth_key=1764587013-0-0-23436a0e1cb2e7f580edb300ea056292";
 	//std::string				m_pushUrl = "rtmp://localhost/live/livestream";
 	std::string				m_thumbUrl = "";
 	HJMediaPlayer::Ptr		m_player = nullptr;

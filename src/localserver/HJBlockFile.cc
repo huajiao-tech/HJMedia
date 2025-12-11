@@ -11,7 +11,7 @@
 
 NS_HJ_BEGIN
 //***********************************************************************************//
-HJBlockFile::~HJBlockFile()
+HJBlockFile::~HJBlockFile() noexcept
 {
 	done();
 }
@@ -21,41 +21,42 @@ HJBlockFile::~HJBlockFile()
  * @param "*.blocks" 
  * @return int 
  */
-int HJBlockFile::init(const std::string& file)
+int HJBlockFile::init(const std::string& url)
 {
-	m_file = file;
+	m_url = url;
 	try
 	{ 
-		if (!HJFileUtil::fileExist(m_file.c_str())) {
-			return HJErrNotExist;
-		}
-		
-		auto url = HJCreates<HJUrl>(file);
+		bool isExist = HJFileUtil::fileExist(m_url);
+		//
+		auto url = HJCreates<HJUrl>(m_url);
 		auto xio = HJCreates<HJXIOFile>();
         int res = xio->open(url);
 		if (HJ_OK != res) {
 			return res;
 		}
-		auto size = xio->size();
-		size_t predSize = sizeof(m_file_size) * 3 + sizeof(m_block_status) + sizeof(m_block_offsets);
-		if (size != predSize) {
-			return HJErrInvalidFile;
-		}
-		auto buffer = HJCreates<HJBuffer>(size);
-		xio->read(buffer->data(), size);
-		buffer->setSize(size);
-		//
-		buffer->read(reinterpret_cast<uint8_t *>(&m_file_size), sizeof(m_file_size));
-		buffer->read(reinterpret_cast<uint8_t *>(&m_block_size), sizeof(m_block_size));
-		buffer->read(reinterpret_cast<uint8_t *>(&m_total_blocks), sizeof(m_total_blocks));
-		//
-		for (size_t i = 0; i < m_total_blocks; i++) {
-			bool status;
-			buffer->read((uint8_t*)(&status), sizeof(bool));
-			m_block_status[i] = status;
-		}
-		for (size_t i = 0; i < m_total_blocks; i++) {
-			buffer->read(reinterpret_cast<uint8_t*>(&m_block_offsets[i]), sizeof(size_t));
+		if(isExist) 
+		{
+			auto size = xio->size();
+			size_t predSize = sizeof(m_file_size) * 3 + sizeof(m_block_status) + sizeof(m_block_offsets);
+			if (size != predSize) {
+				return HJErrInvalidFile;
+			}
+			auto buffer = HJCreates<HJBuffer>(size);
+			xio->read(buffer->data(), size);
+			buffer->setSize(size);
+			//
+			buffer->read(reinterpret_cast<uint8_t *>(&m_file_size), sizeof(m_file_size));
+			buffer->read(reinterpret_cast<uint8_t *>(&m_block_size), sizeof(m_block_size));
+			buffer->read(reinterpret_cast<uint8_t *>(&m_total_blocks), sizeof(m_total_blocks));
+			//
+			for (size_t i = 0; i < m_total_blocks; i++) {
+				bool status = false;
+				buffer->read(reinterpret_cast<uint8_t*>(&status), sizeof(bool));
+				m_block_status[i] = status;
+			}
+			for (size_t i = 0; i < m_total_blocks; i++) {
+				buffer->read((uint8_t*)(&m_block_offsets[i]), sizeof(size_t));
+			}
 		}
 	} catch (const HJException& e) {
 		HJFLoge("exception: {}", e.what());
@@ -88,6 +89,17 @@ void HJBlockFile::markBlockComplete(size_t block_index)
 		m_isDirty = true;
 	}
 }
+
+std::vector<size_t> HJBlockFile::getCompleteBlocks()
+{
+    std::vector<size_t> result;
+	for (size_t i = 0; i < m_total_blocks; i++) {
+		if (m_block_status[i]) {
+			result.push_back(i);
+		}
+	}
+	return result;
+}
 std::vector<size_t> HJBlockFile::getIncompleteBlocks()
 {
     std::vector<size_t> result;
@@ -117,7 +129,7 @@ void HJBlockFile::flush()
 	}
 	try
 	{
-		auto url = HJCreates<HJUrl>(m_file, HJ_XIO_WRITE);
+		auto url = HJCreates<HJUrl>(m_url, HJ_XIO_WRITE);
 		auto xio = HJCreates<HJXIOFile>();
 		int res = xio->open(url);
 		if (HJ_OK != res) {
@@ -134,7 +146,7 @@ void HJBlockFile::flush()
 			buffer->write((uint8_t*)(&status), sizeof(bool));
 		}
 		for (size_t i = 0; i < m_total_blocks; i++) {
-			buffer->write(reinterpret_cast<uint8_t*>(&m_block_offsets[i]), sizeof(size_t));
+			buffer->write((uint8_t*)(&m_block_offsets[i]), sizeof(size_t));
 		}
 		//
 		xio->write(buffer->data(), buffer->size());

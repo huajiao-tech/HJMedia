@@ -19,7 +19,10 @@ public:
             if (ImGui::BeginMenu("Items"))
             {
                 HJUIItemType type = HJUIItemType_None;
-
+                if (ImGui::MenuItem("PlayerCom"))
+                {
+                    type = HJUIItemType_PlayerCom;
+                }
 				if (ImGui::MenuItem("Test"))
 				{
 					type = HJUIItemType_Test;
@@ -29,13 +32,6 @@ public:
                 {
                     type = HJUIItemType_SharedMemory;
                 }   
-
-
-
-                if (ImGui::MenuItem("PlayerCom"))
-                {
-                    type = HJUIItemType_PlayerCom;
-                }     
                 if (ImGui::MenuItem("PlayerPlugin"))
                 {
                     type = HJUIItemType_PlayerPlugin;

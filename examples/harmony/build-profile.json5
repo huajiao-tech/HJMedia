@@ -3,7 +3,7 @@
     "products": [
       {
         "name": "default",
-        "signingConfig": "lfs",
+        "signingConfig": "lzy",
         "runtimeOS": "HarmonyOS",
         "compatibleSdkVersion": "5.0.0(12)",
         "targetSdkVersion": "6.0.0(20)",
@@ -23,13 +23,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.cer",
+          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B86D55825BAB3E0659DC787001BAC6840BC2968F5847DE95D1EAED454B618D906A2F5F0B57B31C2",
-          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.p7b",
+          "keyPassword": "0000001B4146DA48DCD77BCD05097C3CA1D4497197E8594EEFB997B850A665DB37C6736C6E460327B5431D",
+          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.p12",
-          "storePassword": "0000001BDC1F30393E1860FEC3E1F32414EDE9F81E8B489F6FB0854760588189D721388436A177FAFE6663"
+          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
+          "storePassword": "0000001BE06F3A51FFDBFBFC6E7649C297F5C2DB1208B29753B5B42A969766DAEA54E765EE2DA24AEBDDD4"
         }
       },
       {
@@ -64,11 +64,11 @@
         "material": {
           "certpath": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B34FA762C2310CDB6F8114FB50FACF1CD57EF40677ADA88F6DC38440676BC251A2DDEF1151A3AE2",
+          "keyPassword": "0000001B3C360B4834F73719BA5BFF09C510B0F4877433C03BCF31C9FD22A9670958EDF8B28906B4B05A7D",
           "profile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.p12",
-          "storePassword": "0000001B338DAC6287983E2C141C06AF6F6267482B96BE5C3E544C2445821D6CBFDB13D0B0B954A0763175"
+          "storePassword": "0000001B92BEAC252C2B9DB4EF4FD032BF61F81E2CAEF6DE7B1C965102969C72231870967C34F9E1FEF59E"
         }
       },
       {
@@ -88,13 +88,13 @@
         "name": "lfs",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.cer",
+          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001BB78C1006ED333340E63EF96D788E6E0E3FDBC5360D4F4D5F304C18EF4FEE1C65A3C9D57B860130",
-          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.p7b",
+          "keyPassword": "0000001B24C94CAFC0D1F4D960D4EAAC9DC63FE5BDB4266A6A92EBC49E7A8D470FF6B4EB1CFF9B348D1C71",
+          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.p12",
-          "storePassword": "0000001B9EBC887DC662EB676DA528D8835F8BC18358C87391A0DEFD8B54770BA9217DF354B171ADA8E51C"
+          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
+          "storePassword": "0000001BCB6FED5DD31BE4602AC9710682FD37C87C6F5A3F64B6651D4F9FB5E7919D5673EFA20992584D97"
         }
       }
     ]

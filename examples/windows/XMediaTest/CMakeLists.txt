@@ -14,7 +14,10 @@ file(GLOB CUR_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.cc")
 list(APPEND HEADER_FILES ${CUR_HEADER_FILES})
 list(APPEND SOURCE_FILES ${CUR_SOURCE_FILES})
 if(WINDOWS)
-    list(APPEND SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/utils/test/HJExecutorPool_test.cc")
+    #list(APPEND SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/utils/test/HJExecutorPool_test.cc")
+    # list(APPEND SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/media/test/HJSEI_test.cc")
+    # list(APPEND SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/datafuse/test/HJPackerManagerTest.cc")
+    list(APPEND SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/media/test/HJM3U8ParserTest.cc")
 endif()
 
 # MESSAGE( STATUS "${PROJ_NAME} SOURCE_FILES : ${SOURCE_FILES}, HEADER_FILES : ${HEADER_FILES}")
@@ -29,7 +32,7 @@ if(WINDOWS)
         Crypt32 IPHLPAPI opengl32 dwmapi
         LIBGTEST
         HJGraphs HJPlugins HJLocalServer
-        HJGui ImGuiFileDialog ImFileDialog implot imgui HJCore HJLinks HJMedia HJStat HJUtils LIBGLFW LIBSPDLOG
+        HJGui ImGuiFileDialog ImFileDialog implot imgui glfw HJCore HJLinks HJMedia HJStat HJUtils LIBGLFW LIBSPDLOG
     )
     target_link_libraries(${PROJ_NAME} debug libavdeviced optimized libavdevice)
     target_link_libraries(${PROJ_NAME} debug libavfilterd optimized libavfilter)
@@ -45,7 +48,7 @@ else()
     target_link_libraries(${PROJ_NAME} 
         LIBGTEST
         HJGraphs HJPlugins HJLocalServer
-        HJGui ImGuiFileDialog ImFileDialog implot imgui HJCore HJLinks HJMedia HJStat HJUtils LIBGLFW LIBSPDLOG
+        HJGui ImGuiFileDialog ImFileDialog implot imgui glfw HJCore HJLinks HJMedia HJStat HJUtils LIBGLFW LIBSPDLOG
     )
     target_link_libraries(${PROJ_NAME} 
         ${DEPS_FFMPEG_LIB_DIR}/libavdevice.a

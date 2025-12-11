@@ -24,7 +24,7 @@ typedef enum HJXFMode
 class HJXIOFile : public HJXIOBase
 {
 public:
-	using Ptr = std::shared_ptr<HJXIOFile>;
+	HJ_DECLARE_PUWTR(HJXIOFile);
 	HJXIOFile();
 	virtual ~HJXIOFile();
 
