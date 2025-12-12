@@ -3,7 +3,7 @@
     "products": [
       {
         "name": "default",
-        "signingConfig": "lzy",
+        "signingConfig": "lfs",
         "runtimeOS": "HarmonyOS",
         "compatibleSdkVersion": "5.0.0(12)",
         "targetSdkVersion": "6.0.0(20)",
@@ -88,13 +88,13 @@
         "name": "lfs",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
+          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B24C94CAFC0D1F4D960D4EAAC9DC63FE5BDB4266A6A92EBC49E7A8D470FF6B4EB1CFF9B348D1C71",
-          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
+          "keyPassword": "0000001B83C1D4DAD397A5CF8A1126087DA70CE0B4CA802F30A4B8A47281BCD7720992F67774970A31765F",
+          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
-          "storePassword": "0000001BCB6FED5DD31BE4602AC9710682FD37C87C6F5A3F64B6651D4F9FB5E7919D5673EFA20992584D97"
+          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.p12",
+          "storePassword": "0000001B24C0949FA36835E3A784C06ADA2D8530C1F5FE7F17B0A8D5A91BB51F53FCCBF279FF0C92EC7940"
         }
       }
     ]

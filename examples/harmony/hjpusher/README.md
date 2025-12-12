@@ -136,6 +136,7 @@ height: 1280,
 bitrate: 2 * 1024 * 1024,
 frameRate: 30,
 gopSize: 60
+videoIsROIEnc: true, // 是否开启ROI编码,如果启动ROI需要人脸检测模块同步打开
 },
 {
 codecID: AudioCodecType.HJCodecAAC,
@@ -332,6 +333,11 @@ tips: 如需保持应用在后台持续运行，请参考官网[长时任务](ht
 注册原生数据源关闭回调。
 
 -   `cb`: `() => void` - 回调函数。
+
+#### `setVideoEncQuantOffset(i_quantoffset: number)`
+
+设置ROI视频编码画质，其中参数-51 - 51 默认为-3
+
 
 ### Enums and Interfaces
 

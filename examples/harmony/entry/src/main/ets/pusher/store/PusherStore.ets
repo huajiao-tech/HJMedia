@@ -10,7 +10,7 @@ import { ToastUtils } from '../../util/ToastUtils';
 @ObservedV2
 export class PusherState implements State {
   @Trace pusherConfigArray: MediaConfig[] = [
-    new MediaConfig("string", 'URL 推流地址', 'rtmp://live-push-0.test.huajiao.com/main/ts?auth_key=1765447834-0-0-1f586969245a0be6008504d65a0f7c31'),
+    new MediaConfig("string", 'URL 推流地址', 'rtmp://live-push-1.huajiao.com/main/lfs?auth_key=1765507830-0-0-0c392a68f2c6336e4c8589861ff0e35e'),
     new MediaConfig("boolean", '是否横屏', false),
     new MediaConfig("boolean", '是否保持屏幕常亮', false),
     new MediaConfig("boolean", '是否双屏预览', false),
