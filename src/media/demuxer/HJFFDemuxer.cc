@@ -624,8 +624,10 @@ AVDictionary* HJFFDemuxer::getFormatOptions()
     if (!localUrl.empty()) {
         av_dict_set(&fmtOpts, "bloburl", localUrl.c_str(), 0);
     }
-    
-    if (m_mediaUrl->getTimeout() >= 0) {
+    /**
+	* rtmp - with timeout will bind socket timeout, cause more delay, so do not set timeout for rtmp
+    */
+    if (m_mediaUrl->getTimeout() >= 0 && !m_mediaUrl->isRTMP()) {
         av_dict_set(&fmtOpts, "timeout", HJFMT("{}", m_mediaUrl->getTimeout()).c_str(), 0);
     }
     av_dict_set_int(&fmtOpts, "fpsprobesize", 0, 0);

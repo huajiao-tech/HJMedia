@@ -216,12 +216,20 @@ std::string HJUtilitys::checkDir(const std::string& dir)
 
 const std::string HJUtilitys::removeSuffix(const std::string& str)
 {
-    return str.substr(0, str.rfind('.'));
+    size_t pos = str.rfind('.');
+    if (pos == std::string::npos) {
+        return "";
+    }
+    return str.substr(0, pos);
 }
 
 const std::string HJUtilitys::getSuffix(const std::string& str)
 {
-    return str.substr(str.rfind('.'));
+    size_t pos = str.rfind('.');
+    if (pos == std::string::npos) {
+        return "";
+    }
+    return str.substr(pos);
 }
 
 const std::string HJUtilitys::getPrefix(const std::string& str)

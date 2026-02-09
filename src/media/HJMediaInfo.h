@@ -603,6 +603,10 @@ public:
         if(m_url.empty()) return false;
         return HJUtilitys::containWith(m_url, ".m3u8");
     }
+    bool isRTMP() const {
+        if(m_url.empty()) return false;
+        return HJUtilitys::startWith(m_url, "rtmp");
+    }
     bool canUseFast() const {
         return m_useFast && !isM3u8();
     }
