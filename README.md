@@ -127,9 +127,10 @@
 # 支持
 
 - 如果您有任何改进HJMedia的想法或建议，欢迎随时发起 [讨论](https://github.com/huajiao-tech/HJMedia/discussions)，提交 [问题](https://github.com/huajiao-tech/HJMedia/issues). 或创建 [拉取请求](https://github.com/huajiao-tech/HJMedia/pulls)。
+
 - 微信反馈群
   
-  ![](docs/weixin.jpg)手机号：13581976091，15901218896，18618537201
+  ![](docs/weixin.jpg)手机号：13581976091，15901218896，18618537201(加个人微信请说明原因)
 
 # Licence
 
