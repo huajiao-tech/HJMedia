@@ -27,7 +27,7 @@
             },
             {
                 "url": "https://github.com/huajiao-tech/librtmp.git",
-                "commit": "9353a172c039651b59f4d2b1ccfa0e47953dea0f",
+                "commit": "main",
                 "dir": "third_party/librtmp"
             },
             {
