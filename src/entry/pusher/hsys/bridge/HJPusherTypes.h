@@ -9,11 +9,12 @@ class PreviewConfig final : public HJInterpreter {
 public:
     PreviewConfig(HJYJsonObject::Ptr obj) : HJInterpreter(obj) {}
 
-    HJ_JSON_AUTO_SERIAL_DESERIAL(realWidth, realHeight, previewFps)
+    HJ_JSON_AUTO_SERIAL_DESERIAL(realWidth, realHeight, previewFps, m_graphConfig)
 
     int realWidth;
     int realHeight;
     int previewFps;
+    std::string m_graphConfig;
 };
 
 

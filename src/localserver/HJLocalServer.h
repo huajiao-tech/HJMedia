@@ -10,7 +10,7 @@
 #include "HJNotify.h"
 
 NS_HJ_BEGIN
-class HJMediaStorageManager;
+class HJMediaDBManager;
 //***********************************************************************************//
 class /*HJ_EXPORT_API*/ HJLocalServer : public HJServerDelegate
 {
@@ -62,7 +62,7 @@ private:
     HJServerParams      m_params;
     HJListener          m_listener{};
     HJHTTPServer::Utr   m_httpServer{};
-    std::shared_ptr<HJMediaStorageManager>  m_storageManager{};
+    std::shared_ptr<HJMediaDBManager>  m_storageManager{};
     HJCacheManager::Utr m_cacheManager{};
 };
 

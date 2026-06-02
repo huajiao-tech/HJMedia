@@ -192,7 +192,7 @@ int HJPrioComBlurHori::render(HJBaseParam::Ptr i_param)
             } 
             i_err = HJPrioComFBOBase::draw([this, info]()
             {
-                return m_draw->draw(info->m_texture, "crop", info->m_width, info->m_height, info->m_width, info->m_height, info->m_matrix, false);
+                return m_draw->draw(info->m_texture, HJWindowRenderMode_CLIP, info->m_width, info->m_height, info->m_width, info->m_height, info->m_matrix, false);
             });
         }
 #endif
@@ -309,7 +309,7 @@ int HJPrioComFBOBlur::render(HJBaseParam::Ptr i_param)
             } 
             i_err = HJPrioComFBOBase::draw([this, info]()
             {
-                return m_draw->draw(info->m_texture, "crop", info->m_width, info->m_height, info->m_width, info->m_height, info->m_matrix, false);
+                return m_draw->draw(info->m_texture, HJWindowRenderMode_CLIP, info->m_width, info->m_height, info->m_width, info->m_height, info->m_matrix, false);
             });
         }
 #endif

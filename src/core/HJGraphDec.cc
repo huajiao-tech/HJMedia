@@ -274,6 +274,22 @@ int HJGraphDec::seek(const HJSeekInfo::Ptr info)
     return res;
 }
 
+int HJGraphDec::switchAudioTrack(int trackID)
+{
+    if (!m_demuxer || m_runState < HJRun_Ready) {
+        return HJErrNotAlready;
+    }
+    return m_demuxer->switchAudioTrack(trackID);
+}
+
+int64_t HJGraphDec::getDuration()
+{
+    if (!m_demuxer) {
+        return 0;
+    }
+    return m_demuxer->getDuration();
+}
+
 int HJGraphDec::connectVOut(const HJMediaVNode::Ptr& node) {
     if (!m_videoDecoder) {
         return HJErrNotAlready;

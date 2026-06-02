@@ -55,7 +55,9 @@ int HJApplication::init()
         // Setup Dear ImGui context
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
+        m_imgui_ready = true;
         ImPlot::CreateContext();
+        m_implot_ready = true;
         ImGuiIO& io = ImGui::GetIO(); (void)io;
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
@@ -79,7 +81,24 @@ int HJApplication::init()
 #ifdef __EMSCRIPTEN__
         ImGui_ImplGlfw_InstallEmscriptenCanvasResizeCallback("#canvas");
 #endif
-        ImGui_ImplOpenGL3_Init(glsl_version);
+        GLFWwindow* current_window = glfwGetCurrentContext();
+        if (!current_window) {
+            HJLoge("error, current glfw context is null");
+            res = HJErrFatal;
+            break;
+        }
+        m_glfw_backend_ready = ImGui_ImplGlfw_InitForOpenGL(current_window, true);
+        if (!m_glfw_backend_ready) {
+            HJLoge("error, init glfw imgui backend failed");
+            res = HJErrFatal;
+            break;
+        }
+        m_opengl_backend_ready = ImGui_ImplOpenGL3_Init(glsl_version);
+        if (!m_opengl_backend_ready) {
+            HJLoge("error, init opengl imgui backend failed");
+            res = HJErrFatal;
+            break;
+        }
         //
         // Load Fonts
         // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -125,11 +144,15 @@ int HJApplication::init()
         res = onInit();
         if (HJ_OK != res) {
             HJLoge("onInit error");
+            break;
         }
         m_runState = HJRun_Init;
 	} while (false);
 
-	return HJ_OK;
+    if (HJ_OK != res) {
+        done();
+    }
+	return res;
 }
 
 void HJApplication::done()
@@ -138,10 +161,23 @@ void HJApplication::done()
         return;
     }
     HJLogi("done entry");
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImPlot::DestroyContext();
-    ImGui::DestroyContext();
+    onDone();
+    if (m_opengl_backend_ready) {
+        ImGui_ImplOpenGL3_Shutdown();
+        m_opengl_backend_ready = false;
+    }
+    if (m_glfw_backend_ready) {
+        ImGui_ImplGlfw_Shutdown();
+        m_glfw_backend_ready = false;
+    }
+    if (m_implot_ready) {
+        ImPlot::DestroyContext();
+        m_implot_ready = false;
+    }
+    if (m_imgui_ready) {
+        ImGui::DestroyContext();
+        m_imgui_ready = false;
+    }
 
     if (m_mainWindow) {
         m_mainWindow->done();
@@ -157,11 +193,15 @@ int HJApplication::run()
     if (!m_mainWindow) {
         return HJErrNotAlready;
     }
+    if (!m_glfw_backend_ready || !m_opengl_backend_ready) {
+        return HJErrNotAlready;
+    }
     int res = HJ_OK;
     HJLogi("run entry");
 #ifdef __EMSCRIPTEN__
     // For an Emscripten build we are disabling file-system access, so let's not attempt to do a fopen() of the imgui.ini file.
     // You may manually call LoadIniSettingsFromMemory() to load settings from your own storage.
+    ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
     EMSCRIPTEN_MAINLOOP_BEGIN
 #else
@@ -171,7 +211,6 @@ int HJApplication::run()
         m_runState = HJRun_Running;
         //uint64_t t0 = HJUtils::getCurrentMillisecond();
         onRunBegin();
-        executeTasks();
         // Poll and handle events (inputs, window resize, etc.)
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
         // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
@@ -183,6 +222,7 @@ int HJApplication::run()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        executeTasks();
         //
         onRunning();
         //m_mainWindow->draw();

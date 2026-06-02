@@ -29,6 +29,8 @@ export struct LivePlayerPage {
         if (this.state.isGiftShow) {
           PlayerXComponent({
             url: this.getUIContext().getHostContext()?.resourceDir + "/ShuangDanCaiShen.mp4",
+            localdir: "",
+            rid:"",
             sourceType: HJPlayerSourceType.HJPlayerSourceType_SPLITSCREEN,
             playerType: HJPlayerType.HJPlayerType_VOD,
             

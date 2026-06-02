@@ -101,14 +101,10 @@ public:
 	virtual int64_t size() override;
     virtual bool eof() override;
 public:
-	void setSize(const int64_t size) {
-		m_size = size;
-	}
 	HJBlock::Ptr getBlock(const size_t pos);
 protected:
 	std::unique_ptr<HJXIOFile>		m_file = nullptr;
 	size_t							m_pos = 0;
-	size_t							m_size = 0;
 	std::map<int, HJBlock::Ptr>		m_blocks;
 	size_t							m_blockSize = HJ_XIO_BLOCK_SIZE;
 };

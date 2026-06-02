@@ -20,17 +20,35 @@ class HJUtilitys
 public:
     template<typename T>
     static const std::string toString(const T& data) {
-        return std::move(std::to_string(data));
+        return std::to_string(data);
     }
     template<typename T>
     static const std::wstring toWString(const T& data) {
-        return std::move(std::to_wstring(data));
+        return std::to_wstring(data);
     }
     template<typename T>
     static std::string toSString(T arg) {
         std::stringstream ss;
         ss << arg;
         return ss.str();
+    }
+    template<typename T>
+    static std::string vectorToString(
+        const std::vector<T>& values,
+        const std::string& separator = ", ",
+        const std::string& prefix = "[",
+        const std::string& suffix = "]")
+    {
+        std::ostringstream oss;
+        oss << prefix;
+        for (size_t i = 0; i < values.size(); ++i) {
+            if (i > 0) {
+                oss << separator;
+            }
+            oss << values[i];
+        }
+        oss << suffix;
+        return oss.str();
     }
     template <class T>
     static T stringToNum(const std::string& str) {
@@ -49,6 +67,7 @@ public:
     static std::string logDir();
     static std::string dumpsDir();
     static std::string checkDir(const std::string& dir);
+    static std::string trimmedDir(const std::string& dir);
     static std::string concatenateDir(const std::string& pre, const std::string& suf);
     static std::string concatenatePath(const std::string& dir, const std::string& filename);
     static std::string concateString(const std::string& pre, const std::string& suf);
@@ -96,6 +115,26 @@ public:
     static size_t hash(T ctx) {
         return std::hash<T>()(ctx);
     }
+    template<typename T>
+    static std::string hashString(T ctx) {
+        return std::to_string(std::hash<T>()(ctx));
+    }
+    template<typename T>
+    static uint16_t hash16(T ctx) {
+        return static_cast<uint16_t>(hash(ctx) & 0xFFFF);
+    }
+    template<typename T>
+    static std::string hash16String(T ctx) {
+        return std::to_string(hash16(ctx));
+    }
+    template<typename T>
+    static uint32_t hash32(T ctx) {
+        return static_cast<uint32_t>(hash(ctx) & 0xFFFFFFFF);
+    }
+    template<typename T>
+    static std::string hash32String(T ctx) {
+        return std::to_string(hash32(ctx));
+    }
     
     template< typename... Args >
     static std::string formatString(const char* format, Args... args)
@@ -133,6 +172,11 @@ public:
     static std::vector<uint8_t> makeBytes(const std::string& str) {
         return std::vector<uint8_t>(str.begin(), str.end());
     }
+    static std::string base64Encode(const uint8_t* data, size_t len);
+    static std::string base64Encode(const HJRawBuffer& data) {
+        return base64Encode(data.data(), data.size());
+    }
+    static HJRawBuffer base64Decode(const std::string& text);
     /**
      * 设置线程名
      */
@@ -208,6 +252,8 @@ public:
     static void splitParam(const std::string& param, std::vector<std::pair<std::string, std::string>>& result);
     static std::vector<std::pair<std::string, std::string>> parseUrl(const std::string& url);
     static std::string getCoreUrl(const std::string& url);
+    
+    static const char *boolToString(bool i_value) { return i_value ? "true" : "false"; }
 private:
     static bool hexIsSafe(uint8_t b) {
         return b >= ' ' && b < 128;;
@@ -229,6 +275,8 @@ private:
 
 #define HJCurrentDirectory() HJ::HJUtilitys::getDirectory(__FILE__)
 #define HJConcateDirectory(pre, suf) HJ::HJUtilitys::concatenateDir(pre, suf)
+
+#define HJB2String(v)  HJ::HJUtilitys::boolToString(v)
 
 //***********************************************************************************//
 class HJNonCopyable {

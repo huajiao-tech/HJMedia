@@ -1,5 +1,6 @@
 #pragma once
 
+#if 0
 #include "HJPrerequisites.h"
 #include "HJComUtils.h"
 #include "HJFaceuInfo.h"
@@ -13,6 +14,7 @@ NS_HJ_BEGIN
 #define SMOOTH_SLIDINGWINDOW_FILTER 1
 
 class HJPrioCom;
+class HJFacePointsReal;
 
 class HJFacePointsEx
 {
@@ -28,7 +30,7 @@ public:
         m_bContainsFace = !i_faceInfo.empty();
         if (m_bContainsFace)
         {
-            m_faceInfo.init(i_faceInfo);
+            m_faceInfo.deserial(i_faceInfo);
         }    
     }
     bool isContainFace()
@@ -70,54 +72,7 @@ public:
     HJFacePointsInfo m_faceInfo;
 };
 
-
-class HJFacePointsReal
-{
-public:
-	HJ_DEFINE_CREATE(HJFacePointsReal);
-    HJFacePointsReal() = default;
-	virtual ~HJFacePointsReal() = default;    
-    
-    HJFacePointsReal(int w, int h, bool i_bContainsFace)
-    {
-        m_width = w;
-        m_height = h;
-        m_bContainsFace = i_bContainsFace;
-    }
-    bool isContainFace()
-    {
-        return m_bContainsFace;
-    }
-    void addFilterPoint(HJPointf i_point)
-    {
-        m_filterPoints.push_back(i_point);
-    }
-    void copyFilterPoint(std::vector<HJPointf> i_points)
-    {
-        m_filterPoints = i_points;
-    }
-    const std::vector<HJPointf> &getFilterPt()
-    {
-        return m_filterPoints;
-    }
-    int width()
-    {
-        return m_width;
-    }
-    int height()
-    {
-        return m_height;
-    }
-private:
-    int m_width = 0;
-    int m_height = 0;
-    bool m_bContainsFace = false;
-    std::vector<HJPointf> m_filterPoints;
-};
-
-
-
-using HJFaceSubscribeFunc = std::function<void(HJFacePointsReal::Ptr)>;
+using HJFaceSubscribeFunc = std::function<void(std::shared_ptr<HJFacePointsReal>)>;
 using HJFaceSubscribeFuncPtr = std::shared_ptr<HJFaceSubscribeFunc>;
 
 class HJFacePointMgr : public HJBaseSharedObject
@@ -140,10 +95,11 @@ public:
 
     //HJFaceSubscribeFuncPtr registSubscriber(HJFaceSubscribeFunc i_subscriber);
     void registSubscriber(HJFaceSubscribeFuncPtr i_subscriberPtr);
+    void unRegistSubscriber(HJFaceSubscribeFuncPtr i_subscriberPtr);
 private:
     
     void priResetFilter();
-    int priProc(HJFacePointsReal::Ptr i_point);
+    int priProc(std::shared_ptr<HJFacePointsReal> i_point);
     //bool priIsContains(std::shared_ptr<HJPrioCom> i_com);
     HJFacePointsEx::Ptr m_catchPoint = nullptr;
     HJFaceFindCb m_faceFindCb = nullptr;
@@ -163,10 +119,10 @@ private:
     static int s_minAverage;
     static std::string s_subscribeName;
     
-    HJEventBus<HJFacePointsReal::Ptr> m_eventBus;
+    HJEventBus<std::shared_ptr<HJFacePointsReal>> m_eventBus;
 };
 
 NS_HJ_END
 
-
+#endif
 

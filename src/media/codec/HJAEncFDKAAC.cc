@@ -133,9 +133,11 @@ int HJAEncFDKAAC::init(const HJStreamInfo::Ptr &info)
         //- 0: raw access units
         //- 1: ADIF bitstream format
         //- 2: ADTS bitstream format
-        UINT tansMuxVal = m_bADTS ? 2 : 0;
-         HJFNLogi("aac use adts {}", m_bADTS);
-        i_err = aacEncoder_SetParam(m_aacHandle, AACENC_TRANSMUX, tansMuxVal);
+        if(audioInfo->haveValue("aac_type")) {
+            m_aacType = audioInfo->getInt("aac_type");
+        }
+         HJFNLogi("aac use adts {}", m_aacType);
+        i_err = aacEncoder_SetParam(m_aacHandle, AACENC_TRANSMUX, (UINT)m_aacType);
         if (i_err != AACENC_OK)
         {
             HJFNLoge("aacEncoder_SetParam AACENC_TRANSMUX error {}", i_err);
@@ -203,9 +205,17 @@ int HJAEncFDKAAC::getFrame(HJMediaFrame::Ptr &frame)
 }
 int HJAEncFDKAAC::run(const HJMediaFrame::Ptr i_frame)
 {
+    if (!i_frame) {
+        return HJErrInvalidParams;
+    }
     int i_err = HJ_OK;
     do
     {
+        if (i_frame->isClearFrame() || i_frame->isFlushFrame()) {
+            HJFNLogw("clear or flush frame tyupe:{}", i_frame->m_frameType);
+            break;
+        }
+
         AACENC_BufDesc inBuf{0};
         AACENC_BufDesc outBuf{0};
         AACENC_InArgs inArgs{0};
@@ -219,6 +229,10 @@ int HJAEncFDKAAC::run(const HJMediaFrame::Ptr i_frame)
         {
             HJFNLoge("getDataFromAVFrame error {}", i_err);
             break;
+        }
+        if(!data || m_inSize <= 0) {
+            HJFNLoge("data is null");
+            return HJErrInvalidData;
         }
 
         // m_inSize = i_nSize;
@@ -262,6 +276,7 @@ int HJAEncFDKAAC::run(const HJMediaFrame::Ptr i_frame)
         }
         else
         {
+			HJFNLoge("aacEncEncode error:{}, info:{}, m_inSize:{}", i_err, i_frame->formatInfo(), m_inSize);
             i_err = HJErrCodecEncode;
             break;
         }

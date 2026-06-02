@@ -70,11 +70,21 @@ int HJPlayerBase::seek(float progress)
 {
     return HJ_OK;
 }
+
+int HJPlayerBase::switchAudioTrack(int trackID)
+{
+    (void)trackID;
+    return HJErrNotSupport;
+}
 int HJPlayerBase::speed(float speed)
 {
     return HJ_OK;
 }
 int64_t HJPlayerBase::getCurrentPos()
+{
+    return 0;
+}
+int64_t HJPlayerBase::getDuration()
 {
     return 0;
 }

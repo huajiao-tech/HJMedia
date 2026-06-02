@@ -52,18 +52,11 @@ int HJWindow::init(const HJSizei wsize)
         glfwSetWindowFocusCallback(m_window, Viewer::FocusCallback);
         glfwSetWindowIconifyCallback(m_window, Viewer::IconifyCallback);*/
 
-        if (m_initBackends)
-        {
-            glfwMakeContextCurrent(m_window);
-            //gladLoadGL(glfwGetProcAddress);
-            //glfwSetWindowAspectRatio(m_window, 1, 1);
-            glfwSwapInterval(1); // Enable vsync
-
-            // Setup Platform/Renderer backends
-            ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-            //
-            glfwSetTime(0.0);
-        }
+        glfwMakeContextCurrent(m_window);
+        //gladLoadGL(glfwGetProcAddress);
+        //glfwSetWindowAspectRatio(m_window, 1, 1);
+        glfwSwapInterval(1); // Enable vsync
+        glfwSetTime(0.0);
     } while (false);
 
     return HJ_OK;

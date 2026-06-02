@@ -1,0 +1,11 @@
+{
+	"prefix": "ShuangDanCaiShen",
+	"loops": 1,
+	"fps": 30,
+	"position": {
+		"topx": 0.0,
+		"topy": 0.0,
+		"width": 1.0,
+		"height": 1.0
+	}
+}

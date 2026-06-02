@@ -132,7 +132,7 @@ int HJThumbnailExtractor::run()
                 HJLoge("error, image writer frame failed, res:" + HJ2STR(res));
                 break;
             }
-            if(HJFileUtil::fileExist(outUrl)) {
+            if(HJFileUtil::isFileExist(outUrl)) {
                 notify(HJThumbnailNotify_Url, outUrl);
             }
         } else {

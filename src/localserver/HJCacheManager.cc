@@ -6,7 +6,7 @@
 #include "HJCacheManager.h"
 #include "HJFLog.h"
 #include "HJFileUtil.h"
-#include "HJMediaStorageManager.h"
+#include "HJMediaDBManager.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -85,7 +85,7 @@ int HJCacheManager::checker(HJCacheInfo cacheInfo)
 	HJFileStatus status = HJFileStatus::NONE;
 	int64_t dbFileSize = 0;
 	auto category = HJServerUtils::getCategory(cacheInfo.priority);
-    auto dbInfo = m_storageManager->GetFile(category, cacheInfo.rid);
+    auto dbInfo = m_storageManager->getFile(category, cacheInfo.rid);
     if(dbInfo.has_value()){
 		 status = (HJFileStatus)(*dbInfo).status;
 		 dbFileSize = (*dbInfo).size;

@@ -40,6 +40,7 @@ public:
 	//before start
 	void setBeginFunc(HJThreadTaskFunc i_func);
 	void setEndFunc(HJThreadTaskFunc i_func);
+	void setErrorFunc(HJThreadTaskFunc i_func);
 	void setRunFunc(RunFunc i_func);
 
 	int  start();
@@ -55,6 +56,7 @@ public:
     bool isQuit();
         
 protected:
+    bool waitForWake(int64_t i_time_out);
 
 private:
 	static void priThreadFun(void* argc, std::shared_ptr<std::promise<void>> i_promise);
@@ -64,7 +66,7 @@ private:
     int priStart();
     int priProcess();
 	void priClearTask(int i_id);
-	void priEnterTask(const HJThreadTaskFunc& task, std::shared_ptr<std::promise<int>> i_promise = nullptr, int64_t i_delayTime = 0, int i_id = 0);
+	int priEnterTask(const HJThreadTaskFunc& task, std::shared_ptr<std::promise<int>> i_promise = nullptr, int64_t i_delayTime = 0, int i_id = 0);
 
 	void priWaitFor();
 	void priDone();
@@ -81,13 +83,13 @@ private:
     
 	HJThreadTaskFunc m_begin_func = nullptr;
 	HJThreadTaskFunc m_end_func = nullptr;
+	HJThreadTaskFunc m_error_func = nullptr;
 	RunFunc m_run_func = nullptr;
 		
 	std::thread m_worker_thread;
 	std::mutex m_mutex;
 	std::condition_variable m_cv;
 	bool m_bQuit = false;
-    
     std::mutex m_pause_mutex;
     bool m_bPaused = false;
 
@@ -95,6 +97,7 @@ private:
         
     mutable std::shared_mutex m_mutex_run;
     bool m_bThreadRunning = false;
+	bool m_bTaskValid = true;
 };
 
 class HJThreadTimer : public HJThreadPool
@@ -121,7 +124,7 @@ public:
 	HJ_DEFINE_CREATE(HJTimerThreadPool);
 	HJTimerThreadPool();
 	virtual ~HJTimerThreadPool();
-	int startTimer(int64_t i_intervalMs, RunFunc i_func);
+	int startTimer(int64_t i_intervalMs, RunFunc i_func, bool i_bManulDrive = false);
 	void stopTimer();
 private:
 	static int s_timerId;

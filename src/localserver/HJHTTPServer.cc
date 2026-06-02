@@ -51,7 +51,7 @@ void HJHTTPServer::stop()
         m_server->stop();
         m_server = nullptr;
     }
-    notify(std::move(HJMakeNotification(HJ_SERVER_NOTIFY_STOP, "http server stop")));
+    notify(HJMakeNotification(HJ_SERVER_NOTIFY_STOP, "http server stop"));
     //
     if (m_executor) {
         m_executor->stop();
@@ -95,17 +95,17 @@ int HJHTTPServer::setupServer()
         //
         if (!m_server->bind_to_port(m_params.ip, m_params.port)) {
             HJFLogi("http server bind failed");
-            notify(std::move(HJMakeNotification(HJ_SERVER_NOTIFY_ERROR, "http server start failed")));
+            notify(HJMakeNotification(HJ_SERVER_NOTIFY_ERROR, "http server start failed"));
             return HJErrFatal;
         }
         HJFLogi("http server start ok");
         m_status = HJSTATUS_Running;
-        notify(std::move(HJMakeNotification(HJ_SERVER_NOTIFY_START, "http server start ok")));
+        notify(HJMakeNotification(HJ_SERVER_NOTIFY_START, "http server start ok"));
     }
     //
     if (!m_server->listen_after_bind()) {
         HJFLogi("http server listen failed");
-        notify(std::move(HJMakeNotification(HJ_SERVER_NOTIFY_ERROR, "http server listen failed")));
+        notify(HJMakeNotification(HJ_SERVER_NOTIFY_ERROR, "http server listen failed"));
         return HJErrFatal;
     }
 
@@ -166,7 +166,7 @@ void HJHTTPServer::handlePlayMedias(const httplib::Request& req, httplib::Respon
     }
     HJFLogi("http request req info url:{}, rid:{}, level:{}", reqInfo.url, reqInfo.rid, reqInfo.level);
 
-    if (HJURL_MODE_LOCAL == reqInfo.urlMode && !HJFileUtil::fileExist(reqInfo.url)) {
+    if (HJURL_MODE_LOCAL == reqInfo.urlMode && !HJFileUtil::isFileExist(reqInfo.url)) {
         res.status = 404;
         return;
     }

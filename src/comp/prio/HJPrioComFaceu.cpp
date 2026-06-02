@@ -5,6 +5,8 @@
 
 #include "HJFaceuInfo.h"
 #include "HJFacePointMgr.h"
+#include "HJFacePointsReal.h"
+
 #if defined(HarmonyOS)
 #include "HJOGFBOCtrl.h"
 #include "HJOGEGLSurface.h"

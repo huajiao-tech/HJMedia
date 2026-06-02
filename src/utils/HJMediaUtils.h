@@ -310,10 +310,15 @@ public:
     */
     static HJBuffer::Ptr makeAACExtraData(int samplerate, int channels, HJAACProfileType profile = HJ_AAPROFILE_LC);
 
-    static std::string makeLocalUrl(const std::string& localDir, const std::string& url);
-    static std::string getLocalUrl(const std::string& localDir, const std::string& remoteUrl, const std::string& rid = "");
+    static std::string makeUrlRid(const std::string& url);
+    static std::string makeLocalUrl(const std::string& localDir, const std::string& remoteUrl, const std::string& rid = "");
     static std::string checkMediaSuffix(const std::string& suffix);
     static std::vector<std::string> enumMediaFiles(const std::string& dir);
+
+    static std::string makeHJTDFile(const std::string& mediaFile, size_t index = HJ_UINT64_MAX);
+
+    static std::string formatVector(const std::vector<HJRange64i>& ranges);
+    static std::string formatVector(const std::vector<size_t>& values);
 private:
     static HJRectf alignToWidth(const HJRectf targetRect, float ratio);
     static HJRectf alignToHeight(const HJRectf targetRect, float ratio);

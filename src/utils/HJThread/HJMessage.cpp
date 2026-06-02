@@ -34,7 +34,7 @@ void HJMessage::recycleUnchecked()
 		obj = nullptr;
 	}
 	when = 0;
-	target = nullptr;
+	target.reset();
 	callback = nullptr;
 
 	{

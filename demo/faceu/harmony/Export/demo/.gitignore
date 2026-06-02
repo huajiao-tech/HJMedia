@@ -1,0 +1,7 @@
+.vscode/
+.idea/
+.hvigor/
+entry/.cxx/
+entry/.preview/
+oh_modules/
+log.txt

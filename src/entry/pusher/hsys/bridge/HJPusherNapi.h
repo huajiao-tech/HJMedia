@@ -17,6 +17,7 @@ public:
     static napi_value openPusher(napi_env env, napi_callback_info info);
     static napi_value closePusher(napi_env env, napi_callback_info info);
     static napi_value setMute(napi_env env, napi_callback_info info);
+    static napi_value setPreviewRotation(napi_env env, napi_callback_info info);
     static napi_value openRecorder(napi_env env, napi_callback_info info);
     static napi_value closeRecorder(napi_env env, napi_callback_info info);
     static napi_value openPngSeq(napi_env env, napi_callback_info info);
@@ -28,15 +29,15 @@ public:
     static napi_value getImageReceiver(napi_env env, napi_callback_info info);
     static napi_value closePixelMapOutput(napi_env env, napi_callback_info info);
 
-    static napi_value setFaceInfo(napi_env env, napi_callback_info info);
-    static napi_value nativeSourceOpen(napi_env env, napi_callback_info info);
-    static napi_value nativeSourceClose(napi_env env, napi_callback_info info);
-    static napi_value nativeSourceAcquire(napi_env env, napi_callback_info info);
-    static napi_value openFaceu(napi_env env, napi_callback_info info);
-    static napi_value closeFaceu(napi_env env, napi_callback_info info);
-    static napi_value setVideoEncQuantOffset(napi_env env, napi_callback_info info);
+    // static napi_value setFaceInfo(napi_env env, napi_callback_info info);
+    // static napi_value nativeSourceOpen(napi_env env, napi_callback_info info);
+    // static napi_value nativeSourceClose(napi_env env, napi_callback_info info);
+    // static napi_value nativeSourceAcquire(napi_env env, napi_callback_info info);
+    // static napi_value openFaceu(napi_env env, napi_callback_info info);
+    // static napi_value closeFaceu(napi_env env, napi_callback_info info);
+    // static napi_value setVideoEncQuantOffset(napi_env env, napi_callback_info info);
 
-    static napi_value setFaceProtected(napi_env env, napi_callback_info info);
+    // static napi_value setFaceProtected(napi_env env, napi_callback_info info);
 };
 
 NS_HJ_END

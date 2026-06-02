@@ -32,6 +32,8 @@ export class LivePlayerState implements State {
   ]
   @Trace isGiftShow: boolean = false
   isLandscape: boolean = false
+  isHLDS: boolean = false;
+  isVOD: boolean = false;
   pusherSettings: PusherSetting[] = [
     new PusherSetting("sound", "left", $r("app.media.sound_0_icon"), $r("app.media.sound_1_icon"),  true),
     new PusherSetting("facedetect", "right", $r("app.media.facedetect_close"), $r("app.media.facedetect_open"),  false),
@@ -47,9 +49,11 @@ export class LivePlayerStore implements Store<LivePlayerState> {
   private m_bFaceu: boolean = false;
 
   aboutToAppear() {
-    const param = NavStackUtil.getParams<[string, boolean]>()
+    const param = NavStackUtil.getParams<[string, boolean, boolean, boolean]>()
     this.state.PlayMediaInfoList[0].url = param[0]
     this.state.isLandscape = param[1]
+    this.state.isHLDS = param[2];
+    this.state.isVOD = param[3];
 
     emitter.on("closeGift", () => {
       this.state.isGiftShow = false

@@ -20,6 +20,7 @@ class CameraService {
   private videoSessionState: "start" | "stop" = "stop"
   private startNum: number = 0
   private promise: Promise<void> | null = null
+  private lastPreviewRotation: camera.ImageRotation | undefined = undefined
 
   private beginConfig() {
     try {
@@ -30,7 +31,7 @@ class CameraService {
     }
   }
 
-  private async createOutput(cameraDevice: camera.CameraDevice) {
+  private createOutput(cameraDevice: camera.CameraDevice) {
     const previewProfile = profileCameraCheck(this.cameraManager!, this.cameraDataModel, cameraDevice)
     try {
       this.previewOutput = this.cameraManager?.createPreviewOutput(previewProfile, this.surfaceId);
@@ -76,15 +77,7 @@ class CameraService {
       Logger.error(TAG, `videoSession commitConfig error: ${JSON.stringify(err)}`);
     }
 
-    if (this.previewOutput)
-    {
-      let initDisplayRotation = display.getDefaultDisplaySync().rotation;
-      let initPreviewRotation : camera.ImageRotation = this.previewOutput.getPreviewRotation(initDisplayRotation * camera.ImageRotation.ROTATION_90);
-      this.previewOutput.setPreviewRotation(initPreviewRotation, false);
-
-      console.log("cameratest displayRotation: " + initDisplayRotation);
-      console.log("cameratest preview: " + initPreviewRotation);
-    }
+    this.updatePreviewRotation();
     if (this.videoSession) {
       if (setVideoStabilizationMode(this.videoSession)) {
         setColorSpaceBeforeCommitConfig(this.videoSession, this.cameraDataModel.isHDRVivid);
@@ -96,6 +89,29 @@ class CameraService {
     }
 
     await this.startVideoSession()
+  }
+
+  public updatePreviewRotation(): camera.ImageRotation | undefined {
+    if (!this.previewOutput) {
+      return undefined;
+    }
+    try {
+      let initDisplayRotation = display.getDefaultDisplaySync().rotation;
+      let initPreviewRotation: camera.ImageRotation =
+        this.previewOutput.getPreviewRotation(initDisplayRotation * camera.ImageRotation.ROTATION_90);
+      this.previewOutput.setPreviewRotation(initPreviewRotation, false);
+      this.lastPreviewRotation = initPreviewRotation;
+      console.log("HVSwitchStat updatePreviewRotation displayRotation: " + initDisplayRotation);
+      console.log("HVSwitchStat updatePreviewRotation preview: " + initPreviewRotation);
+      return initPreviewRotation;
+    } catch (error) {
+      Logger.error(TAG, `updatePreviewRotation error: ${JSON.stringify(error)}`);
+      return
+    }
+  }
+
+  public getLastPreviewRotation(): camera.ImageRotation | undefined {
+    return this.lastPreviewRotation;
   }
 
   private async startVideoSession() {
@@ -356,8 +372,8 @@ class CameraService {
       this.startNum = 0
       await this.doReleaseCamera()
     }
-    await this.createOutput(this.cameraDevices[position])
-    this.createInput(this.cameraDevices[position])
+    this.createOutput(this.cameraDevices[position])
+    await this.createInput(this.cameraDevices[position])
 
     try {
       this.videoSession = this.cameraManager?.createSession(camera.SceneMode.NORMAL_VIDEO) as camera.VideoSession;
@@ -372,7 +388,7 @@ class CameraService {
     this.beginConfig()
     this.addInput()
     this.addOutput()
-    this.startSession()
+    await this.startSession()
   }
 
   public async stopPreview() {
@@ -409,7 +425,7 @@ class CameraService {
     await this.createOutput(this.cameraDevices[position])
     this.addInput()
     this.addOutput()
-    this.startSession()
+    await this.startSession()
   }
 
   // public openControlCenter() {

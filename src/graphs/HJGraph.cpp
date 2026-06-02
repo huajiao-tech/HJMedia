@@ -2,23 +2,28 @@
 #include "HJFLog.h"
 #include "HJGraphLivePlayer.h"
 #include "HJGraphVodPlayer.h"
-
+#include "HJGraphMusicPlayer.h"
+#include "HJCoreVersion.h"
 NS_HJ_BEGIN
 
 HJGraph::HJGraph(const std::string& i_name, size_t i_identify)
 	: HJSyncObject(i_name, i_identify)
 {
+	m_queryBus = std::make_shared<HJQueryBus>();
+	m_eventBus = std::make_shared<HJEventBus>();
 }
 
 HJGraph::~HJGraph()
 {
-	HJGraph::done();
+	done();
+	m_queryBus = nullptr;
+	m_eventBus = nullptr;
 }
 
 void HJGraph::internalRelease()
 {
-	for (auto plugin : m_plugins) {
-		plugin->done();
+	for (auto it : m_plugins) {
+		it.second->done();
 	}
 	m_plugins.clear();
 
@@ -29,12 +34,12 @@ void HJGraph::internalRelease()
 
 	HJSyncObject::internalRelease();
 }
-
+/*
 bool HJGraph::hasAudio()
 {
 	return false;
 }
-
+*/
 int HJGraph::connectPlugins(HJPlugin::Ptr i_src, HJPlugin::Ptr i_dst, HJMediaType i_type, int i_trackId)
 {
 	if (i_src == nullptr || i_dst == nullptr || i_trackId < 0) {
@@ -62,18 +67,13 @@ int HJGraph::connectPlugins(HJPlugin::Ptr i_src, HJPlugin::Ptr i_dst, HJMediaTyp
 
 void HJGraph::addPlugin(HJPlugin::Ptr i_plugin)
 {
-	m_plugins.push_back(i_plugin);
+	m_plugins[i_plugin->getID()] = i_plugin;
 }
 
 void HJGraph::removePlugin(HJPlugin::Ptr i_plugin)
 {
-	for (auto it = m_plugins.begin(); it != m_plugins.end(); it++) {
-		if (*it == i_plugin) {
-			m_plugins.erase(it);
-			i_plugin->done();
-			break;
-		}
-	}
+	m_plugins.erase(i_plugin->getID());
+	i_plugin->done();
 }
 
 void HJGraph::addThread(HJLooperThread::Ptr i_thread)
@@ -97,11 +97,11 @@ void HJGraph::removeThread(HJLooperThread::Ptr i_thread)
 HJGraphPlayer::HJGraphPlayer(const std::string& i_name, size_t i_identify):
 	HJGraph(i_name, i_identify)
 {
-	HJFLogi("hjmedia version: {}", HJ_VERSION);
+	HJFLogi("hjmedia version: {} core version: {}", HJ_VERSION, HJCoreVersion::getVersionDetail());
 }
 HJGraphPlayer::~HJGraphPlayer()
 {
-	HJGraphPlayer::done();
+	done();
 }
 
 HJGraphPlayer::Ptr HJGraphPlayer::createGraph(HJGraphType i_type, int i_curIdx)
@@ -117,10 +117,22 @@ HJGraphPlayer::Ptr HJGraphPlayer::createGraph(HJGraphType i_type, int i_curIdx)
 		graph = HJGraphVodPlayer::Create<HJGraphVodPlayer>("HJGraphVodPlayer" + HJFMT("_{}", i_curIdx));
 		HJFLogi("HJGraphVodPlayer createGraph");
 		break;
+	case HJGraphType_MUSIC:
+		graph = HJGraphMusicPlayer::Create<HJGraphMusicPlayer>("HJGraphMusicPlayer" + HJFMT("_{}", i_curIdx));
+		HJFLogi("HJGraphMusicPlayer createGraph");
+		break;
 	default:
 		break;
 	}
 	return graph;
+}
+
+
+int HJGraphPlayer::registerEventHandler_mediaType()
+{
+	return m_eventBus->registerHandler(EVENT_MEDIA_TYPE_ID, [this](uint32_t mediaType) {
+		m_mediaType.store(mediaType);
+	});
 }
 
 NS_HJ_END

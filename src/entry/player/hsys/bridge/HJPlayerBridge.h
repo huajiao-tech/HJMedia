@@ -20,9 +20,14 @@ public:
 
     void stateCall(HJYJsonDocument* data);
 
+    void setSeiCall(std::unique_ptr<ThreadSafeFunctionWrapper> i_tsf);
+
+    void seiCall(HJPlayerSeiCallbackData* data);
+
 private:
     std::unique_ptr<ThreadSafeFunctionWrapper> m_tsf = nullptr;
     std::unique_ptr<ThreadSafeFunctionWrapper> m_stateCall = nullptr;
+    std::unique_ptr<ThreadSafeFunctionWrapper> m_seiCall = nullptr;
 };
 
 NS_HJ_END

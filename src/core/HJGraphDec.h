@@ -33,6 +33,8 @@ public:
     //
     virtual int buildGraph();
     virtual int seek(const HJSeekInfo::Ptr info);
+    virtual int switchAudioTrack(int trackID);
+    virtual int64_t getDuration() override;
 public:
     const HJMediaInfo::Ptr getMediaInfo() {
         if (m_demuxer) {

@@ -5,6 +5,7 @@
 //***********************************************************************************//
 #include "HJXIOBase.h"
 #include "HJFFUtils.h"
+#include "HJFLog.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -35,6 +36,17 @@ HJXIOInterrupt::~HJXIOInterrupt()
     }
 }
 
+void HJXIOInterrupt::setInterruptCB(AVIOInterruptCB* cb)
+{
+    if (!cb) {
+        return;
+    }
+    m_interruptCB->callback = cb->callback;
+    m_interruptCB->netCallback = cb->netCallback;
+
+    return;
+}
+
 int HJXIOInterrupt::onInterruptNetNotify(const HJNotification::Ptr ntfy)
 {
     if (m_listener) {
@@ -47,7 +59,10 @@ int HJXIOInterrupt::onInterruptCB(void *ctx)
 {
     HJXIOInterrupt* xio = (HJXIOInterrupt *)ctx;
     if (xio) {
-        return xio->m_isQuit;
+        if (xio->m_isQuit) {
+            return true;
+        }
+        return xio->isIOTimeout();
     }
     return false;
 }
@@ -59,6 +74,19 @@ int HJXIOInterrupt::onInterruptNetCB(void* ctx, int state)
         return xio->onInterruptNetNotify(HJMakeNotification(HJ_NOTIFY_IO_INTERRUPT_NET, state));
     }
     return HJ_OK;
+}
+
+bool HJXIOInterrupt::isIOTimeout()
+{
+    if (m_ioTimeout != HJ_NOPTS_VALUE && m_ioRunTime != HJ_NOPTS_VALUE) {
+        auto delta = HJCurrentSteadyUS() - m_ioRunTime;
+        //HJFLogi("HJXIOInterrupt::isIOTimeout() delta:{} timeout:{}", delta, m_ioTimeout);
+        if (delta > m_ioTimeout) {
+            HJFLogw("warning, HJXIOInterrupt::isIOTimeout() delta:{} timeout:{}", delta, m_ioTimeout);
+            return true;
+        }
+    }
+    return false;
 }
 
 NS_HJ_END

@@ -103,7 +103,7 @@ int HJVDecOHCodec::init(const HJStreamInfo::Ptr& info)
 			break;
 		}
 		HJSizei sizei = m_headerParser->getVSize();
-		HJFLogi("{} old <w:{} h:{}  new <w:{}, h:{}> this:{} decoder:{}", getName(), videoInfo->m_width, videoInfo->m_height, sizei.w, sizei.h, size_t(this), size_t(m_decoder));
+		HJFLogi("{} old <w:{} h:{}  new <w:{}, h:{}> this:{} decoder:{} streamextrasize:{}", getName(), videoInfo->m_width, videoInfo->m_height, sizei.w, sizei.h, size_t(this), size_t(m_decoder), codecParam->extradata_size);
 		videoInfo->m_width = sizei.w;
 		videoInfo->m_height = sizei.h;
 

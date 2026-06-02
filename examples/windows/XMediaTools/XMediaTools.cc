@@ -16,11 +16,17 @@
 #include "HJNetManager.h"
 #include "HJGraphPlayerView.h"
 #include "HJLocalServer.h"
+#include "HJDataSourceKit.h"
 #include "HJGlobalSettings.h"
 #include "HJMov2Live.h"
 #include "HJUUIDTools.h"
 #include "HJPackerManager.h"
 #include "HJDataFuse.h"
+#include "HJNetFetch.h"
+#include "HJLocalServerView.h"
+#include "HJAudioMixerView.h"
+#include "HJAudioMixerSeriView.h"
+#include "HJLiveOnLineView.h"
 
 #if defined(HJ_OS_WIN32)
 #include <crtdbg.h>
@@ -42,24 +48,31 @@ public:
     virtual int onRunEnd() override;
     virtual void onDone() override;
     // media tools
-    void onFileDialog();
     void onPlayer();
     void onGraphPlayer();
+    void onAudioMixer();
+    void onAudioMixerSeri();
+    void onLiveOnLine();
     void onStreamAnalyzer();
     void onTransMuxer();
     // net tools
     void onMQMonitorServer();
     void onMQMonitorClient();
+    void onLocalServerView();
     //
     void onTestClient();
     void onTestSever();
     void onTestLocalServer();
     void onTestCloseServer();
+    void onTestOpenLocalIO();
+    void onTestClseLocalIO();
+    void onTestDownload();
+    void onTestCancelDownload();
     void onMov2Live();
     void onTestUUID();
     void onTestPacker();
     void onTestDataFuse();
-
+    void onTestJson();
 private:
     virtual int onLocalServerNotify(HJNotification::Ptr ntfy);
 private:
@@ -68,10 +81,13 @@ private:
     //HJPopupView::Ptr         m_popupView = nullptr;
     HJPlayerView::Ptr          m_playerView = nullptr;
     HJGraphPlayerView::Ptr     m_jplayerView = nullptr;
+    HJAudioMixerView::Ptr      m_audioMixerView = nullptr;
+    HJAudioMixerSeriView::Ptr  m_audioMixerSeriView = nullptr;
+    HJLiveOnLineView::Ptr      m_liveOnLineView = nullptr;
     //HJStreamAnalyzerView::Ptr  m_streamAnalyzerView = nullptr;    
     //HJQMonitorSeverView::Ptr   m_monitorSeverView = nullptr;
     //HJQMonitorClientView::Ptr  m_monitorClientView = nullptr;
-    HJFileDialogView::Ptr      m_fileDialog = nullptr;
+    HJLocalServerView::Ptr     m_localServerView = nullptr;
     //
     HJExecutor::Ptr            m_executor{ nullptr };
     HJList<HJTask::Ptr>       m_timers;
@@ -98,6 +114,9 @@ int HJApplicationImpl::onInit()
                 "menu":[
                     "Player",
                     "GraphPlayer",
+                    "AudioMixer",
+                    "AudioMixerSeri",
+                    "LiveOnLine",
                     "Stream Analyzer",
                     "Trans Muxer",
                     "Trans Codec",
@@ -105,6 +124,10 @@ int HJApplicationImpl::onInit()
                     "TestClient",
                     "StartServer",
                     "CloseServer",
+                    "StartLocalIO",
+                    "CloseLocalIO", 
+                    "DownloadLocalIO",
+                    "CancelDownload",
                     "Mov2Live",
                     "TestJson", 
                     "TestUUID",
@@ -115,6 +138,7 @@ int HJApplicationImpl::onInit()
                 "title":"NetTools",
                 "menu":[
                     "MQMonitor"
+,                   "HJLocalServer"
                 ]
             }
         ],
@@ -145,6 +169,15 @@ int HJApplicationImpl::onInit()
             else if ("GraphPlayer" == name) {
                 onGraphPlayer();
             }
+            else if ("AudioMixer" == name) {
+                onAudioMixer();
+            }
+            else if ("AudioMixerSeri" == name) {
+                onAudioMixerSeri();
+            }
+            else if ("LiveOnLine" == name) {
+                onLiveOnLine();
+            }
             else if ("Stream Analyzer" == name) {
                 onStreamAnalyzer();
             } else if ("Trans Muxer" == name) {
@@ -155,6 +188,18 @@ int HJApplicationImpl::onInit()
                 onTestLocalServer();
             } else if ("CloseServer" == name) {
                 onTestCloseServer();
+            }
+            else if ("StartLocalIO" == name) {
+                onTestOpenLocalIO();
+            }
+            else if ("CloseLocalIO" == name) {
+                onTestClseLocalIO();
+            }
+            else if ("DownloadLocalIO" == name) {
+                onTestDownload();
+            }
+            else if ("CancelDownload" == name) {
+                onTestCancelDownload();
             }
             else if ("Mov2Live" == name) {
                 onMov2Live();
@@ -172,6 +217,8 @@ int HJApplicationImpl::onInit()
             if ("MQMonitor" == name) {
                 onMQMonitorClient();
                 onMQMonitorServer();
+            } else if ("HJLocalServer" == name) {
+                onLocalServerView();
             }
         }
     };
@@ -284,6 +331,44 @@ int HJApplicationImpl::onRunning()
             m_jplayerView = nullptr;
         }
     }
+    if (m_localServerView && m_menu) {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        auto& mvsize = m_menu->getVSize();
+        HJRectf viewRect = { 0, mvsize.h, viewport->Size.x, viewport->Size.y };
+        m_localServerView->draw(viewRect);
+        if (m_localServerView->isDone()) {
+            m_localServerView = nullptr;
+        }
+    }
+    if (m_audioMixerView && m_menu) {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        auto mvsize = m_menu->getVSize();
+        HJRectf viewRect = { 0, mvsize.h, viewport->Size.x, viewport->Size.y };
+        m_audioMixerView->draw(viewRect);
+        if (m_audioMixerView->isDone()) {
+            m_audioMixerView = nullptr;
+        }
+    }
+    if (m_audioMixerSeriView && m_menu) {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        auto mvsize = m_menu->getVSize();
+        HJRectf viewRect = { 0, mvsize.h, viewport->Size.x, viewport->Size.y };
+        m_audioMixerSeriView->draw(viewRect);
+        if (m_audioMixerSeriView->isDone()) {
+            m_audioMixerSeriView = nullptr;
+        }
+    }
+    if (m_liveOnLineView && m_menu) {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        auto mvsize = m_menu->getVSize();
+        HJRectf viewRect = { 0, mvsize.h, viewport->Size.x, viewport->Size.y };
+        m_liveOnLineView->draw(viewRect);
+        if (m_liveOnLineView->isDone()) {
+            m_liveOnLineView = nullptr;
+        }
+    }
+   
+
    /*
     if (m_monitorSeverView && m_menu) {
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -398,17 +483,6 @@ int HJApplicationImpl::onRunning()
     //    ImGui::End();
     //}
 
-
-    //top overlay
-    if (m_fileDialog) {
-        res = m_fileDialog->draw([&](const std::vector<std::filesystem::path>& files) {
-            HJLogi("file dialog");
-            });
-        if (m_fileDialog->isDone()) {
-            m_fileDialog = nullptr;
-        }
-    }
-
     //if (m_popupView) {
     //    res = m_popupView->draw();
     //    if (m_popupView->isDone()) {
@@ -510,14 +584,6 @@ void HJApplicationImpl::onDone()
     }
 }
 
-void HJApplicationImpl::onFileDialog()
-{
-    if (!m_fileDialog) {
-        m_fileDialog = std::make_shared<HJFileDialogView>();
-        m_fileDialog->init("Open a media", HJFileDialogView::KEY_MEDIA_FILTER, true, "E:/movies");
-    }
-}
-
 void HJApplicationImpl::onStreamAnalyzer()
 {
     //if (m_streamAnalyzerView) {
@@ -557,6 +623,45 @@ void HJApplicationImpl::onGraphPlayer()
     return;
 }
 
+void HJApplicationImpl::onAudioMixer()
+{
+    if (m_audioMixerView) {
+        return;
+    }
+    m_audioMixerView = std::make_shared<HJAudioMixerView>();
+    int res = m_audioMixerView->init("");
+    if (HJ_OK != res) {
+
+    }
+    return;
+}
+
+void HJApplicationImpl::onAudioMixerSeri()
+{
+    if (m_audioMixerSeriView) {
+        return;
+    }
+    m_audioMixerSeriView = std::make_shared<HJAudioMixerSeriView>();
+    int res = m_audioMixerSeriView->init("");
+    if (HJ_OK != res) {
+
+    }
+    return;
+}
+
+void HJApplicationImpl::onLiveOnLine()
+{
+    if (m_liveOnLineView) {
+        return;
+    }
+    m_liveOnLineView = std::make_shared<HJLiveOnLineView>();
+    int res = m_liveOnLineView->init("");
+    if (HJ_OK != res) {
+
+    }
+    return;
+}
+
 void HJApplicationImpl::onTransMuxer()
 {
 
@@ -589,18 +694,76 @@ void HJApplicationImpl::onMQMonitorClient()
     return;
 }
 
+void HJApplicationImpl::onLocalServerView()
+{
+    if (m_localServerView) {
+		return;
+    }
+    m_localServerView = HJCreates<HJLocalServerView>();
+    int res = m_localServerView->init("");
+    if (HJ_OK != res) {
+
+    }
+    return;
+}
+
 void HJApplicationImpl::onTestClient()
 {
     if (m_downloader) {
 		return;
     }
-    std::string url = "http://static.s3.huajiao.com/Object.access/hj-video/Y2p6cG1mamwubXA0";
+    int res = HJ_OK;
+    int64_t t0 = HJCurrentSteadyMS();
+    //std::string url = "http://static.s3.huajiao.com/Object.access/hj-video/Y2p6cG1mamwubXA0";
+    // std::string url = "https://file-2.huajiao.com/data/webp/5b226800134dc73169da56f040dd36bb/ts/a5ccf608f7d50fac6746a797620492b7.mp4";
+    std::string url = "https://static.s3.huajiao.com/Object.access/hj-video/MDhmMmQwMGYyNWI5NTY0YmJkNTMzMGZiNmQwNDM1Y2VjODUxZTQzMy5tcDQ=";
+#if 0
     auto localUrl = HJMediaUtils::makeLocalUrl("E:/movies/blob/", url);
     m_downloader = std::make_shared<HJDownloader>(url, localUrl);
     m_downloader->setOnProgress([this](int64_t current, int64_t total) {
-        HJLogi("downloading current:{}, total:{}", current, total);
+        HJFLogi("downloading current:{}, total:{}", current, total);
     });
     m_downloader->start();
+#else
+    
+    auto fetch = HJCreates<HJNetFetch>(512 * 1024 /*, HJSharedFromThis()*/);
+    res = fetch->init(url, false);
+    if (HJ_OK != res) {
+        HJFLoge("download job: fetch init failed: {}", res);
+        return;
+    }
+    int64_t remote_length = fetch->getLength();
+
+    res = fetch->fetch({0, remote_length -1}, [&](const HJNotification::Ptr ntf) -> int {
+        if (!ntf) {
+            return HJErrInvalidParams;
+        }
+        switch (ntf->getID()) {
+        case HJNETFETCH_START:
+            break;
+
+        case HJNETFETCH_FETCHING: {
+            HJRange64i data_range = ntf->getValue<HJRange64i>("range");
+            HJFLogi("download job: fetch fetching: [{}, {}]", data_range.begin, data_range.end);
+            break;
+        }
+
+        case HJNETFETCH_END:
+            break;
+
+        case HJNETFETCH_ERROR: {
+            int result = static_cast<int>(ntf->getVal());
+            HJFLogw("download job: fetch error: {}", result);
+            break;
+        }
+
+        default:
+            break;
+        }
+        return HJ_OK;
+        });
+#endif
+    HJFLogi("download job: fetch fetch: {}, timm:{}", res, HJCurrentSteadyMS() - t0);
 
     return;
 }
@@ -637,11 +800,85 @@ void HJApplicationImpl::onTestCloseServer()
     HJLocalServer::getInstance()->done();
 }
 
+void HJApplicationImpl::onTestOpenLocalIO()
+{
+    HJParams::Ptr params = HJCreates<HJParams>();
+
+    HJCacheOptions cache_opts = {
+        { "E:/movies/localio/short", 200},
+        { "E:/movies/localio/gift", 300 }
+    };
+    (*params)["cache_opts"] = cache_opts;
+    (*params)["medias_dir"] = "E:/movies/localio/medias";
+    (*params)["medias_cache_max"] = 500;
+
+    HJDataSourceKit::getInstance()->init(params, [&](const HJNotification::Ptr ntf) -> int {
+        if (!ntf) {
+            return HJ_OK;
+        }
+        switch (ntf->getID()) {
+            case HJ_LOCALIO_NOTIFY_CACHE_START: {
+                HJFLogi("local io open: {}", ntf->getMsg());
+                break;
+            } 
+            case HJ_LOCALIO_NOTIFY_CACHE_PROGRESS: {
+                HJFLogi("local io progress: {}, {}", ntf->getVal(), ntf->getMsg());
+                break;
+            }
+            case HJ_LOCALIO_NOTIFY_CACHE_COMPLETED: {
+                HJFLogi("local io completed: {}", ntf->getMsg());
+                break;
+            }
+            case HJ_LOCALIO_NOTIFY_CACHE_FAILED: {
+                HJFLogi("local io failed: {}", ntf->getMsg());
+                break;
+            }
+
+
+
+
+        };
+
+        return HJ_OK;
+    });
+
+}
+void HJApplicationImpl::onTestClseLocalIO()
+{
+    HJDataSourceKit::getInstance()->done();
+}
+
+void HJApplicationImpl::onTestDownload()
+{
+    std::string url = "https://file-2.huajiao.com/data/webp/5b226800134dc73169da56f040dd36bb/ts/a5ccf608f7d50fac6746a797620492b7.mp4";
+    std::string rad_url = url + HJUtilitys::getTimeToString();
+    std::string rid = HJMediaUtils::makeUrlRid(rad_url);
+    std::string local_dir = "E:/movies/localio/medias";
+
+    auto& local_io = HJDataSourceKit::getInstance();
+    auto ret_rid = local_io->download(url, rid, local_dir);
+
+    return;
+}
+
+void HJApplicationImpl::onTestCancelDownload()
+{
+    std::string url = "https://file-2.huajiao.com/data/webp/5b226800134dc73169da56f040dd36bb/ts/a5ccf608f7d50fac6746a797620492b7.mp4";
+    std::string rid = HJMediaUtils::makeUrlRid(url);
+
+    auto& local_io = HJDataSourceKit::getInstance();
+    local_io->cancel(rid);
+
+    return;
+}
+
 void HJApplicationImpl::onMov2Live()
 {
     auto mov2live = std::make_shared<HJMov2Live>();
-    mov2live->init("E:/movies/blob/server/zzqc.mp4");
-    mov2live->toLive("E:/movies/blob/server/zzqc_live.mp4");
+    //mov2live->init("E:/movies/blob/server/zzqc.mp4");
+    //mov2live->toLive("E:/movies/blob/server/zzqc_live.mp4");
+    mov2live->init("E:/movies/localio/medias/6838121621403856048.mp4");
+    mov2live->toLive("E:/movies/localio/medias/6838121621403856048_live.mp4");
 
     return;
 }
@@ -720,6 +957,11 @@ void HJApplicationImpl::onTestDataFuse()
     return;
 }
 
+void HJApplicationImpl::onTestJson()
+{
+
+}
+
 int HJApplicationImpl::onLocalServerNotify(HJNotification::Ptr ntfy)
 {
     return HJ_OK;
@@ -792,7 +1034,7 @@ int main(int argc, const char* argv[])
     cfg.mMediaDir = "/Users/zhiyongleng/works/movies";
 #endif
     cfg.mThreadNum = 0;
-    //HJFileUtil::delete_file((cfg.mLogDir + "HJLog.txt"));
+    //HJFileUtil::removeFile((cfg.mLogDir + "HJLog.txt"));
     HJContext::Instance().init(cfg);
 
     HJGlobalSettings settings;
@@ -802,13 +1044,16 @@ int main(int argc, const char* argv[])
 
     HJNetManager::registerAllNetworks();
 
-    //HJFileUtil::delete_file((cfg.mLogDir + "jpublisher/jsdk_JLog.txt"));
+    //HJFileUtil::removeFile((cfg.mLogDir + "jpublisher/jsdk_JLog.txt"));
     //publish_context_init((cfg.mLogDir + "jpublisher/").c_str(), 2, cfg.mLogMode, 1024 * 1024 * 5, 5); //JLOG_INFO 2
     ////jplayer
     //int i_err = ContextInit((cfg.mLogDir + "jplayer/").c_str(), 2, cfg.mLogMode, 1024 * 1024 * 10, 5);
     //
     //
     HJApplicationImpl::Ptr g_gui = std::make_shared<HJApplicationImpl>();
+
+    g_gui->onTestOpenLocalIO();
+
     int res = g_gui->init();
     if (HJ_OK != res) {
         return res;

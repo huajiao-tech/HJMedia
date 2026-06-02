@@ -5,11 +5,15 @@
 #include <GLFW/glfw3.h>
 
 #include "App.h"
+#include <filesystem>
+#include <chrono>
+#include <thread>
 #include "imgui_internal.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "HJFLog.h"
 #include "Fonts/Fonts.h"
+#include "HJUtilitys.h"
 
 #define SHOW_DEBUG_INFO 0
 
@@ -129,9 +133,55 @@ void StyeColorsApp()
 static void glfw_error_callback(int error, const char *description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+    HJFLoge("GLFW Error {} {}", error, description);
 }
+void App::priAlignWindow()
+{
+    // Position main window: align outer top-left corner with primary monitor work area top-left
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	if (monitor)
+	{
+		int workX = 0, workY = 0, workW = 0, workH = 0;
+		glfwGetMonitorWorkarea(monitor, &workX, &workY, &workW, &workH);
+		if (workW <= 0 || workH <= 0)
+		{
+			const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+			if (mode)
+			{
+				workX = 0;
+				workY = 0;
+				workW = mode->width;
+				workH = mode->height;
+			}
+		}
 
+		int frameLeft = 0, frameTop = 0, frameRight = 0, frameBottom = 0;
+		glfwGetWindowFrameSize(Window, &frameLeft, &frameTop, &frameRight, &frameBottom);
 
+		int posX = workX + frameLeft;
+		int posY = workY + frameTop;
+		glfwSetWindowPos(Window, posX, posY);
+	}
+}
+void App::buildFonts()
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    io.Fonts->Clear();
+    //IM_DELETE(io.Fonts);
+    //io.Fonts = IM_NEW(ImFontAtlas);
+
+    ImFontConfig config;
+    config.OversampleH = 4;
+    config.OversampleV = 4;
+    config.PixelSnapH = false;
+    std::string regularttf = HJ::HJUtilitys::concatenatePath(HJ::HJUtilitys::exeDir(), "data/Play-Regular.ttf");
+    std::string headerttf = HJ::HJUtilitys::concatenatePath(HJ::HJUtilitys::exeDir(), "data/Cuprum-Bold.ttf");
+    m_DefaultFont = io.Fonts->AddFontFromFileTTF(regularttf.c_str(), 18.0f, &config);
+    m_HeaderFont = io.Fonts->AddFontFromFileTTF(headerttf.c_str(), 20.0f, &config);
+
+    //io.Fonts->Build();
+}
 App::App(std::string title, int w, int h, int argc, char const *argv[])
 {
 #if 0
@@ -197,6 +247,8 @@ App::App(std::string title, int w, int h, int argc, char const *argv[])
     //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);          // 3.0+ only
 #endif
+    //lfs
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);// GLFW_OPENGL_COMPAT_PROFILE);  // 3.2+ only
 
     if (use_msaa) {
         title += " - 4X MSAA";
@@ -210,6 +262,9 @@ App::App(std::string title, int w, int h, int argc, char const *argv[])
         fprintf(stderr, "Failed to initialize GLFW window!\n");
         abort();
     }
+
+    priAlignWindow();
+
     glfwMakeContextCurrent(Window);
     glfwSwapInterval(no_vsync ? 0 : 1);
 
@@ -270,6 +325,24 @@ App::App(std::string title, int w, int h, int argc, char const *argv[])
         io.Fonts->AddFontDefault();
         io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config, fa_ranges);
     }
+#if 0
+#ifdef _WIN32
+    const static char* fontPath = "c:\\Windows\\Fonts\\msyh.ttc";
+#elif __APPLE__
+    const static char* fontPath = "/System/Library/Fonts/PingFang.ttc";
+#else
+    const static char* fontPath = nullptr;
+#endif
+
+    if (fontPath && std::filesystem::exists(fontPath)) 
+    {
+        io.Fonts->AddFontFromFileTTF(fontPath, 18.0f, nullptr, io.Fonts->GetGlyphRangesChineseFull());
+    }
+#endif
+
+#if defined(WIN32_LIB)
+    buildFonts();
+#endif
 
 #if 0
     ImStrncpy(font_cfg.Name, "Roboto Bold", 40);
@@ -312,19 +385,45 @@ App::~App()
 
 void App::Run()
 {
-    Start();
-    // Main loop
-    while (!glfwWindowShouldClose(Window))
+    Run(0);
+}
+void App::updateTitle(bool i_bUpdate)
+{
+    if (i_bUpdate)
     {
-        glfwPollEvents();
-
-		ImGuiIO& io = ImGui::GetIO();
+        ImGuiIO& io = ImGui::GetIO();
         std::string pos = "Mouse: <INVALID>";
         if (ImGui::IsMousePosValid())
         {
             pos = HJFMT("Mouse: ({}, {})", io.MousePos.x, io.MousePos.y);
         }
-		glfwSetWindowTitle(Window, pos.c_str());
+        glfwSetWindowTitle(Window, pos.c_str());
+    }
+}
+void App::Run(int fps)
+{
+    Start();
+    const bool cap_fps = fps > 0;
+    const double target_sec = cap_fps ? (1.0 / static_cast<double>(fps)) : 0.0;
+    const auto target_frame = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+        std::chrono::duration<double>(target_sec));
+    auto next_frame_time = std::chrono::steady_clock::now();
+
+    if (cap_fps)
+    {
+        // Avoid double-capping with vsync.
+        glfwSwapInterval(0);
+    }
+
+    // Main loop
+    while (!glfwWindowShouldClose(Window))
+    {
+        auto frame_start = std::chrono::steady_clock::now();
+
+        RenderEveryStart();
+
+        glfwMakeContextCurrent(Window);
+        glfwPollEvents();
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -338,7 +437,6 @@ void App::Run()
         // Rendering
         ImGui::Render();
 
-        
         int display_w, display_h;
         glfwGetFramebufferSize(Window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
@@ -346,6 +444,31 @@ void App::Run()
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(Window);
+
+        RenderEveryEnd();
+
+        if (cap_fps)
+        {
+            next_frame_time += target_frame;
+            auto now = std::chrono::steady_clock::now();
+            if (next_frame_time > now)
+            {
+                // Sleep most of the remaining time, then spin for accuracy.
+                auto sleep_until_time = next_frame_time - std::chrono::milliseconds(1);
+                if (sleep_until_time > now)
+                {
+                    std::this_thread::sleep_until(sleep_until_time);
+                }
+                while (std::chrono::steady_clock::now() < next_frame_time)
+                {
+                }
+            }
+            else
+            {
+                // We're behind; reset the target to avoid drift.
+                next_frame_time = now;
+            }
+        }
     }
 }
 

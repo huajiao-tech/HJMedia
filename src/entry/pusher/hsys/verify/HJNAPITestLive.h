@@ -1,5 +1,7 @@
 #pragma once
 
+#if defined(HJ_ENABLE_RENDER_PRIO)
+
 #include "HJPrerequisites.h"
 #include "HJComUtils.h"
 
@@ -35,6 +37,7 @@ public:
     void closeRecorder();
     
     void setMute(bool i_mute);
+    void setPreviewRotation(int i_rotation);
         
     void removeInterleave();
 
@@ -45,7 +48,7 @@ private:
     int priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps);
         
     std::shared_ptr<HJOGRenderWindowBridge> m_bridge = nullptr;
-    std::shared_ptr<HJPrioGraphProc> m_prioGraphProc = nullptr;
+    std::shared_ptr<HJPrioGraphProc> m_graphProc = nullptr;
     std::shared_ptr<HJGraphComPusher> m_graphPusher = nullptr;
     HJNAPIEntryNotify m_notify = nullptr;
     static bool s_bContextInit;
@@ -56,6 +59,8 @@ private:
 };
 
 NS_HJ_END
+
+#endif
 
 
 

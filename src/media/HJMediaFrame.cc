@@ -15,7 +15,8 @@ const std::string HJMediaFrame::STORE_KEY_HJAVPACKET = HJ_TYPE_NAME(HJAVPacket);
 const std::string HJMediaFrame::STORE_KEY_HJAVFRAME = HJ_TYPE_NAME(HJAVFrame);
 const std::string HJMediaFrame::STORE_KEY_MEDIAINFO = HJ_TYPE_NAME(HJMediaInfo);
 const std::string HJMediaFrame::STORE_KEY_STREAMINFO = HJ_TYPE_NAME(HJStreamInfo);
-const std::string HJMediaFrame::STORE_KEY_SEIINFO = "SEI_INFO";
+const std::string HJMediaFrame::STORE_KEY_SEIINAL = "SEI_NAL";      //sei nal
+const std::string HJMediaFrame::STORE_KEY_SEIINFO = "SEI_INFO";     //uuid + sei raw
 const std::string HJMediaFrame::STORE_KEY_ROIINFO = "ROI_INFO";
 const std::string HJMediaFrame::STORE_KEY_VID_BITRATE = "vid_bitrate";
 const std::string HJMediaFrame::STORE_KEY_EXTRADATAS = "HJ_EXTRA_DATAS";
@@ -474,6 +475,13 @@ HJMediaFrame::Ptr HJMediaFrame::makeFlushFrame(const int streamIndex, const HJMe
     }
     return frame;
 }
+HJMediaFrame::Ptr HJMediaFrame::makeClearFrame()
+{
+    HJMediaFrame::Ptr frame = std::make_shared<HJMediaFrame>();
+    frame->m_frameType = HJFRAME_CLEAR;
+    return frame;
+}
+
 HJCodecParameters::Ptr HJMediaFrame::makeHJAVCodecParam(const HJStreamInfo::Ptr &i_info, HJBuffer::Ptr i_extradata)  
 {
     AVCodecParameters *codecParams = avcodec_parameters_alloc();
@@ -716,7 +724,9 @@ const std::string HJMediaFrame::formatInfo(bool trace)
         fmtStr += ", AVFrame pts:" + HJ2STR(avf->pts) + ", dts:" + HJ2STR(avf->best_effort_timestamp) + ", time base:" + HJ2STR(avf->time_base.num) + "/" + HJ2STR(avf->time_base.den);
         fmtStr += ", idx:" + HJ2STR(av_rescale_q(avf->pts, avf->time_base, { 1, 30 }));
         if (isVideo()) {
-            fmtStr += ", pict type:" + HJ_AVPictTypeName(avf->pict_type);
+            fmtStr += ", pict type:" + HJ_AVPictTypeName(avf->pict_type) + ", fmt:" + HJ_AVPixelFMTName(avf->format);
+        } else if (isAudio()) {
+            fmtStr += ", sample cnt:" + HJ2STR(avf->nb_samples) + ", fmt:" + HJ_AVSampleFMTName(avf->format) + ", size:" + HJ2STR(avf->linesize[0]);
         }
     }
     AVPacket* pkt = (AVPacket*)getAVPacket();
@@ -792,24 +802,24 @@ HJMediaFrame::Ptr HJMediaFrame::deepDup() {
     return mavf;
 }
 
-int HJMediaFrame::addSEI(const HJSEINals::Ptr& nals)
+int HJMediaFrame::addSEINals(const HJSEINals::Ptr& nals)
 {
     if (!isVideo()) {
         return HJErrNotSupport;
     }
-    (*this)[HJMediaFrame::STORE_KEY_SEIINFO] = nals;
+    (*this)[HJMediaFrame::STORE_KEY_SEIINAL] = nals;
 
     return HJ_OK;
 }
 
-HJSEINals::Ptr HJMediaFrame::getSEI()
+HJSEINals::Ptr HJMediaFrame::getSEINals()
 {
     if (!isVideo()) {
         return nullptr;
     }
     HJSEINals::Ptr nals{};
-    if (this->haveValue(HJMediaFrame::STORE_KEY_SEIINFO)) {
-        return this->getValue<HJSEINals::Ptr>(HJMediaFrame::STORE_KEY_SEIINFO);
+    if (this->haveValue(HJMediaFrame::STORE_KEY_SEIINAL)) {
+        return this->getValue<HJSEINals::Ptr>(HJMediaFrame::STORE_KEY_SEIINAL);
     }
     return deriveSEINals();
 }
@@ -827,7 +837,7 @@ HJSEINals::Ptr HJMediaFrame::deriveSEINals()
         nals = HJCreates<HJSEINals>();
         nals->m_datas = std::move(seiNalDatas);
         //
-        (*this)[HJMediaFrame::STORE_KEY_SEIINFO] = nals;
+        (*this)[HJMediaFrame::STORE_KEY_SEIINAL] = nals;
     }
     return nals;
 }

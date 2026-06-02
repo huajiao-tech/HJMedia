@@ -5,7 +5,7 @@
 //***********************************************************************************//
 #pragma once
 #include "HJUtilitys.h"
-#include "HJMediaStorageUtils.h"
+#include "HJMediaDBUtils.h"
 #include "HJXIOFile.h"
 #include "HJBlockFile.h"
 #include "HJDownloader.h"
@@ -13,6 +13,7 @@
 #include "HJExecutor.h"
 #include "HJFileUtil.h"
 #include "HJTime.h"
+#include "HJServerUtils.h"
 #include <optional>
 #include <deque>
 #include <unordered_map>
@@ -21,7 +22,7 @@
 #include <condition_variable>
 
 NS_HJ_BEGIN
-class HJMediaStorageManager;
+class HJMediaDBManager;
 //***********************************************************************************//
 class HJCacheFile : public HJXIOBase, public HJNetFetchDelegate
 {
@@ -41,7 +42,7 @@ public:
 	virtual int64_t size() override;
     virtual bool eof() override;
 
-    void setStorageManager(const std::shared_ptr<HJMediaStorageManager>& manager) {
+    void setStorageManager(const std::shared_ptr<HJMediaDBManager>& manager) {
         m_storageManager = manager;
     }
 private:
@@ -89,7 +90,7 @@ private:
     size_t						m_pos = 0;
 	//
 	HJExecutor::Ptr 			m_executor{nullptr};
-    std::weak_ptr<HJMediaStorageManager> m_storageManager;
+    std::weak_ptr<HJMediaDBManager> m_storageManager;
     std::mutex                  m_mutex;
     std::mutex                  m_fileMutex;
     std::condition_variable     m_blockCv;

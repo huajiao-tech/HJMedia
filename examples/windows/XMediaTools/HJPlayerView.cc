@@ -8,11 +8,36 @@
 #include "HJFLog.h"
 #include "HJFFUtils.h"
 #include "HJLocalServer.h"
+#include "HJDataSourceKit.h"
 #include "HJM3U8Parser.h"
+#include <cstdio>
 //#include "HJByteBuffer.h"
 //#include "IconFontCppHeaders/IconsFontAwesome5.h"
 
 NS_HJ_BEGIN
+namespace {
+std::string formatAudioTrackLabel(const HJAudioInfo::Ptr& audioInfo)
+{
+    if (!audioInfo) {
+        return "unknown";
+    }
+    return HJFMT(
+        "track:{} {} {}ch {}Hz",
+        audioInfo->m_trackID,
+        AVCodecIDToString((AVCodecID)audioInfo->m_codecID),
+        audioInfo->m_channels,
+        audioInfo->m_samplesRate);
+}
+
+template <size_t N>
+void copyToInputBuffer(char (&buffer)[N], const std::string& value)
+{
+    if (N == 0) {
+        return;
+    }
+    std::snprintf(buffer, N, "%s", HJAnsiToUtf8(value).c_str());
+}
+}
 //***********************************************************************************//
 HJPlayerView::HJPlayerView()
 {
@@ -43,7 +68,7 @@ int HJPlayerView::init(const std::string info)
         //m_mediaUrl = "E:/movies/qiyiboshi2.mp4";
         //m_mediaUrl = "E:/js/1718781990_2.ts";
 #if defined(HJ_OS_WIN32)
-        //m_mediaUrl = "E:/movies/720x1280.mp4";
+        //m_mediaUrl = "exasync:E:/movies/720x1280.mp4";
         //m_mediaUrl = "https://wlive.6rooms.com/httpflv/v101369809-220734480.flv";
         //m_mediaUrl = "E:/movies/h265_548637.flv";
         //m_mediaUrl = "https://live-replay-5.test.huajiao.com/psegments/z1.huajiao-live.HJ_0_qiniu_5_huajiao-live__h265_45752749_1730776617184_3550_T/1730776662-1730776884.m3u8";
@@ -54,17 +79,30 @@ int HJPlayerView::init(const std::string info)
         //m_mediaUrl = "https://al2-flv.live.huajiao.com/live_huajiao_h265/_LC_AL2_non_h265_SD_26624183417212690010010622_OX.flv";//"E:/js/820827.crdownload.flv";
         //m_mediaUrl = "https://live-pull-3.huajiao.com/main/HJ_0_tc_3_main__h265_268923734_1764076825048_2303_O.flv?txSecret=fcf8d8c2eb3a399c2b727e3bf21f7a02&txTime=6927B9EA";
         //m_mediaUrl = "https://live-pull-7.test.huajiao.com/main/HJ_0_ws_7_main_a_h264_41000654_1764295166192_6823_T.flv?wsSecret=23cac128f591429b85d3685403f2f32e&wsTime=1764385363";
-        m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_271533083_1765441687849_4660_O.flv?auth_key=1765528429-0-0-cd854117f70993c49feaacd40dd432f3";
+        //m_mediaUrl = "exasync:https://live-pull-3.huajiao.com/main/HJ_0_tc_3_main__h265_261900674_1766627578647_3555_O.flv?txSecret=8290ff0c2c26cd2b0165f91a4217f1ae&txTime=694DEC85";
         //m_mediaUrl = "http://localhost:8080/live/livestream.flv";
         //m_mediaUrl = "E:/movies/blob/server/20210325.mp4";
         //m_mediaUrl = "E:/movies/blob/server/2024_08_19_11_01_48_371_783.flv";
         //m_mediaUrl = "E:/movies/blob/server/zzqc.mp4";
         //m_mediaUrl = "E:/movies/blob/server/oceans.mp4";
-        //m_mediaUrl = "http://vjs.zencdn.net/v/oceans.mp4";
+        //m_mediaUrl = "exasync:http://vjs.zencdn.net/v/oceans.mp4";
+        //m_mediaUrl = "https://file-2.huajiao.com/data/webp/5b226800134dc73169da56f040dd36bb/ts/a5ccf608f7d50fac6746a797620492b7.mp4";
         //m_mediaUrl = "https://file-21.huajiao.com/record/main/HJ_0_ali_2_main__h265_271728824_1764727312954_8854_O/replay.m3u8";
-        //m_mediaUrl = "https://file-22.huajiao.com/record/main/HJ_0_ali_1_main__h265_271393148_1764735837857_3557_O/replay.m3u8";
+        //m_mediaUrl = "https://file-22.huajiao.com/record/main/HJ_0_ali_1_main__h265_271393148_1765772819219_8223_O/replay.m3u8";
         //m_mediaUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
         //m_mediaUrl = "http://devimages.apple.com/iphone/samples/bipbop/gear1/prog_index.m3u8";
+        //m_mediaUrl = "E:/movies/replaym3u8/index_sample.m3u8";
+        //m_mediaUrl = "https://file-22.huajiao.com/record/main/HJ_0_ali_1_main__h265_273267415_1765932971339_5275_O/replay.m3u8";
+        //m_mediaUrl = "C:/Users/lengzhiyong-hj/Downloads/19360_102/19360_102.mp4";
+        //m_mediaUrl = "E:/movies/blob/19360_102.mp4";
+        //m_mediaUrl = "https://file-2.huajiao.com/data/webp/5b226800134dc73169da56f040dd36bb/ts/a5ccf608f7d50fac6746a797620492b7.mp4";
+        //m_mediaUrl = "https://static.s3.huajiao.com/Object.access/hj-video/MDhmMmQwMGYyNWI5NTY0YmJkNTMzMGZiNmQwNDM1Y2VjODUxZTQzMy5tcDQ=";
+        //m_mediaUrl = "rtmp://localhost/live/livestream";
+        //m_mediaUrl = "https://live-pull-3.huajiao.com/main/HJ_0_tc_3_main__h265_273620057_1772785022057_2384_O.flv?txSecret=d8773bef0b22bd299333696e7b6cd0d7&txTime=69ABDF71";
+        //m_mediaUrl = "https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h264_273064011_1772517946195_9246_O.flv?auth_key=1772610218-0-0-1a642f789fe41ce6cd7327a5d59eb1f1";
+        //m_mediaUrl = "E:/movies/dfjy.webm";
+        //m_mediaUrl = "E:/movies/audio/c58733ac51124fe38cdc6540a7b8fa46.mkv";
+        m_mediaUrl = "https://live-pull-3.huajiao.com/main/HJ_0_tc_3_main__h265_273938691_1776070343126_7059_O.flv?txSecret=3f53c2713f15b68d52c03a1c99d70bd3&txTime=69DE00EF";
 #elif defined(HJ_OS_MACOS)
         m_mediaUrl = "/Users/zhiyongleng/works/movies/720x1280.mp4";
 #endif
@@ -78,29 +116,40 @@ int HJPlayerView::init(const std::string info)
 
 void HJPlayerView::done()
 {
-    HJ_AUTO_LOCK(m_mutex);
-    m_progInfo = nullptr;
-    m_minfo = nullptr;
-    m_minfos.clear();
-    m_mvf = nullptr;
-    m_player = nullptr;
-    m_curPos = 0;
+    HJMediaPlayer::Ptr player = nullptr;
+    HJFFMuxer::Ptr muxer = nullptr;
+    HJRTMPMuxer::Ptr rtmp_muxer = nullptr;
+    {
+        HJ_AUTO_LOCK(m_mutex);
+        m_progInfo = nullptr;
+        m_minfo = nullptr;
+        m_minfos.clear();
+        m_mvf = nullptr;
+        player = m_player;
+        m_player = nullptr;
+        m_curPos = 0;
+        m_selectedAudioTrackID = -1;
 
-    //m_imageWriter = nullptr;
-    m_imageIdx = 0;
+        //m_imageWriter = nullptr;
+        m_imageIdx = 0;
 
-    if (m_muxer) {
-        m_muxer->done();
+        muxer = m_muxer;
         m_muxer = nullptr;
-    }
-    //m_pusher = nullptr;
-    if (m_rtmpMuxer) {
-		m_rtmpMuxer->setQuit();
-        m_rtmpMuxer->done();
+        rtmp_muxer = m_rtmpMuxer;
         m_rtmpMuxer = nullptr;
     }
-    //
-//    m_mvfView = nullptr;
+    if (player) {
+        player->setMediaFrameListener(nullptr);
+        player->setSourceFrameListener(nullptr);
+    }
+    if (muxer) {
+        muxer->done();
+    }
+    if (rtmp_muxer) {
+        rtmp_muxer->setListener(nullptr);
+		rtmp_muxer->setQuit();
+        rtmp_muxer->done();
+    }
 }
 
 int HJPlayerView::drawMuxerStat(const HJRectf& rect)
@@ -397,9 +446,13 @@ int HJPlayerView::drawFrame(const HJRectf& rect)
                 m_mvfView = std::make_shared<HJFrameView>();
                 res = m_mvfView->init();
             }
-            HJ_AUTO_LOCK(m_mutex);
-            if (m_mvf) {
-                m_mvfView->draw(m_mvf);
+            HJMediaFrame::Ptr frame = nullptr;
+            {
+                HJ_AUTO_LOCK(m_mutex);
+                frame = m_mvf;
+            }
+            if (frame) {
+                m_mvfView->draw(frame);
             }
 
             //
@@ -430,7 +483,7 @@ int HJPlayerView::drawStatusBar(const HJRectf& rect)
         {
             //ImGui::Text(ICON_FA_PAINT_BRUSH"Input Url : "); ImGui::SameLine();
             char filename[1024];
-            strcpy(filename, HJAnsiToUtf8(m_mediaUrl).c_str());
+            copyToInputBuffer(filename, m_mediaUrl);
             if (ImGui::InputText(u8"Input Url ", filename, HJ_ARRAY_ELEMS(filename))) {
                 m_mediaUrl = HJ2SSTR(filename);
             }
@@ -446,11 +499,13 @@ int HJPlayerView::drawStatusBar(const HJRectf& rect)
                 }
                 m_btnFileDialog->onBtnClick = [&]() {
                     if (!m_viewFileDialog) {
-                        m_viewFileDialog = std::make_shared<HJFileDialogView>();
-                        res = m_viewFileDialog->init("Open a media file", HJFileDialogView::KEY_MEDIA_FILTER, true, HJContext::Instance().getMediaDir());
-                        if (HJ_OK != res) {
+                        HJFileDialogView::Ptr dialog = std::make_shared<HJFileDialogView>();
+                        int init_res = dialog->init("Open a media file", HJFileDialogView::KEY_MEDIA_FILTER, true, HJContext::Instance().getMediaDir());
+                        if (HJ_OK != init_res) {
                             HJLoge("error, init file dialog view failed");
+                            return;
                         }
+                        m_viewFileDialog = dialog;
                     }
                 };
             }
@@ -461,7 +516,7 @@ int HJPlayerView::drawStatusBar(const HJRectf& rect)
                 res = m_viewFileDialog->draw([&](const std::vector<std::filesystem::path>& files) {
                     if (files.size() > 0) {
                         m_mediaUrl = files[0].generic_string();
-                        strcpy(filename, HJAnsiToUtf8(m_mediaUrl).c_str());
+                        copyToInputBuffer(filename, m_mediaUrl);
                     }
                     });
                 if (HJ_OK != res) {
@@ -484,7 +539,7 @@ int HJPlayerView::drawStatusBar(const HJRectf& rect)
                 //ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10 * style.ItemSpacing.x);
                 //ImGui::Text("Push  Url : "); ImGui::SameLine();
                 char pushUrl[1024];
-                strcpy(pushUrl, HJAnsiToUtf8(m_pushUrl).c_str());
+                copyToInputBuffer(pushUrl, m_pushUrl);
                 if (ImGui::InputText(u8"Push Url ", pushUrl, HJ_ARRAY_ELEMS(pushUrl))) {
                     m_pushUrl = HJ2SSTR(pushUrl);
                 }
@@ -514,7 +569,7 @@ int HJPlayerView::drawStatusBar(const HJRectf& rect)
             if (m_thumbnail) {
                 ImGui::SameLine();
                 char thumbUrl[1024];
-                strcpy(thumbUrl, HJAnsiToUtf8(m_thumbUrl).c_str());
+                copyToInputBuffer(thumbUrl, m_thumbUrl);
                 if (ImGui::InputText(u8"Thumb Url", thumbUrl, HJ_ARRAY_ELEMS(thumbUrl))) {
                     m_thumbUrl = HJ2SSTR(thumbUrl);
                 }
@@ -739,9 +794,48 @@ int HJPlayerView::drawPlayerBar(const HJRectf& rect)
                         }); 
                     });
                 }
-                if (m_volumeView) {
-                    m_volumeView->draw();
+            if (m_volumeView) {
+                m_volumeView->draw();
+            }
+
+            if (minfo && minfo->getAudioInfos().size() > 1)
+            {
+                int selectedAudioTrackID = minfo->getSelectedAudioTrackID();
+                {
+                    HJ_AUTO_LOCK(m_mutex);
+                    if (m_selectedAudioTrackID >= 0) {
+                        selectedAudioTrackID = m_selectedAudioTrackID;
+                    }
                 }
+                auto selectedAudioInfo = minfo->findAudioInfoByTrackID(selectedAudioTrackID);
+                std::string preview = selectedAudioInfo ? formatAudioTrackLabel(selectedAudioInfo) : HJFMT("track:{}", selectedAudioTrackID);
+                std::string comboId = HJFMT("##{}_audio_track", m_name);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(220.0f);
+                if (ImGui::BeginCombo(comboId.c_str(), preview.c_str()))
+                {
+                    for (const auto& audioInfo : minfo->getAudioInfos())
+                    {
+                        if (!audioInfo) {
+                            continue;
+                        }
+                        const bool isSelected = (audioInfo->m_trackID == selectedAudioTrackID);
+                        std::string label = formatAudioTrackLabel(audioInfo);
+                        if (ImGui::Selectable(label.c_str(), isSelected) && !isSelected) {
+                            HJMainExecutorAsync([=]() {
+                                int switchRes = onSwitchAudioTrack(audioInfo->m_trackID);
+                                if (HJ_OK != switchRes) {
+                                    HJFLoge("switch audio track:{} error:{}", audioInfo->m_trackID, switchRes);
+                                }
+                            });
+                        }
+                        if (isSelected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
             }
             catch (const HJException& e)
             {
@@ -804,31 +898,58 @@ int HJPlayerView::drawMediaInfo(const HJRectf& rect)
                 std::string infos = HJFMT("[Video:{} width:{}, height:{}, frame rate:{}]  ", AVCodecIDToString((AVCodecID)vinfo->m_codecID), vinfo->m_width, vinfo->m_height, vinfo->m_frameRate);
                 ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
             }
-            HJAudioInfo::Ptr ainfo = minfo->getAudioInfo();
-            if (ainfo) {
-                std::string infos = HJFMT("[Audio:{} channels:{}, sample rate:{}, byte per sample:{}] ", AVCodecIDToString((AVCodecID)ainfo->m_codecID), ainfo->m_channels, ainfo->m_samplesRate, ainfo->m_bytesPerSample);
-                ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
+            //HJAudioInfo::Ptr ainfo = minfo->getAudioInfo();
+            //if (ainfo) {
+            //    std::string infos = HJFMT("[Audio:{} channels:{}, sample rate:{}, byte per sample:{}] ", AVCodecIDToString((AVCodecID)ainfo->m_codecID), ainfo->m_channels, ainfo->m_samplesRate, ainfo->m_bytesPerSample);
+            //    ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
+            //}
+            int selectedAudioTrackID = minfo->getSelectedAudioTrackID();
+            {
+                HJ_AUTO_LOCK(m_mutex);
+                if (m_selectedAudioTrackID >= 0) {
+                    selectedAudioTrackID = m_selectedAudioTrackID;
+                }
             }
+            ImGui::Separator();
+            std::string audioTrackInfos = HJFMT("Audio tracks:{} selected:{}", minfo->getAudioInfos().size(), selectedAudioTrackID);
+            ImGui::TextColored(ImVec4(0.6f, 0.9f, 0.95f, 1.0f), audioTrackInfos.c_str());
+            for (const auto& audioInfo : minfo->getAudioInfos())
+            {
+                if (!audioInfo) {
+                    continue;
+                }
+                const bool isSelected = (audioInfo->m_trackID == selectedAudioTrackID);
+                std::string infos = HJFMT(
+                    "[{}Audio track:{} codec:{} channels:{} sample rate:{} byte per sample:{}]",
+                    isSelected ? "*" : " ",
+                    audioInfo->m_trackID,
+                    AVCodecIDToString((AVCodecID)audioInfo->m_codecID),
+                    audioInfo->m_channels,
+                    audioInfo->m_samplesRate,
+                    audioInfo->m_bytesPerSample);
+                ImGui::TextColored(isSelected ? ImVec4(0.4f, 0.95f, 0.4f, 1.0f) : ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
+            }
+            ImGui::Separator();
             std::string infos = HJFMT("Total: duration:{}", minfo->getDuration());
             ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
 
             //
-            HJ_AUTO_LOCK(m_mutex);
-            for (const auto& minfo : m_minfos)
-            {
-                if (HJ_ISTYPE(*minfo, HJVideoInfo)) {
-                    ImGui::Separator();
-                    auto vinfo = std::dynamic_pointer_cast<HJVideoInfo>(minfo);
-                    std::string infos = HJFMT("[Video:{} width:{}, height:{}, frame rate:{}]  ", AVCodecIDToString((AVCodecID)vinfo->m_codecID), vinfo->m_width, vinfo->m_height, vinfo->m_frameRate);
-                    ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
-                }
-                else if (HJ_ISTYPE(*minfo, HJAudioInfo)) {
-                    ImGui::Separator();
-                    auto ainfo = std::dynamic_pointer_cast<HJAudioInfo>(minfo);
-                    std::string infos = HJFMT("[Audio:{} channels:{}, sample rate:{}, byte per sample:{}] ", AVCodecIDToString((AVCodecID)ainfo->m_codecID), ainfo->m_channels, ainfo->m_samplesRate, ainfo->m_bytesPerSample);
-                    ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
-                }
-            }
+            //HJ_AUTO_LOCK(m_mutex);
+            //for (const auto& minfo : m_minfos)
+            //{
+            //    if (HJ_ISTYPE(*minfo, HJVideoInfo)) {
+            //        ImGui::Separator();
+            //        auto vinfo = std::dynamic_pointer_cast<HJVideoInfo>(minfo);
+            //        std::string infos = HJFMT("[Video:{} width:{}, height:{}, frame rate:{}]  ", AVCodecIDToString((AVCodecID)vinfo->m_codecID), vinfo->m_width, vinfo->m_height, vinfo->m_frameRate);
+            //        ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
+            //    }
+            //    else if (HJ_ISTYPE(*minfo, HJAudioInfo)) {
+            //        ImGui::Separator();
+            //        auto ainfo = std::dynamic_pointer_cast<HJAudioInfo>(minfo);
+            //        std::string infos = HJFMT("[Audio:{} channels:{}, sample rate:{}, byte per sample:{}] ", AVCodecIDToString((AVCodecID)ainfo->m_codecID), ainfo->m_channels, ainfo->m_samplesRate, ainfo->m_bytesPerSample);
+            //        ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
+            //    }
+            //}
         }
         ImGui::End();
     } while (false);
@@ -886,17 +1007,36 @@ void HJPlayerView::onClickPrepare()
 //        HJMediaUrl::Ptr url0 = std::make_shared<HJMediaUrl>("E:/js/_LC_AL2_non_27013848617200603950012820_OX.flv");
         //HJMediaUrl::Ptr url0 = std::make_shared<HJMediaUrl>("E:/js/587102.crdownload.flv");
         std::string url = m_mediaUrl;
-        if (m_isAsyncUrl) {
-            url = "exasync:" + url;
+        std::string localUrl = "";
+        if (m_isAsyncUrl) 
+        {
+            //auto urlCtx = HJDataSourceKit::getInstance()->getLocalUrl(url, "E:/movies/localio/medias");
+            //if (urlCtx.second) {
+            //    url = urlCtx.first;
+            //} else {
+            //    //url = "exasync:" + url;
+            //    url = "hjds:" + url;
+            //    localUrl = urlCtx.first;
+            //}
+            //localUrl = HJDataSourceKit::getInstance()->getLocalUrl(url, "E:/movies/localio/medias");
+
+            url = "hjds:" + url;
+            localUrl = "E:/movies/localio/medias";
         }
         //auto rid = HJ2STR(HJUtilitys::hash(url));
         //url = HJLocalServer::getInstance()->getPlayUrl(rid, url);
         //
         HJMediaUrl::Ptr url0 = std::make_shared<HJMediaUrl>(url);
         url0->setTimeout(m_timeout);
-//        url0->setLoopCnt(100);
+        //url0->setLoopCnt(5);
         //url0->setUseFast(false);
         //url0->setDisableMFlag(HJMEDIA_TYPE_VIDEO);
+        (*url0)["url_rid"] = HJMediaUtils::makeUrlRid(m_mediaUrl);
+
+        if (!localUrl.empty()) {
+            //(*url0)["local_url"] = localUrl;
+            (*url0)["local_dir"] = localUrl;
+        }
         mediaUrls = { url0 };
 
         //{
@@ -910,27 +1050,40 @@ void HJPlayerView::onClickPrepare()
         //}
         //
         m_player = std::make_shared<HJMediaPlayer>();
-        m_player->setMediaFrameListener([&](const HJMediaFrame::Ptr mvf) -> int {
+        std::weak_ptr<HJPlayerView> wself = HJSharedFromThis();
+        m_player->setMediaFrameListener([wself](const HJMediaFrame::Ptr mvf) -> int {
+            auto self = wself.lock();
+            if (!self) {
+                return HJErrAlreadyDone;
+            }
             if (mvf->isVideo()) {
                 //HJFLogi("recv media frame:" + mvf->formatInfo());
-                HJ_AUTO_LOCK(m_mutex);
-                m_mvf = mvf;
-                if (m_thumbnail) {
-                    onWriteThumb(m_mvf);
+                HJ_AUTO_LOCK(self->m_mutex);
+                self->m_mvf = mvf;
+                if (self->m_thumbnail) {
+                    self->onWriteThumb(self->m_mvf);
                 }
             }
             return HJ_OK;
         });
-        m_player->setSourceFrameListener([&](const HJMediaFrame::Ptr mavf) -> int {
-            if (m_showMuxer) {
-                onMuxer(mavf);
+        m_player->setSourceFrameListener([wself](const HJMediaFrame::Ptr mavf) -> int {
+            auto self = wself.lock();
+            if (!self) {
+                return HJErrAlreadyDone;
             }
-            if (m_showPusher) {
-                onPusher2(mavf);
+            if (self->m_showMuxer) {
+                self->onMuxer(mavf);
+            }
+            if (self->m_showPusher) {
+                self->onPusher2(mavf);
             }
             return HJ_OK;
         });
-        res = m_player->init(mediaUrls, [&](const HJNotification::Ptr ntf) -> int {
+        res = m_player->init(mediaUrls, [wself](const HJNotification::Ptr ntf) -> int {
+            auto self = wself.lock();
+            if (!self) {
+                return HJErrAlreadyDone;
+            }
             //HJLogi("notify begin, id:" + HJNotifyIDToString((HJNotifyID)ntf->getID()) + ", value:" + HJ2STR(ntf->getVal()) + ", msg:" + ntf->getMsg());
             switch (ntf->getID())
             {
@@ -938,30 +1091,34 @@ void HJPlayerView::onClickPrepare()
             {
                 auto minfo = ntf->getValue<HJMediaInfo::Ptr>(HJMediaInfo::KEY_WORLDS);
                 if (minfo) {
-                    setMediaInfo(minfo);
+                    self->setMediaInfo(minfo);
                 }
                 HJMainExecutorAsync([=]() {
-                    onStart();
+                    auto locked = wself.lock();
+                    if (!locked) {
+                        return;
+                    }
+                    locked->onStart();
                     });
                 break;
             }
             case HJNotify_NeedWindow:
             {
-                onSetWindow();
+                self->onSetWindow();
                 break;
             }
             case HJNotify_ProgressStatus:
             {
                 auto progInfo = ntf->getValue<HJProgressInfo::Ptr>(HJProgressInfo::KEY_WORLDS);
                 if (progInfo) {
-                    HJ_AUTO_LOCK(m_mutex);
-                    m_progInfo = progInfo;
+                    HJ_AUTO_LOCK(self->m_mutex);
+                    self->m_progInfo = progInfo;
                 }
                 break;
             }
             case HJNotify_Already:
             {
-                onClickPlay("play");
+                self->onClickPlay("play");
                 break;
             }
             case HJNotify_DemuxEnd:
@@ -970,14 +1127,14 @@ void HJPlayerView::onClickPrepare()
             }
             case HJNotify_Complete:
             {
-                onCompleted();
+                self->onCompleted();
                 break;
             }
             case HJNotify_Error:
             {
-                int ret = onProcessError(ntf->getVal());
+                int ret = self->onProcessError(ntf->getVal());
                 if (HJ_OK != ret) {
-                    HJFLoge("error, on process error failed, m_tryCnt:{}", m_tryCnt);
+                    HJFLoge("error, on process error failed, m_tryCnt:{}", self->m_tryCnt);
                     break;
                 }
                 //HJMainExecutorAsync([=]() {
@@ -989,8 +1146,8 @@ void HJPlayerView::onClickPrepare()
             {
                 auto minfo = ntf->getValue<HJStreamInfo::Ptr>(HJStreamInfo::KEY_WORLDS);
                 if (minfo) {
-                    HJ_AUTO_LOCK(m_mutex);
-                    m_minfos.emplace_back(minfo);
+                    HJ_AUTO_LOCK(self->m_mutex);
+                    self->m_minfos.emplace_back(minfo);
                 }
                 break;
             }
@@ -1073,7 +1230,7 @@ void HJPlayerView::onWriteThumb(const HJMediaFrame::Ptr& frame)
     //        HJFLoge("error, create image writer failed:{}", res);
     //        return;
     //    }
-    //    HJFileUtil::delete_file(m_thumbUrl);
+    //    HJFileUtil::removeFile(m_thumbUrl);
     //    if (!HJFileUtil::is_dir(m_thumbUrl)) {
     //        HJFileUtil::makeDir(m_thumbUrl);
     //    }
@@ -1172,7 +1329,12 @@ int HJPlayerView::onPusher2(const HJMediaFrame::Ptr& frame)
         //HJFLogi("source frame:{}", frame->formatInfo());
         if (!m_rtmpMuxer)
         {
-            m_rtmpMuxer = HJCreates<HJRTMPMuxer>([&](const HJNotification::Ptr ntfy) -> int {
+            std::weak_ptr<HJPlayerView> wself = HJSharedFromThis();
+            m_rtmpMuxer = HJCreates<HJRTMPMuxer>([wself](const HJNotification::Ptr ntfy) -> int {
+                auto self = wself.lock();
+                if (!self) {
+                    return HJErrAlreadyDone;
+                }
                 if (!ntfy) {
                     return HJ_OK;
                 }
@@ -1207,7 +1369,7 @@ int HJPlayerView::onPusher2(const HJMediaFrame::Ptr& frame)
 
         //auto seiFrame = makeSEINals();
         auto seiFrame = makePacketSEINals();
-        (*frame)[HJMediaFrame::STORE_KEY_SEIINFO] = seiFrame;
+        (*frame)[HJMediaFrame::STORE_KEY_SEIINAL] = seiFrame;
 
         res = m_rtmpMuxer->writeFrame(frame);
         if (HJ_OK != res) {
@@ -1237,6 +1399,19 @@ void HJPlayerView::onClickVolume(const float volume)
     }
     HJFLogi("set volume:{}", volume);
     m_player->setVolume(volume);
+}
+
+int HJPlayerView::onSwitchAudioTrack(const int trackID)
+{
+    if (!m_player || !m_player->isReady()) {
+        return HJErrNotAlready;
+    }
+    int res = m_player->switchAudioTrack(trackID);
+    if (HJ_OK == res) {
+        HJ_AUTO_LOCK(m_mutex);
+        m_selectedAudioTrackID = trackID;
+    }
+    return res;
 }
 
 void HJPlayerView::onTest()

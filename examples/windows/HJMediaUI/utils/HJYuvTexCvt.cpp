@@ -1,9 +1,8 @@
-#pragma once
-
 #include "HJFLog.h"
 #include "HJYuvTexCvt.h"
 #include "HJSPBuffer.h"
 #include "libyuv.h"
+#include "HJOGCommon.h"
 
 NS_HJ_BEGIN
 
@@ -17,7 +16,7 @@ HJYuvTexCvt::~HJYuvTexCvt()
 {
 	if (m_bCreateTexture)
 	{
-		glDeleteTextures(1, &m_textureId);
+		HJOGCommon::textureDestroy(m_textureId);
 		m_textureId = 0;
 		m_bCreateTexture = false;
 	}
@@ -33,13 +32,7 @@ void HJYuvTexCvt::update(HJYuvInfo::Ptr i_yuvInfo)
 	if (!m_bCreateTexture)
 	{
 		m_bCreateTexture = true;
-		glGenTextures(1, &m_textureId);
-		glBindTexture(GL_TEXTURE_2D, m_textureId);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		m_textureId = HJOGCommon::textureCreate();
 	}
 	
 	if (m_width!= w || m_height!= h)
@@ -54,8 +47,9 @@ void HJYuvTexCvt::update(HJYuvInfo::Ptr i_yuvInfo)
 		i_yuvInfo->m_v, i_yuvInfo->m_vLineSize,
 		m_RGBBuffer->getBuf(), w * 4,
 		w, h);
-
+	glBindTexture(GL_TEXTURE_2D, m_textureId);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_RGBBuffer->getBuf());
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 NS_HJ_END

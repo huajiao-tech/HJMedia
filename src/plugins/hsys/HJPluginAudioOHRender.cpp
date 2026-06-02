@@ -1,13 +1,27 @@
 #include "HJPluginAudioOHRender.h"
+#include "HJGraph.h"
 #include "HJFLog.h"
-#include "HJFFHeaders.h"
 
 NS_HJ_BEGIN
 
 #define RUNTASKLog		HJFLogi
 
 #define FRAME_SIZE      1024
+/*
+int HJPluginAudioOHRender::flush(size_t i_srcKeyHash)
+{
+    auto input = getInput(i_srcKeyHash);
+    if (input == nullptr) {
+        return HJErrNotFind;
+    }
 
+    input->mediaFrames.flush(true);
+    HJMediaFrameDeque::FrameDequeInfo info;
+    setInfos(input->eventFlags, info);
+
+    return HJ_OK;
+}
+*/
 OH_AudioData_Callback_Result onWriteDataCallback(OH_AudioRenderer* renderer, void* userData, void* audioData, int32_t audioDataSize)
 {
     return ((HJPluginAudioOHRender*)userData)->onDataCallback(audioData, audioDataSize);
@@ -15,157 +29,64 @@ OH_AudioData_Callback_Result onWriteDataCallback(OH_AudioRenderer* renderer, voi
 
 OH_AudioData_Callback_Result HJPluginAudioOHRender::onDataCallback(void* o_audioData, int32_t i_audioDataSize)
 {
-    addInIdx();
-    int64_t enter = HJCurrentSteadyMS();
-    bool log = false;
-    if (m_lastEnterTimestamp < 0 || enter >= m_lastEnterTimestamp + LOG_INTERNAL) {
-        m_lastEnterTimestamp = enter;
-        log = true;
-    }
+//    addInIdx();
+    auto log = logRunTask();
     if (log) {
         RUNTASKLog("{}, enter", getName());
     }
     
     std::string route{};
-    size_t size = -1;
-    int64_t audioDuration = 0;
-    int64_t audioSamples = 0;
-    auto ret = AUDIO_DATA_CALLBACK_RESULT_VALID;
+    int64_t size{ -1 };
+    OH_AudioData_Callback_Result ret{ AUDIO_DATA_CALLBACK_RESULT_VALID };
     do {
-        HJMediaFrame::Ptr kernalBuffer{};
-        HJAudioInfo::Ptr audioInfo{};
-        auto err = SYNC_CONS_LOCK([&route, &kernalBuffer, &audioInfo, this] {
-            if (m_status == HJSTATUS_Done) {
-                route += "_0";
-                return HJErrAlreadyDone;
-            }
-            if (m_status >= HJSTATUS_EOF) {
-                route += "_1";
-                return HJ_WOULD_BLOCK;
-            }
-    
-            kernalBuffer = m_kernalFrame;
-            audioInfo = m_audioInfo;
-            return HJ_OK;
-        });
+        auto[err, validSize, kernalFrame] = fillAudioBuffer(route, o_audioData, i_audioDataSize, size);
         if (err != HJ_OK) {
+            route += "_0";
             ret = AUDIO_DATA_CALLBACK_RESULT_INVALID;
             break;
         }
 
-        route += "_2";
-        size_t inputKeyHash = m_inputKeyHash.load();
-        int64_t audioSize = audioSamplesOfInput(inputKeyHash) * audioInfo->m_channels * audioInfo->m_bytesPerSample;
-        if (kernalBuffer) {
+        if (validSize < i_audioDataSize) {
+            route += "_1";
+            memset(static_cast<int8_t*>(o_audioData) + validSize, 0, i_audioDataSize - validSize);
+        }
+        else if (kernalFrame != nullptr) {
+            route += "_2";
+            store(m_inputKeyHash.load(), kernalFrame);
+        }
+        applyOutputVolume(o_audioData, i_audioDataSize);
+        if (m_pcmCallback) {
             route += "_3";
-            HJAVFrame::Ptr avFrame = kernalBuffer->getMFrame();
-            AVFrame* frame = avFrame->getAVFrame();
-            int64_t bufferSize = frame->nb_samples * m_audioInfo->m_channels * m_audioInfo->m_bytesPerSample;
-            audioSize += (bufferSize - kernalBuffer->m_bufferPos);
+            appendPCMCallbackData(static_cast<const uint8_t*>(o_audioData), i_audioDataSize);
         }
-        if (audioSize < i_audioDataSize) {
-            route += "_4";
-            if (m_eof.load()) {
-                route += "_5";
-                if (m_pluginListener) {
-                    route += "_6";
-                    m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_AUDIORENDER_EOF)));
-                }
-                setStatus(HJSTATUS_EOF);
-            }
-            else if (!m_buffering) {
-                route += "_10";
-                m_buffering = true;
-                if (m_pluginListener) {
-                    route += "_11";
-                    m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_AUDIORENDER_START_BUFFERING)));
-                }
-            }
 
-            ret = AUDIO_DATA_CALLBACK_RESULT_INVALID;
-            break;
-        }
- 
-        void* audioData = o_audioData;
-        int32_t audioDataSize = i_audioDataSize;
-        while (audioDataSize > 0) {
-            route += "_7";
-            if (!kernalBuffer) {
-                route += "_8";
-                kernalBuffer = receive(inputKeyHash, &size, &audioDuration, nullptr, &audioSamples);
-                if (!kernalBuffer) {
-                    route += "_9";
-                    // why?
-
-                    ret = AUDIO_DATA_CALLBACK_RESULT_INVALID;
-                    break;
-                }
-
-                setInfoAudioDuration(audioSamples);
-
-                if (m_pluginListener) {
-                    route += "_27";
-                    auto notify = HJMakeNotification(HJ_PLUGIN_NOTIFY_AUDIORENDER_FRAME);
-                    (*notify)["frame"] = kernalBuffer;
-                    m_pluginListener(std::move(notify));
-                }
-                
-                if (m_buffering) {
-                    route += "_12";
-                    m_buffering = false;
-                    if (m_pluginListener) {
-                        route += "_13";
-                        m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_AUDIORENDER_STOP_BUFFERING)));
-                    }
-                }
-            }
-
-            err = SYNC_CONS_LOCK([&route, &kernalBuffer, &audioData, &audioDataSize, this] {
-                if (m_status == HJSTATUS_Done) {
-                    route += "_14";
-                    return HJErrAlreadyDone;
-                }
-    
-                HJAVFrame::Ptr avFrame = kernalBuffer->getMFrame();
-                AVFrame* frame = avFrame->getAVFrame();
-                int32_t bufferSize = frame->nb_samples * m_audioInfo->m_channels * m_audioInfo->m_bytesPerSample;
-                int32_t copySize = std::min<int32_t>(audioDataSize, bufferSize - kernalBuffer->m_bufferPos);
-                memcpy(audioData, frame->data[0] + kernalBuffer->m_bufferPos, copySize);
-                audioData = (int8_t*)audioData + copySize;
-                audioDataSize -= copySize;
-                kernalBuffer->m_bufferPos += copySize;
-    
-                if (kernalBuffer->m_bufferPos >= bufferSize) {
-                    route += "_15";
-                    m_timeline->setTimestamp(kernalBuffer->m_streamIndex, kernalBuffer->getPTS(), kernalBuffer->getSpeed());
-                    kernalBuffer = nullptr;
-                }
-    
-                m_kernalFrame = kernalBuffer;
-                return HJ_OK;
-            });
-            if (err != HJ_OK) {
-                ret = AUDIO_DATA_CALLBACK_RESULT_INVALID;
-                break;
-            }
-        }
+        route += "_4";
     } while (false);
-    addOutIdx();
+//    addOutIdx();
     if (log) {
-        RUNTASKLog("{}, leave, route({}), size({}), task duration({}), ret({})", getName(), route, size, (HJCurrentSteadyMS() - enter), ret);
+        RUNTASKLog("{}, leave, route({}), size({}), task duration({}), ret({})", getName(), route, size, (HJCurrentSteadyMS() - m_enterTimestamp), ret);
     }
     return ret;
 }
 
-void HJPluginAudioOHRender::internalSetMute()
+int64_t HJPluginAudioOHRender::getRenderTimestamp()
 {
-    if (m_renderer) {
-        float volume = m_muted ? 0.0f : 1.0f;
-        OH_AudioStream_Result result = OH_AudioRenderer_SetVolume(m_renderer, volume);
-        if (result != AUDIOSTREAM_SUCCESS) {
-            HJFLoge("{}, OH_AudioRenderer_SetVolume() error({})", getName(), result);
-        }
+    if (!m_renderer || !m_audioInfo || m_audioInfo->m_samplesRate <= 0) {
+        return 0;
     }
+
+    int64_t framePosition = 0;
+    int64_t timestamp = 0;
+    OH_AudioStream_Result result = OH_AudioRenderer_GetTimestamp(
+        m_renderer,
+        CLOCK_MONOTONIC,
+        &framePosition,
+        &timestamp);
+    if (result != AUDIOSTREAM_SUCCESS || framePosition <= 0) {
+        return 0;
+    }
+
+    return (framePosition * 1000LL) / m_audioInfo->m_samplesRate;
 }
 
 int HJPluginAudioOHRender::initRender(const HJAudioInfo::Ptr& i_audioInfo)
@@ -175,6 +96,10 @@ int HJPluginAudioOHRender::initRender(const HJAudioInfo::Ptr& i_audioInfo)
     // create builder
     OH_AudioStream_Type type = AUDIOSTREAM_TYPE_RENDERER;
     OH_AudioStreamBuilder_Create(&m_streamBuilder, type);
+    if (!m_streamBuilder) {
+        releaseRender();
+        return HJErrFatal;
+    }
 
     // set params and callbacks
     OH_AudioStreamBuilder_SetSamplingRate(m_streamBuilder, i_audioInfo->m_samplesRate);
@@ -200,30 +125,20 @@ int HJPluginAudioOHRender::initRender(const HJAudioInfo::Ptr& i_audioInfo)
         releaseRender();
         return HJErrFatal;
     }
+ 
+    m_blockAlign = i_audioInfo->m_channels * i_audioInfo->m_bytesPerSample;
+    m_running = false;
     
-//    OH_AudioRenderer_Pause(m_renderer);
-    OH_AudioRenderer_Start(m_renderer);
-    internalSetMute();
-/*
-    if (m_pluginListener) {
-        m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_AUDIORENDER_START_PLAYING)));
-    }
-*/    
     HJFLogi("{} initRender end this:{}", getName(), size_t(this));
 	return HJ_OK;
 }
 
-bool HJPluginAudioOHRender::releaseRender()
+void HJPluginAudioOHRender::releaseRender()
 {
     int64_t t0 = HJCurrentSteadyMS();
     HJFLogi("{} releaseRender enter this:{}", getName(), size_t(this));
     
-    bool ret = false;
 	if (m_renderer) {
-//        if (m_pluginListener) {
-//            m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_AUDIORENDER_STOP_PLAYING)));
-//        }
-
         HJFLogi("{} releaseRender before OH_AudioRenderer_Stop", getName());
         OH_AudioRenderer_Stop(m_renderer);
         HJFLogi("{} releaseRender before OH_AudioRenderer_Flush", getName());
@@ -231,27 +146,41 @@ bool HJPluginAudioOHRender::releaseRender()
         HJFLogi("{} release Render before OH_AudioRenderer_Release", getName());
         OH_AudioRenderer_Release(m_renderer);
 		m_renderer = nullptr;
-        
-        ret = true;
 	}
     HJFLogi("{} releaseRender before OH_AudioStreamBuilder_Destroy", getName());
     if (m_streamBuilder) {
         OH_AudioStreamBuilder_Destroy(m_streamBuilder);
         m_streamBuilder = nullptr;
-        
-        ret = true;
     }
 
     int64_t t1 = HJCurrentSteadyMS();
-    m_kernalFrame = nullptr;
+    m_running = false;
+
     HJFLogi("{} releaseRender end this:{} diff:{}", getName(), size_t(this), (t1 - t0));
-    return ret;
 }
 
-void HJPluginAudioOHRender::setInfoAudioDuration(int64_t i_audioSamples)
+int HJPluginAudioOHRender::setStreamRunning(bool i_running, bool i_eofStop)
 {
-    i_audioSamples = i_audioSamples > FRAME_SIZE ? i_audioSamples - FRAME_SIZE : 0;
-    HJPluginAudioRender::setInfoAudioDuration(i_audioSamples);
+    if (!m_renderer) {
+        return HJ_OK;
+    }
+
+    if (i_running) {
+        const auto result = OH_AudioRenderer_Start(m_renderer);
+        if (result != AUDIOSTREAM_SUCCESS) {
+            return HJErrFatal;
+        }
+        return HJ_OK;
+    }
+
+    const auto result = i_eofStop ? OH_AudioRenderer_Stop(m_renderer) : OH_AudioRenderer_Pause(m_renderer);
+    if (result != AUDIOSTREAM_SUCCESS) {
+        return HJErrFatal;
+    }
+    if (i_eofStop) {
+        OH_AudioRenderer_Flush(m_renderer);
+    }
+    return HJ_OK;
 }
 
 NS_HJ_END

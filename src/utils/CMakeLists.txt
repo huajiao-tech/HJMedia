@@ -13,6 +13,10 @@ if (HarmonyOS)
 	list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/hsys)	
 endif()
 
+if (ANDROID)
+	list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/asys)
+endif()
+
 list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base)  # export another use
 
 # message (STATUS "retrieve_files entry")
@@ -33,7 +37,7 @@ MAKE_COMMON_CONFIG()
 
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE yyjson LIBSPDLOG LIBMINICORO)
+target_link_libraries(${PROJ_NAME} PRIVATE yyjson LIBSPDLOG LIBMINICORO LIBREFLCPP)
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

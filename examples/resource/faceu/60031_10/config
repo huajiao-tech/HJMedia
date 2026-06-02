@@ -1,0 +1,66 @@
+{
+	"Name": "大兔子",
+	"ID": "60031_10",
+	"Type": 1,
+	"loop": 1,
+	"music": "aaa.mp3",
+	"texture": [
+		{
+			"mframeCount": 60,
+			"radius_Type": 1,
+			"mradius": 0,
+			"mid_Type": 2,
+			"mid_x": 0.5,
+			"mid_y": 0.5,
+			"scale_Type": 1,
+			"scale_ratio": 1,
+			"anchor_offset_x": -180,
+			"anchor_offset_y": -320,
+			"asize_offset_x": 360,
+			"asize_offset_y": 640,
+			"mfaceCount": 1,
+			"imageName": "bj_"
+		},
+		{
+			"mframeCount": 1,
+			"radius_Type": 0,
+			"mradius": 0,
+			"mid_Type": 1,
+			"scale_ratio": 120,
+			"anchor_offset_x": -43,
+			"anchor_offset_y": -25,
+			"asize_offset_x": 91,
+			"asize_offset_y": 78,
+			"mfaceCount": 1,
+			"imageName": "bizi_"
+		},
+		{
+			"mframeCount": 25,
+			"radius_Type": 0,
+			"mradius": 0,
+			"mid_Type": 0,
+			"scale_Type": 0,
+			"scale_ratio": 90,
+			"anchor_offset_x": -144,
+			"anchor_offset_y": 5,
+			"asize_offset_x": 290,
+			"asize_offset_y": 109,
+			"mfaceCount": 1,
+			"imageName": "huzi_"
+		},
+		{
+			"mframeCount": 47,
+			"radius_Type": 0,
+			"mradius": 0,
+			"mid_Type": 0,
+			"scale_Type": 0,
+			"scale_ratio": 100,
+			"anchor_offset_x": -180,
+			"anchor_offset_y": -280,
+			"asize_offset_x": 357,
+			"asize_offset_y": 207,
+			"mfaceCount": 1,
+			"imageName": "tou_"
+		}
+	]
+}

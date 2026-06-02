@@ -36,6 +36,23 @@ bool HJFileUtil::create_path(const std::string& file, unsigned int mod) {
     }
 }
 
+bool HJFileUtil::rename(const std::string& old_name, const std::string& new_name)
+{
+    try {
+        std::error_code ec;
+        if (fs::exists(new_name, ec)) {
+            HJFLogw("rename file:{} is already exists, rename to:{}", new_name, old_name);
+            fs::remove(new_name, ec);
+        }
+        fs::rename(old_name, new_name);
+    } catch (const fs::filesystem_error& e) {
+        HJFLogw("renameFile: failed to rename file: {} -> {}, error: {}", 
+                old_name, new_name, e.what());
+        return false;
+    }
+    return true;
+}
+
 bool HJFileUtil::makeDir(const std::string& file) {
 #ifdef _WIN32
     return create_path(file, 0);
@@ -83,7 +100,7 @@ bool HJFileUtil::is_special_dir(const std::string& path) {
     return p.filename() == "." || p.filename() == "..";
 }
 
-int HJFileUtil::delete_file(const std::string& path) {
+int HJFileUtil::removeFile(const std::string& path) {
     try {
         return static_cast<int>(fs::remove_all(fs::path(path)));
     } catch (const fs::filesystem_error& e) {
@@ -92,7 +109,7 @@ int HJFileUtil::delete_file(const std::string& path) {
     }
 }
 
-bool HJFileUtil::fileExist(const std::string& path) {
+bool HJFileUtil::isFileExist(const std::string& path) {
     try {
         fs::path p(path);
         return fs::exists(p) && fs::is_regular_file(p);
@@ -253,6 +270,114 @@ uint64_t HJFileUtil::fileSize(const std::string& path) {
         HJFLogw("error, fileSize failed:{}", e.what());
         return 0;
     }
+}
+
+bool HJFileUtil::compareFile(const std::string& path0, const std::string& path1)
+{
+    if (path0 == path1) {
+        return true;
+    }
+
+    if (!isFileExist(path0) || !isFileExist(path1)) {
+        return false;
+    }
+    if (fs::equivalent(path0, path1)) {
+        return true;
+    }
+
+    uint64_t size0 = fileSize(path0);
+    uint64_t size1 = fileSize(path1);
+
+    if (size0 != size1) {
+        return false;
+    }
+
+    if (size0 == 0) {
+        return true;
+    }
+
+    std::ifstream f0(path0, std::ios::binary);
+    std::ifstream f1(path1, std::ios::binary);
+
+    if (!f0.is_open() || !f1.is_open()) {
+        return false;
+    }
+
+    const size_t kBufferSize = 4096;
+    char buffer0[kBufferSize];
+    char buffer1[kBufferSize];
+
+    while (f0.good() && f1.good()) {
+        f0.read(buffer0, kBufferSize);
+        f1.read(buffer1, kBufferSize);
+
+        size_t bytes0 = (size_t)f0.gcount();
+        size_t bytes1 = (size_t)f1.gcount();
+
+        if (bytes0 != bytes1 || memcmp(buffer0, buffer1, bytes0) != 0) {
+            return false;
+        }
+
+        if (f0.eof()) {
+            break;
+        }
+    }
+
+    return true;
+}
+
+bool HJFileUtil::compareFile(FILE* fp0, FILE* fp1)
+{
+    if (!fp0 || !fp1) {
+        return false;
+    }
+
+    if (fp0 == fp1) {
+        return true;
+    }
+
+    uint64_t size0 = fileSize(fp0);
+    uint64_t size1 = fileSize(fp1);
+
+    if (size0 != size1) {
+        return false;
+    }
+
+    if (size0 == 0) {
+        return true;
+    }
+
+    // Save current positions
+    long pos0 = ftell(fp0);
+    long pos1 = ftell(fp1);
+
+    fseek(fp0, 0, SEEK_SET);
+    fseek(fp1, 0, SEEK_SET);
+
+    const size_t kBufferSize = 4096;
+    char buffer0[kBufferSize];
+    char buffer1[kBufferSize];
+    bool equal = true;
+
+    while (true) {
+        size_t bytes0 = fread(buffer0, 1, kBufferSize, fp0);
+        size_t bytes1 = fread(buffer1, 1, kBufferSize, fp1);
+
+        if (bytes0 != bytes1 || memcmp(buffer0, buffer1, bytes0) != 0) {
+            equal = false;
+            break;
+        }
+
+        if (feof(fp0) || feof(fp1)) {
+            break;
+        }
+    }
+
+    // Restore positions
+    fseek(fp0, pos0, SEEK_SET);
+    fseek(fp1, pos1, SEEK_SET);
+
+    return equal;
 }
 
 //***********************************************************************************//

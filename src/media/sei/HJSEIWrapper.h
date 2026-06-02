@@ -10,6 +10,9 @@
 #include <functional>
 #include "HJUtilitys.h"
 
+//[type][size][uuid][payload][type][size][uuid][payload]...[rbsp_trailing_bits]
+//SEI message 总体语法和 user_data_unregistered(uuid)
+
 NS_HJ_BEGIN
 // SEI pack/unpack helper for H.264/H.265 (user_data_unregistered)
 //***********************************************************************************//

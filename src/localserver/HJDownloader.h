@@ -57,6 +57,7 @@ private:
 
     ProgressCallback m_progress_callback;
     std::string m_last_error;
+    bool m_is_running = false;
 };
 
 NS_HJ_END

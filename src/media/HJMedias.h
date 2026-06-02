@@ -19,6 +19,9 @@
 #include "HJMedias.h"
 #include "HJTrackInfo.h"
 #include "HJVideoConverter.h"
+#include "HJAVUtils.h"
+#include "HJAudioDeclicker.h"
+#include "HJAudioMixer.h"
 
 #include "HJIOs.h"
 #include "HJCodecs.h"

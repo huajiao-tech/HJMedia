@@ -7,7 +7,7 @@
 
 NS_HJ_BEGIN
 
-// ÓÃÄÚ²¿std::recursive_mutexÉùÃ÷Ò»¸ö×÷ÓÃÓòËølock
+// ç”¨å†…éƒ¨std::shared_mutexå£°æ˜ä¸€ä¸ªä½œç”¨åŸŸé”lock
 #define SYNCHRONIZED_SYNC_LOCK		SYNCHRONIZED_LOCK(m_sync)
 
 #define SYNCHRONIZED_SYNC(lock)		SYNCHRONIZED(m_sync, lock)
@@ -15,7 +15,7 @@ NS_HJ_BEGIN
 #define SYNC_CONS_LOCK				m_sync.consLock
 #define SYNC_PROD_LOCK				m_sync.prodLock
 
-// ¼ì²éÊÇ·ñ´¦ÓÚDone×´Ì¬
+// æ£€æŸ¥æ˜¯å¦å¤„äºDoneçŠ¶æ€
 #define CHECK_DONE_STATUS(...)		if (m_status == HJSTATUS_Done) \
 										return __VA_ARGS__
 
@@ -23,6 +23,10 @@ NS_HJ_BEGIN
 
 #define MUST_HAVE_PARAMETERS			if (!i_param) return HJErrInvalidParams
 #define GET_PARAMETER(TYPE, NANE)		auto NANE = i_param->getValue<TYPE>(#NANE)
+#define GET_PARAMETER2(TYPE, NANE, DEFAULT)		TYPE NANE = (DEFAULT); \
+												if (i_param->haveValue(#NANE)) { \
+													NANE = i_param->getValue<TYPE>(#NANE); \
+												}
 #define MUST_GET_PARAMETER(TYPE, NANE)	GET_PARAMETER(TYPE, NANE); \
 										if (!NANE) return HJErrInvalidParams
 //#define GET_STRING(NANE)				const std::string& NANE = i_param->getString(#NANE)
@@ -30,21 +34,27 @@ NS_HJ_BEGIN
 //										if (NANE.empty()) return HJErrInvalidParams
 
 
+// HJSyncObject åŒæ­¥åŸºç±»ï¼Œæä¾› init/done ç”Ÿå‘½å‘¨æœŸæ§åˆ¶ï¼Œè¯¦è§ doc/HJSyncObject.md
 class HJSyncObject : public HJObject
 {
 public:
 	HJ_DEFINE_CREATE(HJSyncObject);
 
-	HJSyncObject(const std::string& i_name = "HJSyncObject", size_t i_identify = -1)
-		: HJObject(i_name, i_identify) { }
-	virtual ~HJSyncObject() {
-		HJSyncObject::done();
-	}
+	HJSyncObject(const std::string& i_name = "HJSyncObject", size_t i_identify = 0)
+		: HJObject(i_name, i_identify) {}
+	virtual ~HJSyncObject() { done(); }
 
 	virtual int init(HJKeyStorage::Ptr i_param = nullptr) {
-		return SYNC_PROD_LOCK([=] {
+		return SYNC_PROD_LOCK([this, i_param] {
 			int ret = internalInit(i_param);
-			if (ret == HJ_OK) {
+			if (ret == HJErrAlreadyDone) {
+				return HJErrAlreadyDone;
+			}
+			else if (ret < 0) {
+				internalRelease();
+				m_status = HJSTATUS_NONE;
+			}
+			else if (ret == HJ_OK) {
 				m_status = HJSTATUS_Inited;
 				afterInit();
 			}
@@ -54,7 +64,12 @@ public:
 	}
 
 	virtual int done() {
-		int ret = SYNC_PROD_LOCK([=] {
+		auto ret = beforeDone();
+		if (ret != HJ_OK) {
+			return ret;
+		}
+
+		ret = SYNC_PROD_LOCK([this] {
 			CHECK_DONE_STATUS(HJErrAlreadyDone);
 			m_status = HJSTATUS_Done;
 			return HJ_OK;
@@ -67,27 +82,27 @@ public:
 		return HJ_OK;
 	}
 
+	virtual HJStatus getStatus() {
+		return SYNC_CONS_LOCK([this] {
+			return m_status;
+		});
+	}
+
 protected:
 	virtual int internalInit(HJKeyStorage::Ptr i_param) {
 		CHECK_DONE_STATUS(HJErrAlreadyDone);
-		if (m_status > HJSTATUS_NONE && m_status < HJSTATUS_Exception) {	// _TODO_ ÊÇ·ñĞèÒª¿¼ÂÇ(<HJSTATUS_Released)
-			return HJErrAlreadyInited;
-		}
-		if (m_status == HJSTATUS_Exception) {
-			internalRelease();
+		if (m_status > HJSTATUS_NONE) {
+			return HJ_INITED;
 		}
 
-		m_status = HJSTATUS_Initializing;
 		return HJ_OK;
 	}
 
-	virtual void internalRelease() {
-		if (m_status != HJSTATUS_Done) {
-			m_status = HJSTATUS_Released;
-		}
-	}
+	virtual void internalRelease() {}
 
-	virtual void afterInit() { }	// ×¢£ºÔÚm_syncËøÄÚ
+	virtual int beforeDone() { return HJ_OK; }	// æ³¨ï¼šä¸åœ¨é”å†…ï¼Œçº¿ç¨‹ä¸å®‰å…¨ï¼Œå¯èƒ½è¢«é‡å¤è°ƒç”¨
+
+	virtual void afterInit() {}	// æ³¨ï¼šå·²åœ¨m_syncé”å†…ï¼Œçº¿ç¨‹å®‰å…¨
 
 	HJSync m_sync;
 	HJStatus m_status{ HJSTATUS_NONE };

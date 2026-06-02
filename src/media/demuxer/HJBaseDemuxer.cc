@@ -13,6 +13,7 @@ const MTS MTS::MTS_NOPTS = MTS(HJ_NOTS_VALUE, HJ_NOTS_VALUE);
 const MTS MTS::MTS_MAX = MTS(HJ_INT64_MAX, HJ_INT64_MAX);
 //
 const std::string HJBaseDemuxer::KEY_WORLDS_URLBUFFER = "HJ_URL_BUFFER";
+const std::string HJBaseDemuxer::KEY_WORLDS_AVIOCONTEXT = "HJ_AVIO_CONTEXT";
 //
 HJBaseDemuxer::HJBaseDemuxer(const HJMediaUrl::Ptr& mediaUrl)
     : m_mediaUrl(mediaUrl)
@@ -51,7 +52,7 @@ int HJBaseDemuxer::init(const HJMediaUrlVector& mediaUrls)
 
 void HJBaseDemuxer::done()
 {
-    HJFLogi("entry, url:{}", m_mediaUrl ? m_mediaUrl->getUrl() : "");
+    HJFLogi("{}, entry, url:{}", getName(), m_mediaUrl ? m_mediaUrl->getUrl() : "");
     HJBaseDemuxer::reset();
     m_runState = HJRun_Done;
 }

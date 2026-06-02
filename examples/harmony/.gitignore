@@ -1,6 +1,7 @@
 .vscode/
 .idea/
 .hvigor/
+.appanalyzer/
 entry/.cxx/
 entry/.preview/
 oh_modules/

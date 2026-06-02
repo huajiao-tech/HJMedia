@@ -21,7 +21,13 @@ namespace ffmpeg {  //AVMediaType conflict
     #include "miniaudio.h"
 #endif
 
+
 NS_HJ_BEGIN
+
+ma_context* HJARenderMini::s_sharedContext = nullptr;
+std::mutex HJARenderMini::s_contextMutex;
+int HJARenderMini::s_contextRefCount = 0;
+
 //***********************************************************************************//
 HJARenderMini::HJARenderMini()
 {
@@ -33,7 +39,10 @@ HJARenderMini::~HJARenderMini()
     stop();
 #if defined(HJ_HAVE_ARENDER_MINI)
     if (m_adev) {
-        ma_device_uninit(m_adev);
+        if (m_deviceInitialized) {
+            ma_device_uninit(m_adev);
+            m_deviceInitialized = false;
+        }
         free(m_adev);
         m_adev = NULL;
     }
@@ -41,10 +50,19 @@ HJARenderMini::~HJARenderMini()
         free(m_adevCfg);
         m_adevCfg = NULL;
     }
-    if (m_actx) {
-        ma_context_uninit(m_actx);
-        free(m_actx);
-        m_actx = NULL;
+    if (m_contextRetained) {
+        std::lock_guard<std::mutex> lock(s_contextMutex);
+        if (s_contextRefCount > 0) {
+            --s_contextRefCount;
+        } else {
+            HJLogw("warning, shared audio context refcount is invalid");
+        }
+        if (0 == s_contextRefCount && s_sharedContext) {
+            ma_context_uninit(s_sharedContext);
+            free(s_sharedContext);
+            s_sharedContext = nullptr;
+        }
+        m_contextRetained = false;
     }
 #endif
     m_converter = nullptr;
@@ -65,6 +83,23 @@ int HJARenderMini::init(const HJAudioInfo::Ptr& info, HJARenderBase::ARCallback 
     m_outInfo = std::dynamic_pointer_cast<HJAudioInfo>(info->dup());
     //m_outInfo->m_sampleFmt = info->m_sampleFmt;
 #if defined(HJ_HAVE_ARENDER_MINI)
+    auto releaseSharedContext = [this]() {
+        std::lock_guard<std::mutex> lock(s_contextMutex);
+        if (!m_contextRetained) {
+            return;
+        }
+        if (s_contextRefCount > 0) {
+            --s_contextRefCount;
+        } else {
+            HJLogw("warning, shared audio context refcount is invalid");
+        }
+        if (0 == s_contextRefCount && s_sharedContext) {
+            ma_context_uninit(s_sharedContext);
+            free(s_sharedContext);
+            s_sharedContext = nullptr;
+        }
+        m_contextRetained = false;
+    };
     m_adevCfg = (ma_device_config *)malloc(sizeof(*m_adevCfg));
     if (!m_adevCfg) {
         HJLoge("error, alloc ma device config failed");
@@ -123,22 +158,32 @@ int HJARenderMini::init(const HJAudioInfo::Ptr& info, HJARenderBase::ARCallback 
     m_outInfo->m_bytesPerSample = av_samples_get_buffer_size(NULL, m_outInfo->m_channels, 1, (enum AVSampleFormat)m_outInfo->m_sampleFmt, 1);
 #endif
     //
-    m_actx = (ma_context*)malloc(sizeof(ma_context));
-    if (!m_actx) {
-        return HJErrNewObj;
+    {
+        std::lock_guard<std::mutex> lock(s_contextMutex);
+        if (!s_sharedContext) {
+            s_sharedContext = (ma_context*)malloc(sizeof(ma_context));
+            if (!s_sharedContext) {
+                return HJErrNewObj;
+            }
+            if (ma_context_init(NULL, 0, NULL, s_sharedContext) != MA_SUCCESS) {
+                free(s_sharedContext);
+                s_sharedContext = nullptr;
+                HJLoge("error, ma context init failed");
+                return HJErrAContext;
+            }
+        }
+        s_contextRefCount++;
+        m_contextRetained = true;
     }
-    if (ma_context_init(NULL, 0, NULL, m_actx) != MA_SUCCESS) {
-        res = HJErrAContext;
-        HJLoge("error, ma context init failed");
-        return res;
-    }
+
     ma_device_info* pPlaybackInfos;
     ma_uint32 playbackCount;
     ma_device_info* pCaptureInfos;
     ma_uint32 captureCount;
-    if (ma_context_get_devices(m_actx, &pPlaybackInfos, &playbackCount, &pCaptureInfos, &captureCount) != MA_SUCCESS) {
+    if (ma_context_get_devices(s_sharedContext, &pPlaybackInfos, &playbackCount, &pCaptureInfos, &captureCount) != MA_SUCCESS) {
         res = HJErrAContext;
         HJLoge("error, ma context get device failed");
+        releaseSharedContext();
         return res;
     }
     for (ma_uint32 iDevice = 0; iDevice < playbackCount; iDevice += 1) {
@@ -155,12 +200,17 @@ int HJARenderMini::init(const HJAudioInfo::Ptr& info, HJARenderBase::ARCallback 
 
     m_adev = (ma_device*)malloc(sizeof(*m_adev));
     if (!m_adev) {
+        releaseSharedContext();
         return HJErrNewObj;
     }
-    if (ma_device_init(m_actx, m_adevCfg, m_adev) != MA_SUCCESS) {
+    if (ma_device_init(s_sharedContext, m_adevCfg, m_adev) != MA_SUCCESS) {
         HJLoge("error, Failed to open playback device");
+        free(m_adev);
+        m_adev = NULL;
+        releaseSharedContext();
         return HJErrCreateADevice;
     }
+    m_deviceInitialized = true;
     //m_fifo = std::make_shared<HJPCMFifo>(m_outInfo->m_sampleFmt, m_outInfo->m_channels);
 #endif
     //m_frameStors = std::make_shared<HJMediaStorage>(HJ_DEFAULT_STORAGE_CAPACITY);
@@ -176,6 +226,7 @@ int HJARenderMini::init(const HJAudioInfo::Ptr& info, HJARenderBase::ARCallback 
 
 void HJARenderMini::outAudioCallback(ma_device* dev, void* output, const void* input, unsigned int cnt)
 {
+    (void)input;
     if (!dev || !output || cnt <= 0) {
         return;
     }
@@ -183,33 +234,62 @@ void HJARenderMini::outAudioCallback(ma_device* dev, void* output, const void* i
     HJARenderMini* render = (HJARenderMini*)dev->pUserData;
     if (render)
     {
-        HJ_AUTO_LOCK(render->m_mutex);
-        if (!render->m_fifoProcessor) {
+        HJAFifoProcessor::Ptr fifo_processor = nullptr;
+        HJARenderBase::ARCallback callback = nullptr;
+        {
+            HJ_AUTO_LOCK(render->m_mutex);
+            fifo_processor = render->m_fifoProcessor;
+            callback = render->m_callback;
+        }
+        if (!fifo_processor) {
+            ma_silence_pcm_frames(output, cnt, dev->playback.format, dev->playback.channels);
             return;
         }
         //
         //HJLogi("entry, callback cnt:" + HJ2STR(cnt));
-        HJMediaFrame::Ptr mavf = render->m_fifoProcessor->getFrame(); //render->m_frameStors->pop();
+        HJMediaFrame::Ptr mavf = fifo_processor->getFrame(cnt); //render->m_frameStors->pop();
         if (mavf && mavf->getAVFrame())
         {
             //HJLogi("202407221140 entry, callback need audio samples cnt:" + HJ2STR(cnt) + ", mavf info:" + mavf->formatInfo());
-            if (render->m_callback) {
-                render->m_callback(mavf);
+            if (callback) {
+                callback(mavf);
             }
 #if defined(HJ_OS_DARWIN)
             ffmpeg::AVFrame* avf = (ffmpeg::AVFrame *)mavf->getAVFrame();
 #else
             AVFrame* avf = (AVFrame*)mavf->getAVFrame();
 #endif
-            if (avf) {
-                memcpy(output, avf->data[0], avf->linesize[0]);
-                // render->m_waveWriter->write(avf->data[0], avf->linesize[0]);
+            if (avf && avf->data[0]) {
+                int frameSamples = avf->nb_samples;
+                int copySamples = (std::min)((unsigned int)frameSamples, cnt);
+#if defined(HJ_OS_DARWIN)
+                const ffmpeg::AVSampleFormat sample_fmt =
+                    static_cast<ffmpeg::AVSampleFormat>(avf->format);
+#else
+                const AVSampleFormat sample_fmt =
+                    static_cast<AVSampleFormat>(avf->format);
+#endif
+                int copyBytes = av_samples_get_buffer_size(
+                    NULL, avf->ch_layout.nb_channels, copySamples, sample_fmt, 1);
+                if (copyBytes <= 0) {
+                    ma_silence_pcm_frames(output, cnt, dev->playback.format, dev->playback.channels);
+                    return;
+                }
+                memcpy(output, avf->data[0], copyBytes);
+
+                if (copySamples < (int)cnt) {
+                    ma_silence_pcm_frames((uint8_t*)output + copyBytes, cnt - copySamples, dev->playback.format, dev->playback.channels);
+                    HJLogw("callback samples underfill, need:" + HJ2STR(cnt) + ", got:" + HJ2STR(copySamples));
+                }
+            }
+            else {
+                ma_silence_pcm_frames(output, cnt, dev->playback.format, dev->playback.channels);
             }
         }
         else {
             ma_silence_pcm_frames(output, cnt, dev->playback.format, dev->playback.channels);
             //memset(output, 0, (size_t)(cnt * render->m_outInfo->m_bytesPerSample));
-            HJLogw("202407221140 warning, set audio kernel silence data 0, need samples cnt:" + HJ2STR(cnt));
+            //HJLogw("202407221140 warning, set audio kernel silence data 0, need samples cnt:" + HJ2STR(cnt));
         }
     }
 #endif
@@ -230,7 +310,8 @@ int HJARenderMini::start()
 #if defined(HJ_HAVE_ARENDER_MINI)
     ma_result ret = ma_device_start(m_adev);
     if (MA_SUCCESS != ret) {
-        HJFLoge("error, ma device start failed, ret:{}", ret);
+        HJFLoge("error, ma device start failed, ret:{}, msg:{}", static_cast<int>(ret),
+                ma_result_description(ret));
         res = HJErrFatal;
     }
 #endif
@@ -249,15 +330,19 @@ int HJARenderMini::pause()
     if (HJ_OK != res) {
         return res;
     }
-    m_runState = HJRun_Start;
 #if defined(HJ_HAVE_ARENDER_MINI)
     ma_result ret = ma_device_stop(m_adev);
     if (MA_SUCCESS != ret) {
-        HJFLoge("error, ma device stop failed, ret:{}", ret);
+        HJFLoge("error, ma device stop failed, ret:{}, msg:{}", static_cast<int>(ret),
+                ma_result_description(ret));
         res = HJErrFatal;
+    } else {
+        m_runState = HJRun_Pause;
     }
+#else
+    m_runState = HJRun_Pause;
 #endif
-    return HJ_OK;
+    return res;
 }
 
 //int HJARenderMini::resume()
@@ -289,7 +374,8 @@ int HJARenderMini::reset()
     //
     ma_result ret = ma_device_start(m_adev);
     if (MA_SUCCESS != ret) {
-        HJFLoge("error, ma device start failed, ret:{}", ret);
+        HJFLoge("error, ma device start failed, ret:{}, msg:{}", static_cast<int>(ret),
+                ma_result_description(ret));
         res = HJErrFatal;
     }
 #endif
@@ -309,12 +395,16 @@ int HJARenderMini::stop()
 #if defined(HJ_HAVE_ARENDER_MINI)
     ma_result ret = ma_device_stop(m_adev);
     if (MA_SUCCESS != ret) {
-        HJFLoge("error, ma device stop failed, ret:{}", ret);
+        HJFLoge("error, ma device stop failed, ret:{}, msg:{}", static_cast<int>(ret),
+                ma_result_description(ret));
         res = HJErrFatal;
+    } else {
+        m_runState = HJRun_Stop;
     }
-#endif
+#else
     m_runState = HJRun_Stop;
-    return HJ_OK;
+#endif
+    return res;
 }
 
 int HJARenderMini::write(const HJMediaFrame::Ptr rawFrame)
@@ -322,32 +412,49 @@ int HJARenderMini::write(const HJMediaFrame::Ptr rawFrame)
     if (!m_adev) {
         return HJErrNotAlready;
     }
+    if (!rawFrame) {
+        return HJErrInvalidParams;
+    }
     //HJLogi("entry");
 
     int res = HJ_OK;
-    HJ_AUTO_LOCK(m_mutex);
+    HJMediaFrame::Ptr mavf = rawFrame;
+    HJAudioConverter::Ptr converter = nullptr;
     do
     {
-        if (m_fifoProcessor && m_fifoProcessor->getSize() >= HJ_DEFAULT_STORAGE_CAPACITY * m_fifoProcessor->getSpeed()) {
-            return HJ_WOULD_BLOCK;
+        const HJAudioInfo::Ptr audioInfo = mavf->getAudioInfo();
+        if (!audioInfo || !m_outInfo) {
+            return HJErrInvalidParams;
         }
-        HJMediaFrame::Ptr mavf = rawFrame;
+
+        {
+            HJ_AUTO_LOCK(m_mutex);
+            if (m_fifoProcessor && m_fifoProcessor->getSize() >= HJ_DEFAULT_STORAGE_CAPACITY * m_fifoProcessor->getSpeed()) {
+                return HJ_WOULD_BLOCK;
+            }
+
+            if (!m_converter && (*m_outInfo != *audioInfo)) {
+                m_converter = std::make_shared<HJAudioConverter>(m_outInfo);
+                if (!m_converter) {
+                    res = HJErrNewObj;
+                    break;
+                }
+            }
+            converter = m_converter;
+        }
+
+        // 转换过程不持有成员锁，减小回调阻塞概率
+        if (converter) {
+            mavf = converter->convert(std::move(mavf));
+        }
+
+        HJ_AUTO_LOCK(m_mutex);
+
         HJNipInterval::Ptr nip = m_nipMuster->getInNip();
         if (mavf && nip && nip->valid()) {
             HJFLogi("entry, frame info:{}, frame storage:{}", mavf->formatInfo(), m_fifoProcessor ? m_fifoProcessor->getSize() : 0);
         }
-        const HJAudioInfo::Ptr audioInfo = mavf->getAudioInfo();
-        //
-        if (!m_converter && (*m_outInfo != *audioInfo)) {
-            m_converter = std::make_shared<HJAudioConverter>(m_outInfo);
-            if (!m_converter) {
-                res = HJErrNewObj;
-                break;
-            }
-        } 
-        if (m_converter) {
-            mavf = m_converter->convert(std::move(mavf));
-        }
+
         if (!m_fifoProcessor) {
             m_fifoProcessor = std::make_shared<HJAFifoProcessor>(m_outInfo->m_samplesPerFrame);
             m_fifoProcessor->setSpeed(m_speed);
@@ -428,9 +535,13 @@ void HJARenderMini::setVolume(const float volume)
 {
     HJARenderBase::setVolume(volume);
 #if defined(HJ_HAVE_ARENDER_MINI)
+    if (!m_adev) {
+        return;
+    }
     ma_result ret = ma_device_set_master_volume(m_adev, m_volume);
     if (MA_SUCCESS != ret) {
-        HJFLoge("error, ma device set volume failed, ret:{}", ret);
+        HJFLoge("error, ma device set volume failed, ret:{}, msg:{}", static_cast<int>(ret),
+                ma_result_description(ret));
     }
 #endif
     return;

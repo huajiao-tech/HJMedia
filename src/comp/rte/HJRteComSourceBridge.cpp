@@ -1,20 +1,35 @@
-#include "HJRteComSourceBridge.h"
+#include "HJRteComSource.h"
 #include "HJFLog.h"
+#include "HJRteGraphBaseEGL.h"
+#include "HJOGEGLSurface.h"
+
 #if defined(HarmonyOS)
 #include "HJOGRenderWindowBridge.h"
-#include "HJOGEGLSurface.h"
 #endif
 
 NS_HJ_BEGIN
+
+///////////////////////////////////////////////////
+void HJRteComSource::done()
+{
+    if (m_dynamicFbo)
+    {
+        HJRteGraphBaseEGL::getFBOCtrlPool()->recovery(m_dynamicFbo);
+        m_dynamicFbo = nullptr;
+    }
+    HJRteCom::done();
+}
+//////////////////////////////////////////////////
 
 HJRteComSourceBridge::HJRteComSourceBridge()
 {
     HJ_SetInsName(HJRteComSourceBridge);
     HJRteCom::setPriority(HJRteComPriority_VideoSource);
+    m_textureType = HJRteTextureType_OES;
 }
 HJRteComSourceBridge::~HJRteComSourceBridge()
 {
-    HJFLogi("~HJRteComSourceBridge");
+    HJFLogi("{} ~HJRteComSourceBridge", getDebugName());
 }
 #if defined(HarmonyOS)
 HJOGRenderWindowBridge::Ptr HJRteComSourceBridge::renderWindowBridgeAcquire()
@@ -25,7 +40,7 @@ HJOGRenderWindowBridge::Ptr HJRteComSourceBridge::renderWindowBridgeAcquire()
         if (!m_bridge)
         {
             m_bridge = HJOGRenderWindowBridge::Create();
-            m_bridge->setInsName(m_insName + "_bridge");
+            m_bridge->setInsName(m_insName + "_bridge_" + std::to_string(getDebugIdx()));
             HJFLogi("{} renderThread renderWindowBridgeAcquire enter", m_insName);
             i_err = m_bridge->init();
             if (i_err < 0)
@@ -44,7 +59,7 @@ std::shared_ptr<HJOGRenderWindowBridge> HJRteComSourceBridge::renderWindowBridge
         if (!m_softBridge)
         {
             m_softBridge = HJOGRenderWindowBridge::Create();
-            m_softBridge->setInsName(m_insName + "_bridge_soft");
+            m_softBridge->setInsName(m_insName + "_bridge_soft_" + std::to_string(getDebugIdx()));
             HJFLogi("{} softbridge renderWindowBridgeAcquireSoft enter", m_insName);
             i_err = m_softBridge->init();
             if (i_err < 0)
@@ -160,31 +175,6 @@ int HJRteComSourceBridge::priRender(const HJBaseParam::Ptr& i_param, const std::
         {
             break;
         }
-        //            HJOGEGLSurface::Ptr surface = nullptr;
-//            HJ_CatchMapGetVal(i_param, HJOGEGLSurface::Ptr, surface);
-//            if (!surface)
-//            {
-//                i_err = -1;
-//                break;
-//            }
-
-//            if (renderModeIsContain(surface->getSurfaceType()))
-//            {
-//                std::vector<HJTransferRenderModeInfo::Ptr>& renderModes = renderModeGet(surface->getSurfaceType());
-//                for (auto it = renderModes.begin(); it != renderModes.end(); it++)
-//                {
-//                    i_err = i_bridge->draw(*it, surface->getTargetWidth(), surface->getTargetHeight());
-//                    if (i_err < 0)
-//                    {
-//                        break;
-//                    }
-//                }
-//                if (i_err < 0)
-//                {
-//                    break;
-//                }
-//                stat();
-//            }
 #endif        
     } while (false);
     return i_err;
@@ -285,6 +275,7 @@ bool HJRteComSourceBridge::IsStateAvaiable()
     } while (false);
     return bAvaiable;    
 }
+
 bool HJRteComSourceBridge::IsStateReady()
 {
     bool bReady = false;
@@ -308,47 +299,29 @@ bool HJRteComSourceBridge::IsStateReady()
 }
 int HJRteComSourceBridge::getWidth()
 {
-    int width = 0;
     do {
 #if defined(HarmonyOS)    
         const std::shared_ptr<HJOGRenderWindowBridge>& bridge = getBridge();
         if (bridge)
         {
-            width = bridge->width();
+            m_width = bridge->width();
         }
 #endif
     } while (false);
-    return width;
+    return m_width;
 }
 int HJRteComSourceBridge::getHeight()
 {
-    int height = 0;
     do {
 #if defined(HarmonyOS)  
         const std::shared_ptr<HJOGRenderWindowBridge>& bridge = getBridge();
         if (bridge)
         {
-            height = bridge->height();
+            m_height = bridge->height();
         }
 #endif
     } while (false);
-    return height;    
-}
-
-bool HJRteComSourceBridge::isUpdateResolution()
-{
-    bool bUpdate = false;
-    do 
-    {
-        if ((getWidth() != m_width) || (getHeight() != m_height))
-        {
-            m_width = getWidth();
-            m_height = getHeight();
-            bUpdate = (m_width > 0) && (m_height > 0);
-            HJFLogi("{} update resolution {}x{} bUpdate:{}", getInsName(), m_width, m_height, bUpdate);
-        }
-    } while (false);
-    return bUpdate;
+    return m_height;
 }
 
 float * HJRteComSourceBridge::getTexMatrix()
@@ -412,4 +385,33 @@ HJRteComSourceBridge::Ptr HJRteComSourceBridge::CreateFactory()
     return HJRteComSourceBridge::Create();
 }
 
+
+////////////////////////////////////////////////////////////
+HJRteComSourceSplitScreen::HJRteComSourceSplitScreen()
+{
+    HJ_SetInsName(HJRteComSourceSplitScreen);
+    HJRteCom::setPriority(HJRteComPriority_VideoSource);
+    m_textureType = HJRteTextureType_OES;
+}
+HJRteComSourceSplitScreen::~HJRteComSourceSplitScreen()
+{
+
+}
+
+int HJRteComSourceSplitScreen::getWidth() 
+{
+    return HJRteComSourceBridge::getWidth() / 2;
+}
+
+////////////////////////////////////////////////
+HJRteComSourceSplitScreenMediaData::HJRteComSourceSplitScreenMediaData()
+{
+	HJ_SetInsName(HJRteComSourceSplitScreenMediaData);
+	HJRteCom::setPriority(HJRteComPriority_VideoSource);
+	m_textureType = HJRteTextureType_2D;
+}
+int HJRteComSourceSplitScreenMediaData::getWidth()
+{
+    return HJRteComSourceBridgeMediaData::getWidth() / 2;
+}
 NS_HJ_END

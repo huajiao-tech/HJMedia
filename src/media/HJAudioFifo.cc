@@ -61,6 +61,8 @@ int HJAudioFifo::addFrame(HJMediaFrame::Ptr&& frame)
     {
         AVFrame* avf = (AVFrame*)frame->getAVFrame();
         if (!avf) {
+            res = HJErrInvalidParams;
+            HJLoge("error, get avframe failed");
             break;
         }
         //HJLogi("audio fifo add AVFrame pts:" + HJ2STR(frame->m_pts) + ", dts:" + HJ2STR(frame->m_dts) + ", time base:" + HJ2STR(frame->m_timeBase.num) + "/" + HJ2STR(frame->m_timeBase.den)
@@ -282,8 +284,18 @@ int HJAFifoProcessor::init(const HJAudioInfo::Ptr& info)
     int res = HJ_OK;
     do
     {
+        if (!info) {
+            HJLoge("error, input audio info is null");
+            res = HJErrInvalidParams;
+            break;
+        }
         m_info = std::dynamic_pointer_cast<HJAudioInfo>(info->dup());
-        m_fifo = std::make_shared<HJPCMFifo>(m_info->m_sampleFmt, m_info->m_channels);
+        if (!m_info) {
+            HJLoge("error, dup audio info failed");
+            res = HJErrNewObj;
+            break;
+        }
+        m_fifo = std::make_shared<HJPCMFifo>(m_info->m_channels, m_info->m_sampleFmt);
         if (!m_fifo) {
             HJLoge("error, create audio fifo failed");
             res = HJErrNewObj;
@@ -314,8 +326,14 @@ int HJAFifoProcessor::addFrame(const HJMediaFrame::Ptr& frame)
             break;
         }
         const auto ainfo = frame->getAudioInfo();
+        if (!ainfo || !m_info) {
+            HJLoge("error, input audio info invalid");
+            res = HJErrInvalidParams;
+            break;
+        }
         if (*ainfo != *m_info) {
             HJLoge("error, input audio frame format unsupport");
+            res = HJErrInvalidParams;
             break;
         }
         HJMediaFrame::Ptr mavf = frame;

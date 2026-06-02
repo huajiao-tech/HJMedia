@@ -16,25 +16,33 @@
 import XComponentContext from '../interface/XComponentContext';
 import { CommonConstant as Common }  from '../common/CommonConstant';
 import { cameraService } from '../camera/service/CameraService';
-import HJPlayer from 'libHJPlayer.so';
+import HJPlayer from 'libHJMediaPlayer.so';
 import { abilityAccessCtrl } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import window from '@ohos.window';
 import common from '@ohos.app.ability.common';
 import image from '@ohos.multimedia.image';
 import { faceDetector } from '@kit.CoreVisionKit';
+import { HJRteGraphConfig } from 'hjplayer/src/main/ets/native/HJRteGraphSetupInfo';
 //import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from 'hjmediautils'
-import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from '../../../../../hjpusher/src/main/ets/HJFaceDetectMgr'
+import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from '../../../../../hjmediautils/src/main/ets/HJFaceDetectMgr'
 @Component
 export struct PlayerView {
   @State currentStatus: ResourceStr = '';
   @State currentIndex: number = 0;
   @State isClick: boolean = true;
+  @State isTryRandomRunning: boolean = false;
 
   @State xComponentWidth: Resource = $r('app.float.xcomponent_width');
   @State xComponentHeight: Resource = $r('app.float.xcomponent_height');
 
   private m_idx: number = 0;
+  private tryRandomMinDelayMs: number = 500;
+  private tryRandomMaxDelayMs: number = 1000;
+  private tryRandomTimer: number = -1;
+  private tryRandomNextOpen: boolean = true;
+  private tryRandomCount: number = 0;
+  private tryRandomRestartIndex: number = 0;
 
 
 
@@ -62,9 +70,85 @@ export struct PlayerView {
     this.isScreenOn = await windowClass.getWindowProperties().isKeepScreenOn
   }
 
+  aboutToDisappear(): void {
+    this.stopTryRandom(false);
+  }
+
   private m_faceDetectRet : number = HJFaceDetectMgrRet.ok;
   private m_bFaceOpen:boolean = false;
   private m_faceDetectMgr : HJFaceDetectMgr = new HJFaceDetectMgr();
+
+  private getTryRandomDelayMs(): number {
+    const minDelayMs: number = Math.max(0, Math.round(this.tryRandomMinDelayMs));
+    const maxDelayMs: number = Math.max(minDelayMs, Math.round(this.tryRandomMaxDelayMs));
+    return minDelayMs + Math.floor(Math.random() * (maxDelayMs - minDelayMs + 1));
+  }
+
+  private runTryRandomAction(): void {
+    const nextAction: string = this.tryRandomNextOpen ? 'open' : 'close';
+    if (this.tryRandomNextOpen) {
+      this.tryRandomRestartIndex++;
+      console.log(`[PlayerView] tryRandom restartIndex=${this.tryRandomRestartIndex} action=open`);
+      HJPlayer.tryOpen();
+    } else {
+      console.log(`[PlayerView] tryRandom restartIndex=${this.tryRandomRestartIndex} action=close`);
+      HJPlayer.tryClose();
+    }
+    this.tryRandomCount++;
+    this.currentStatus = `tryRandom #${this.tryRandomCount} restart=${this.tryRandomRestartIndex} ${nextAction}`;
+    this.tryRandomNextOpen = !this.tryRandomNextOpen;
+  }
+
+  private scheduleTryRandom(): void {
+    if (!this.isTryRandomRunning) {
+      return;
+    }
+    const delayMs: number = this.getTryRandomDelayMs();
+    const nextAction: string = this.tryRandomNextOpen ? 'open' : 'close';
+    this.currentStatus = `tryRandom wait ${delayMs}ms next=${nextAction}`;
+    this.tryRandomTimer = setTimeout(() => {
+      this.tryRandomTimer = -1;
+      if (!this.isTryRandomRunning) {
+        return;
+      }
+      this.runTryRandomAction();
+      this.scheduleTryRandom();
+    }, delayMs) as number;
+  }
+
+  private startTryRandom(): void {
+    if (this.isTryRandomRunning) {
+      return;
+    }
+    this.stopTryRandom(false);
+    HJPlayer.tryClose();
+    this.tryRandomCount = 0;
+    this.tryRandomRestartIndex = 0;
+    this.tryRandomNextOpen = true;
+    this.isTryRandomRunning = true;
+    this.currentStatus = 'tryRandom started';
+    this.scheduleTryRandom();
+  }
+
+  private stopTryRandom(updateStatus: boolean = true): void {
+    if (this.tryRandomTimer >= 0) {
+      clearTimeout(this.tryRandomTimer);
+      this.tryRandomTimer = -1;
+    }
+    const hasStopped: boolean = this.isTryRandomRunning;
+    this.isTryRandomRunning = false;
+    if (updateStatus && hasStopped) {
+      this.currentStatus = `tryRandom stopped count=${this.tryRandomCount}`;
+    }
+  }
+
+  private toggleTryRandom(): void {
+    if (this.isTryRandomRunning) {
+      this.stopTryRandom(true);
+      return;
+    }
+    this.startTryRandom();
+  }
 
   build()
   {
@@ -184,7 +268,7 @@ export struct PlayerView {
                 {
                   this.m_faceDetectMgr.registerFaceInfoCb((width:number, height:number, faceInfo:string)=>
                   {
-                    HJPlayer.trySetFacePoints(width, height, faceInfo);
+                    HJPlayer.trySetFacePoints(HJRteGraphConfig.HJNodeClass_SourceBridge, width, height, faceInfo);
                   });
                   this.m_faceDetectMgr.registerNativeSourceOpenCb(() =>
                   {
@@ -254,6 +338,24 @@ export struct PlayerView {
               .fontWeight(Common.FONT_WEIGHT_500)
               .onClick(() => {
                 HJPlayer.tryClose();
+              })
+              .width(Common.BUTTON_WIDTH_EX)
+              .height($r('app.float.button_height'))
+              .margin({
+                bottom:$r('app.float.button_margin_bottom')
+              })
+              .backgroundColor(this.isClick ? $r('app.color.button_clickable') : $r('app.color.button_unclickable'))
+              .stateEffect(this.isClick)
+          }
+          .alignItems(VerticalAlign.Bottom)
+          .layoutWeight(1)
+
+          Row() {
+            Button($r('app.string.tryPlayerRandom'))
+              .fontSize($r('app.float.button_font_size'))
+              .fontWeight(Common.FONT_WEIGHT_500)
+              .onClick(() => {
+                this.toggleTryRandom();
               })
               .width(Common.BUTTON_WIDTH_EX)
               .height($r('app.float.button_height'))

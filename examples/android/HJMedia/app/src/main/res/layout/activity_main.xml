@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="2dp"
+        android:paddingBottom="32dp">
+
+        <Button
+            android:id="@+id/btnSRFaceAcitivity"
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:text="@string/sr_face_activity"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btnFaceuActivity"
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="1dp"
+            android:text="@string/faceu_activity"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btnSRActivity"
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="1dp"
+            android:text="@string/sr_activity"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btnMusicPlayerActivity"
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="1dp"
+            android:text="@string/music_player_activity"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btnAudioMixerActivity"
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="1dp"
+            android:text="@string/audio_mixer_activity"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btnAudioCompositeActivity"
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="1dp"
+            android:text="@string/audio_composite_activity"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+
+</ScrollView>

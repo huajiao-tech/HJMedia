@@ -32,5 +32,5 @@
 //period log
 //#define HJFPERLogi(msg, ...) HJPERIOD_RUN2([&](){HJFLogi(msg, ##__VA_ARGS__);})
 #define HJFPERLogi(msg, ...) HJPER2Logi(HJFMT(msg, ##__VA_ARGS__))
-
+#define HJFPERLog5i(msg, ...) HJPER5Logi(HJFMT(msg, ##__VA_ARGS__))
 #define HJFPERNLogi(msg, ...) HJFPERLogi(getFMTName() + msg, ##__VA_ARGS__)

@@ -45,6 +45,14 @@
       "value": "300vp"
     },
     {
+      "name": "xcomponent_width4",
+      "value": "300vp"
+    },
+    {
+      "name": "xcomponent_height4",
+      "value": "400vp"
+    },
+    {
       "name": "tab_bar_title_border_width",
       "value": "2vp"
     },

@@ -22,19 +22,60 @@ NS_HJ_BEGIN
 //***********************************************************************************//
 HJComplexDemuxer::HJComplexDemuxer()
 {
-    
+    setName(HJMakeGlobalName(HJ_TYPE_NAME(HJComplexDemuxer)));
 }
 
 HJComplexDemuxer::~HJComplexDemuxer()
 {
-    m_mediaUrls.clear();
+    done();
+}
+
+void HJComplexDemuxer::done()
+{
+    HJFLogi("entry");
+    HJBaseDemuxer::done();
+    //
+    for (const auto& source : m_sources) {
+        if (source) {
+            source->done();
+        }
+    }
     m_sources.clear();
+    m_mediaUrls.clear();
     m_curSource = nullptr;
+    m_segOffset = 0;
+    m_streamTotalIndex = 0;
+    HJFLogi("end");
+}
+
+int HJComplexDemuxer::init(const HJMediaUrl::Ptr& mediaUrl)
+{
+    if (!mediaUrl) {
+        return HJErrInvalidParams;
+    }
+    int res = HJBaseDemuxer::init(mediaUrl);
+    if (HJ_OK != res) {
+        HJLoge("init error:" + HJ2String(res));
+        return res;
+    }
+    m_mediaUrls.push_back(m_mediaUrl);
+    res = checkUrls();
+    if (HJ_OK != res) {
+        return res;
+    }
+
+    res = procMediaUrls();
+    if (HJ_OK != res) {
+        return res;
+    }
+	m_runState = HJRun_Ready;
+
+    return res;
 }
 
 int HJComplexDemuxer::init(const HJMediaUrlVector& mediaUrls)
 {
-    if (mediaUrls.size() <= 0) {
+    if (mediaUrls.empty()) {
         return HJErrInvalidParams;
     }
     int res = HJBaseDemuxer::init(mediaUrls);
@@ -43,27 +84,52 @@ int HJComplexDemuxer::init(const HJMediaUrlVector& mediaUrls)
         return res;
     }
     m_mediaUrls = mediaUrls;
-    checkUrls();
-    
-    HJLogi("entry, urls size:" + HJ2STR(m_mediaUrls.size()));
+    res = checkUrls();
+    if (HJ_OK != res) {
+        return res;
+    }
+
+    res = procMediaUrls();
+    if (HJ_OK != res) {
+        return res;
+    }
+    m_runState = HJRun_Ready;
+
+    return res;
+}
+
+int HJComplexDemuxer::procMediaUrls()
+{
+    if (m_mediaUrls.empty()) {
+        return HJErrInvalidParams;
+    }
+    int res = HJ_OK;
+
+    HJFLogi("entry, urls size:{}", m_mediaUrls.size());
     do {
         HJBaseDemuxer::Ptr preSource = nullptr;
         int64_t totalDuration = 0;
         for (const auto& murl : m_mediaUrls)
         {
-            auto source = std::make_shared<HJFFDemuxerEx>(murl);
+            auto source = std::make_shared<HJFFDemuxer>(murl);  //HJFFDemuxerEx
             source->setLowDelay(m_lowDelay);
-            source->setTimeOffsetEnable(true);
+            source->setTimeOffsetEnable(m_timeOffsetEnable);
+            source->setSeekKeyFrame(m_seekKeyFrame);
             //
             m_sources.emplace_back(source);
             //
-            if (!m_curSource) 
+            if (!m_curSource)
             {
                 m_curSource = source;
                 //
                 res = source->init();
                 if (HJ_OK != res) {
                     HJFLoge("error, url:{} source init failed:{}", murl->getUrl(), res);
+                    // 清理已添加的 sources
+                    for (auto& s : m_sources) {
+                        if (s) s->done();
+                    }
+                    m_sources.clear();
                     break;
                 }
                 auto& minf = m_curSource->getMediaInfo();
@@ -72,10 +138,17 @@ int HJComplexDemuxer::init(const HJMediaUrlVector& mediaUrls)
                     return HJErrInvalid;
                 }
                 m_mediaInfo = minf->dup();
-            } else if (murl->getDuration() <= 0) 
+            }
+            else if (murl->getDuration() <= 0)
             {
                 res = source->init();
                 if (HJ_OK != res) {
+                    HJFLoge("error, url:{} source init failed:{}", murl->getUrl(), res);
+                    // 清理已添加的 sources
+                    for (auto& s : m_sources) {
+                        if (s) s->done();
+                    }
+                    m_sources.clear();
                     break;
                 }
                 m_mediaInfo->addSubMInfo(source->getMediaInfo());
@@ -97,9 +170,11 @@ int HJComplexDemuxer::init(const HJMediaUrlVector& mediaUrls)
 int HJComplexDemuxer::seek(int64_t pos)
 {
     HJBaseDemuxer::seek(pos);
-    if (m_sources.size() <= 0 || !m_curSource) {
+    if (m_sources.empty() || !m_curSource) {
         return HJErrNotAlready;
     }
+    // Clamp pos to valid range
+    pos = HJ_CLIP(pos, 0, m_mediaInfo->getDuration() - 500);
     m_segOffset = 0;
 
     int res = HJ_OK;
@@ -107,7 +182,10 @@ int HJComplexDemuxer::seek(int64_t pos)
     int64_t totalDuration = 0;
     for (const auto& source : m_sources) 
     {
-        int64_t nextDuration = source->getDuration() * source->getLoopCnt();
+        int64_t sourceDuration = source->getDuration();
+        int loopCnt = source->getLoopCnt();
+        int64_t nextDuration = sourceDuration * loopCnt;
+        
         if (pos <= (totalDuration + nextDuration)) 
         {
             bestSource = source;
@@ -120,30 +198,59 @@ int HJComplexDemuxer::seek(int64_t pos)
             }
             //
             int64_t posOffset = pos - totalDuration;
-            int64_t seekPos = posOffset % source->getDuration();
-            int loopIdx = posOffset / source->getDuration();
+            int64_t seekPos = 0;
+            int loopIdx = 0;
+            
+            // 除零保护
+            if (sourceDuration > 0) {
+                seekPos = posOffset % sourceDuration;
+                loopIdx = static_cast<int>(posOffset / sourceDuration);
+            }
             //
-            m_segOffset += loopIdx * source->getDuration();
-            //HJFLogi("loop idx:{}, posOffset:{}, seekPos:{}, m_segOffset:{}, url:{}", loopIdx, posOffset, seekPos, m_segOffset, bestSource->getMediaUrl()->getUrl());
-            //if (bestSource->getMediaUrl()->getUrlHash() != m_curSource->getMediaUrl()->getUrlHash()) {
-            //    HJFLogi("best url：{}, cur url:{}", bestSource->getMediaUrl()->getUrl(), m_curSource->getMediaUrl()->getUrl());
-            //    bestSource->reset();
-            //    m_curSource->reset();
-            //    //notify
-            //}
+            m_segOffset += loopIdx * sourceDuration;
             bestSource->setLoopIdx(loopIdx + 1);
-            bestSource->seek(seekPos);
+            res = bestSource->seek(seekPos);
+            if (HJ_OK != res) {
+                HJFLoge("error, seek to {} failed:{}", seekPos, res);
+                break;
+            }
             //
             if (m_curSource != bestSource) {
-                //m_curSource->done();
                 m_curSource = bestSource;
+                m_streamTotalIndex++;
             }
             break;
         }
         totalDuration += nextDuration;
         m_segOffset += nextDuration;
     }
-    return HJ_OK;
+    
+    // 处理 pos 超出总时长的情况
+    if (!bestSource) {
+        HJFLogw("warning, seek pos:{} exceeds total duration:{}, seeking to end", pos, totalDuration);
+        if (!m_sources.empty()) {
+            bestSource = m_sources.back();
+            if (bestSource && bestSource->isReady()) {
+                int64_t duration = bestSource->getDuration();
+                if (duration > 0) {
+                    res = bestSource->seek(duration - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+int HJComplexDemuxer::switchAudioTrack(int trackID)
+{
+    if (!m_curSource) {
+        return HJErrNotAlready;
+    }
+    int res = m_curSource->switchAudioTrack(trackID);
+    if (res == HJ_OK && m_mediaInfo) {
+        m_mediaInfo->setSelectedAudioTrackID(trackID);
+    }
+    return res;
 }
 
 /**
@@ -155,7 +262,7 @@ int HJComplexDemuxer::seek(int64_t pos)
  */
 int HJComplexDemuxer::getFrame(HJMediaFrame::Ptr& frame)
 {
-    if (m_sources.size() <= 0 || !m_curSource) {
+    if (m_sources.empty() || !m_curSource) {
         return HJErrNotAlready;
     }
     //HJLogi("entry");
@@ -185,6 +292,7 @@ int HJComplexDemuxer::getFrame(HJMediaFrame::Ptr& frame)
                     //notify
                     m_curSource->done();
                     m_curSource = nextSource;
+                    m_streamTotalIndex++;
                 }
                 //
                 mvf = nullptr;
@@ -192,17 +300,21 @@ int HJComplexDemuxer::getFrame(HJMediaFrame::Ptr& frame)
                 if (res < HJ_OK || !mvf) {
                     return res;
                 }
+            } else {
+                HJFLogw("get next source null");
             }
         }
-        if (m_segOffset > 0 && mvf->isValidFrame()) 
+        if (m_timeOffsetEnable && m_segOffset > 0 && mvf->isValidFrame())
         {
             HJUtilTime offset = {m_segOffset};
             auto mts = mvf->getMTS() + offset;
             mvf->setMTS(mts);
             mvf->setPTSDTS(mts.getPTS().getValue(), mts.getDTS().getValue(), mts.getPTS().getTimeBase());
         }
+        mvf->m_streamIndex += m_streamTotalIndex;
+
         frame = std::move(mvf);
-        //HJLogi("name:" + getName() + ", " + frame->formatInfo() + ", duration:" + HJ2STR(frame->getDuration()));
+        HJFPERNLogi("{}, duration:{}", frame->formatInfo(), frame->getDuration());
     } while (false);
 
     return res;
@@ -212,10 +324,20 @@ void HJComplexDemuxer::reset()
 {
     HJBaseDemuxer::reset();
     m_segOffset = 0;
-    for (const auto& source : m_sources){
-        source->reset();
+    m_streamTotalIndex = 0;
+    
+    for (const auto& source : m_sources) {
+        if (source) {
+            source->reset();
+        }
     }
-    return;
+    
+    // 重置当前 source 到第一个
+    if (!m_sources.empty()) {
+        m_curSource = m_sources.front();
+    } else {
+        m_curSource = nullptr;
+    }
 }
 
 int64_t HJComplexDemuxer::getDuration()
@@ -244,32 +366,32 @@ HJBaseDemuxer::Ptr HJComplexDemuxer::getNextSource()
     return nextSource;
 }
 
-void HJComplexDemuxer::checkUrls()
+int HJComplexDemuxer::checkUrls()
 {
     int res = HJ_OK;
     HJMediaUrlVector mediaUrls;
     for (const auto& murl : m_mediaUrls) 
     {
         const auto& url = murl->getUrl();
-        if (HJUtilitys::containWith(url, ".m3u8"))
+        if(murl->isM3u8())
         {
             HJHLSParser::Ptr hlsParser = std::make_shared<HJHLSParser>();
             res = hlsParser->init(murl);
             if (HJ_OK != res) {
                 HJFLoge("error, hls parser url failed:{}", res);
-                break;
+                return res;
             }
             const auto& hlsMUrls = hlsParser->getHLSMediaUrls();
-            mediaUrls.insert(mediaUrls.end(), hlsMUrls.begin(), hlsMUrls.end());
-            //for (const auto & item : hlsMUrls) {
-            //    mediaUrls.emplace_back(item);
-            //}
+            for (size_t i = 0; i < murl->getLoopCnt(); i++) {
+                mediaUrls.insert(mediaUrls.end(), hlsMUrls.begin(), hlsMUrls.end());
+            }
         } else {
             mediaUrls.emplace_back(murl);
         }
     }
     m_mediaUrls.swap(mediaUrls);
-    return;
+
+    return res;
 }
 
 NS_HJ_END

@@ -6,6 +6,9 @@ static thread_local HJLooper::Ptr sThreadLocal{};
 
 void HJLooper::prepare()
 {
+	if (HJLooperThread::currentThread() < 0) {
+		throw std::runtime_error("Only on HJLooperThread can Looper be created");
+	}
 	if (sThreadLocal != nullptr) {
 		throw std::runtime_error("Only one Looper may be created per thread");
 	}
@@ -19,9 +22,13 @@ bool HJLooper::loopOnce(const Ptr me)
 		// No message indicates that the message queue is quitting.
 		return false;
 	}
+	auto target = msg->target.lock();
+	if (target == nullptr) {
+		return true;
+	}
 
 	try {
-		msg->target->dispatchMessage(msg);
+		target->dispatchMessage(msg);
 	}
 	catch (.../*Exception exception*/) {
 		throw/* exception*/;

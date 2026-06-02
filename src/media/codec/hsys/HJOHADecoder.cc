@@ -29,6 +29,8 @@ int HJOHADecoder::init(const HJStreamInfo::Ptr& info)
         HJFNLoge("base init error:{}", res);
         return res;
     }
+    m_inputBufferListener = info->getValue<HJRunnable>("onNeedInputBuffer");
+    m_outputBufferListener = info->getValue<HJRunnable>("onNewOutputBuffer");
 
     HJAudioInfo::Ptr audioInfo = std::dynamic_pointer_cast<HJAudioInfo>(m_info);
     AVCodecParameters* codecParam = audioInfo->getAVCodecParams();
@@ -49,16 +51,24 @@ int HJOHADecoder::init(const HJStreamInfo::Ptr& info)
         HJFNLoge("Failed to create OH audio decoder for mime: {}", mime);
         return HJErrNewObj;
     }
+    auto destroyDecoder = [this]() {
+        if (m_decoder) {
+            OH_AudioCodec_Destroy(m_decoder);
+            m_decoder = nullptr;
+        }
+    };
     audioInfo->m_sampleFmt = AV_SAMPLE_FMT_S16;
     int sampleFormatOH =  HJOHCodecUtils::mapAVSampleFormatToOH(audioInfo->m_sampleFmt);
     if (sampleFormatOH == INVALID_WIDTH) {
         HJFNLoge("Unsupported sample format: {}", audioInfo->m_sampleFmt);
+        destroyDecoder();
         return HJErrNotSupport;
     }
     int audioChannelLayout = 0;
     OH_AVFormat* format = OH_AVFormat_Create();
     if (!format) {
         HJFNLoge("error, Failed to create OH format");
+        destroyDecoder();
         return HJErrNewObj;
     }
     
@@ -112,6 +122,7 @@ int HJOHADecoder::init(const HJStreamInfo::Ptr& info)
     
     m_timeBase = {1, AV_TIME_BASE/*audioInfo->m_samplesRate*/};
     m_runState = HJRun_Ready;
+    m_decState = HJRun_Ready;
     HJFNLogi("init end");
 
     return HJ_OK;
@@ -123,14 +134,15 @@ int HJOHADecoder::getFrame(HJMediaFrame::Ptr& frame)
         return HJErrNotAlready;
     }
     int res = HJ_OK;
+    HJMediaFrame::Ptr mavf{nullptr};
     do
     {
-        if(HJRun_EOF == m_runState) {
+        if(HJRun_EOF == m_runState || HJRun_EOF == m_decState) {
             frame = HJMediaFrame::makeEofFrame(HJMEDIA_TYPE_AUDIO);
             res = HJ_EOF;
             break;
         }
-        auto mavf = m_userData->getOutputFrame();
+        mavf = m_userData->getOutputFrame();
         if(!mavf) {
             res = HJ_WOULD_BLOCK;
             break;
@@ -139,12 +151,13 @@ int HJOHADecoder::getFrame(HJMediaFrame::Ptr& frame)
             res = HJ_EOF;
             break;
         }
-        if(mavf) {
-            frame = std::move(mavf);
-            //
-            HJFPERNLogi(frame->formatInfo());
-        }
     } while (false);
+    
+    if(mavf) {
+        frame = std::move(mavf);
+        //
+        HJFPERNLogi(frame->formatInfo());
+    }
     
     return res;
 }
@@ -192,6 +205,7 @@ int HJOHADecoder::run(const HJMediaFrame::Ptr frame)
             inBuffer->setBufferAttr(pkt->data, pkt->size, mvf->getPTSUS());
         } else {
             HJFNLogi("run eof frame");
+            m_decState = HJRun_EOF;
             inBuffer->setBufferAttr(nullptr, 0, 0, AVCODEC_BUFFER_FLAGS_EOS);
         }
         if (mvf) {
@@ -206,7 +220,7 @@ int HJOHADecoder::run(const HJMediaFrame::Ptr frame)
     } while (false);
     // HJFNLogi("end");
 
-    return HJ_OK;
+    return res;
 }
 
 int HJOHADecoder::flush() {
@@ -217,6 +231,7 @@ int HJOHADecoder::flush() {
         m_userData->clear();
     }
     m_runState = HJRun_Ready;
+    m_decState = HJRun_Ready;
 
     return HJ_OK;
 }
@@ -263,6 +278,7 @@ void HJOHADecoder::done() {
         m_decoder = nullptr;
     }
     m_runState = HJRun_Done;
+    m_decState = HJRun_Done;
 }
 
 
@@ -316,6 +332,9 @@ void HJOHADecoder::OnNeedInputBuffer(OH_AVCodec *codec, uint32_t index, OH_AVBuf
     obj->setName(self->getName());
     ctx->setInputBuffer(obj);
 
+    if (self->m_inputBufferListener) {
+        self->m_inputBufferListener();
+    }
     // HJFLogi("OHADecoder input Buffer Callback end");
     return;
 }
@@ -343,6 +362,9 @@ void HJOHADecoder::OnNewOutputBuffer(OH_AVCodec *codec, uint32_t index, OH_AVBuf
         if(mavf) {
             ctx->setOutputFrames(mavf);
             // HJFLogi("media frame:{}", mavf->formatInfo());
+        }
+        if (self->m_outputBufferListener) {
+            self->m_outputBufferListener();
         }
     } while (false);
     OH_AudioCodec_FreeOutputBuffer(codec, index);

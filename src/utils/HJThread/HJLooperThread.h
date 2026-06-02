@@ -16,13 +16,14 @@ public:
 		using Wtr = std::weak_ptr<Handler>;
 
 		Handler(HJLooper::Ptr looper)
-			: HJHandler(looper) {}
+			: HJHandler(looper) { }
 		virtual ~Handler();
 
 		bool async(HJRunnable task, int id = 0, uint64_t delayMillis = 0);
 		bool asyncAndClear(HJRunnable task, int id = 1, uint64_t delayMillis = 0);
 		int sync(Run task);
 		bool runOrAsync(HJRunnable task, int id = 0);
+		int runOrSync(Run task);
 		int genMsgId() {
 			return m_lastMsgId.fetch_add(1);
 		}
@@ -51,22 +52,21 @@ public:
 	static Ptr quickStart(const std::string& name, size_t identify = -1);
 
 	HJLooperThread(const std::string& name = "HJLooperThread", size_t identify = -1)
-		: HJSyncObject(name, identify) {}
-	virtual ~HJLooperThread() {
-		HJLooperThread::done();
-	}
-
+		: HJSyncObject(name, identify) { }
+	virtual ~HJLooperThread();
 	virtual Handler::Ptr createHandler();
 
 protected:
 	virtual int internalInit(HJKeyStorage::Ptr i_param) override;
 	virtual void internalRelease() override;
+	virtual int beforeDone() override;
 	virtual void run();
 	virtual HJLooper::Ptr getLooper();
 
 private:
 	std::thread m_thread;
 	HJLooper::Ptr m_looper{};
+	std::atomic<bool> m_quitting{ false };
 };
 
 NS_HJ_END

@@ -15,7 +15,8 @@ import {
   RecorderActionPayLoad,
   SelectorAction,
   TimerAction,
-  SpeechRecognizerAction
+  SpeechRecognizerAction,
+  ScreenModeAction
 } from '../store/action/PusherPreviewAction';
 
 @Builder
@@ -172,10 +173,10 @@ struct PusherPreviewPage {
             } else if (item.item.type == "camera") {
               this.pusherStore.dispatch(new CameraAction(item.index))
             } else if (item.item.type == "gift") {
-              this.pusherStore.dispatch(new GiftAction(this.getUIContext().getHostContext()?.resourceDir + "/ShuangDanCaiShen"))
+              this.pusherStore.dispatch(new GiftAction(this.getUIContext().getHostContext()?.resourceDir + "/pngseq/ShuangDanCaiShen"))
               this.pusherStore.dispatch(new SelectorAction(1))
             } else if (item.item.type == "gift_self") {
-              this.pusherStore.dispatch(new GiftAction(this.getUIContext().getHostContext()?.resourceDir + "/ShuangDanCaiShen"))
+              this.pusherStore.dispatch(new GiftAction(this.getUIContext().getHostContext()?.resourceDir + "/pngseq/ShuangDanCaiShen"))
               this.pusherStore.dispatch(new SelectorAction(0))
             } else if (item.item.type == "doubleScreen") {
               this.pusherStore.dispatch(new DoubleScreenAction())
@@ -185,6 +186,8 @@ struct PusherPreviewPage {
               this.pusherStore.dispatch(new FaceDetectAction(item.index))
             } else if (item.item.type == "speechRecognizer"){
               this.pusherStore.dispatch(new SpeechRecognizerAction(item.index))
+            } else if (item.item.type == "ScreenModeAction") {
+              this.pusherStore.dispatch(new ScreenModeAction())
             }
           })
       })

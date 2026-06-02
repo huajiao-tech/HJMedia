@@ -1,0 +1,3 @@
+4.13.0
+Build_opencv_objdetect  false
+Build_opencv_dnn        false

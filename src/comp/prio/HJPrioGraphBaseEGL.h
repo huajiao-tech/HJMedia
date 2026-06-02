@@ -13,6 +13,7 @@
 NS_HJ_BEGIN
 
 class HJOGRenderEnv;
+class HJOGEGLSurface;
 
 using HJPrioGraphFuncPre = std::function<int()>;
 using HJPrioGraphFuncPost = std::function<int()>;
@@ -24,9 +25,9 @@ public:
     HJPrioGraphBaseEGL();
     virtual ~HJPrioGraphBaseEGL();
     
-	virtual int init(HJBaseParam::Ptr i_param);
-	virtual void done();
-    int eglSurfaceProc(const std::string &i_renderTargetInfo);
+	virtual int init(HJBaseParam::Ptr i_param) override;
+	virtual void done() override;
+    int eglSurfaceProc(const std::string &i_renderTargetInfo, std::shared_ptr<HJOGEGLSurface> & o_eglSurface);
     
 protected:
     

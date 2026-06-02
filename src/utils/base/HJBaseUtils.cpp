@@ -124,6 +124,7 @@ void HJBaseUtils::randomInit()
 }
 int HJBaseUtils::getRandomValue(int min, int max)
 {
+	randomInit();
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_int_distribution<> dis(min, max);
@@ -206,7 +207,26 @@ bool HJBaseUtils::isSuffixFlv(const std::string& i_url)
 	return (i_url.size() >= flv_suffix.length() &&
 		i_url.compare(i_url.size() - flv_suffix.length(), flv_suffix.length(), flv_suffix) == 0);
 }
+void HJBaseUtils::backupFile(const std::string& i_path, const std::string& i_srcFileName, const std::string& i_backFileName)
+{
+	std::string rootPath(i_path);
+	if (!rootPath.empty() && rootPath.back() != '/' && rootPath.back() != '\\') {
+		rootPath += "/";
+	}
+	std::string configPath = rootPath + i_srcFileName;
+	std::string backupPath = rootPath + i_backFileName;
 
+	std::ifstream f(backupPath);
+	if (!f.good()) {
+		f.close();
+		std::ifstream src(configPath, std::ios::binary);
+		std::ofstream dst(backupPath, std::ios::binary);
+		dst << src.rdbuf();
+	}
+	else {
+		f.close();
+	}
+}
 std::string HJBaseUtils::getPlatform()
 {
 	std::string platform = "platform_no";
@@ -302,7 +322,6 @@ std::vector<std::string> HJBaseUtils::getSortedFiles(const std::string& i_dirPat
 	std::vector<std::string> files;
 
 	std::string path = getRealPath(i_dirPath);
-#if !defined(__APPLE__) //to do ??
 	for (const auto& entry : std::filesystem::directory_iterator(path)) {
 		std::string filename = entry.path().filename().string();
 		if (filename.find(i_prefix) == 0) 
@@ -315,13 +334,29 @@ std::vector<std::string> HJBaseUtils::getSortedFiles(const std::string& i_dirPat
 			files.push_back(target);
 		}
 	}
-#endif
 	std::sort(files.begin(), files.end(), [](const std::string& a, const std::string& b)
 		{
-		int num_a = std::stoi(a.substr(a.rfind('_') + 1));
-		int num_b = std::stoi(b.substr(b.rfind('_') + 1));
-		return num_a < num_b;
-		});
+			auto getNum = [](const std::string& str) {
+				int num = 0;
+				size_t pos = str.rfind('_');
+				std::string sub;
+				if (pos != std::string::npos) {
+					sub = str.substr(pos + 1);
+				}
+				else {
+					size_t sep = str.find_last_of("/\\");
+					sub = (sep == std::string::npos) ? str : str.substr(sep + 1);
+				}
+				try {
+					num = std::stoi(sub);
+				}
+				catch (...) {
+					num = 0;
+				}
+				return num;
+				};
+			return getNum(a) < getNum(b);
+		});	
 	return files;
 }
 std::string HJBaseUtils::combineUrl(const std::string& i_path, const std::string& i_fileName)
@@ -336,6 +371,38 @@ std::string HJBaseUtils::combineUrl(const std::string& i_path, const std::string
 		return "";
 	}
 	return path + i_fileName;
+}
+
+bool HJBaseUtils::isDirectoryExists(const std::string& path)
+{
+	if (path.empty())
+	{
+		return false;
+	}
+
+	std::error_code ec;
+	auto status = std::filesystem::status(path, ec);
+	if (ec)
+	{
+		return false;
+	}
+	return std::filesystem::is_directory(status);
+}
+
+bool HJBaseUtils::isFileExists(const std::string& path)
+{
+	if (path.empty())
+	{
+		return false;
+	}
+
+	std::error_code ec;
+	auto status = std::filesystem::status(path, ec);
+	if (ec)
+	{
+		return false;
+	}
+	return std::filesystem::is_regular_file(status);
 }
 
 NS_HJ_END

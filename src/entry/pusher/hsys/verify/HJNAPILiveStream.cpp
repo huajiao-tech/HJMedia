@@ -2,7 +2,7 @@
 #include "HJFLog.h"
 #include "HJMediaInfo.h"
 #include "HJTransferInfo.h"
-#include "HJPrioGraphProc.h"
+#include "HJRteGraphProc.h"
 #include "HJMediaUtils.h"
 #include "HJComEvent.h"
 #include "HJGraphPusher.h"
@@ -13,6 +13,8 @@
 #include "HJGPUToRAM.h"
 #include "HJFacePointMgr.h"
 #include "deviceinfo.h"
+#include "HJRteGraphSetupInfo.h"
+#include "HJOGEGLSurface.h"
 NS_HJ_BEGIN
 
 //int HJRoiCom::sendMessage(HJBaseMessage::Ptr i_msg) 
@@ -71,15 +73,12 @@ int HJNAPILiveStream::openPngSeq(const HJPusherPNGSegInfo &i_pngseqInfo)
     int i_err = 0;
     do
     {
-        if (m_prioGraphProc)
-        {
-            HJ::HJBaseParam::Ptr param = HJ::HJBaseParam::Create();
-            (*param)["pngsequrl"] = std::string(i_pngseqInfo.pngSeqUrl);
-            i_err = m_prioGraphProc->openPNGSeq(param);
-            if (i_err < 0)
-            {
-                break;
-            }
+       HJ::HJBaseParam::Ptr param = HJ::HJBaseParam::Create();
+       (*param)[HJRteUtils::ParamUrlImgSeq] = std::string(i_pngseqInfo.pngSeqUrl);
+       i_err = HJEntryBaseRender::openPngSeq(param);
+       if (i_err < 0)
+       {
+           break;
         }
     } while (false);
     return i_err;
@@ -102,75 +101,13 @@ void HJNAPILiveStream::setMute(bool i_mute)
         m_graphPusher->setMute(i_mute);
     }
 }
-void HJNAPILiveStream::priROIPrepare(const HJKeyStorage::Ptr& param, int i_encWidth, int i_encHeight)
+void HJNAPILiveStream::setPreviewRotation(int i_rotation)
 {
-    HJRoiEncodeCb roicb = [this, i_encWidth, i_encHeight](HJRoiInfoVectorPtr &roiInfo, int i_nFlag)
+    if (m_bridge)
     {
-        if (i_nFlag == HJ_ROI_CB_FLAG_TRY_ACQUIRE)
-        {
-            {
-                HJ_LOCK(m_nativeSourceLock);
-                if (!m_bNativeSourceOpen)
-                {
-                    m_cache.clear();
-                    m_pointSubscriberPtr = nullptr;
-                    HJFLogi(" roi cb enter flag:{} nativesource open false destroy roicom", i_nFlag);
-                }
-            }
-            
-            if (!m_pointSubscriberPtr)
-            {
-                HJ_LOCK(m_nativeSourceLock);
-                if (m_bNativeSourceOpen)
-                {
-                    m_pointSubscriberPtr = std::make_shared<HJFaceSubscribeFunc>([this](HJFacePointsReal::Ptr i_point)
-                    {
-                        m_cache.enqueue(i_point);
-                    });
-                    m_prioGraphProc->registSubscriber(m_pointSubscriberPtr);
-                    
-                    HJFLogi(" roi cb enter flag:{} nativesource open true create roicom", i_nFlag);
-                }
-            }
-            if (m_pointSubscriberPtr)
-            {
-                HJFacePointsReal::Ptr point = m_cache.acquire();     
-                if (point)
-                {
-                    if (point->isContainFace())
-                    {
-                        const std::vector<HJPointf> &filterPt = point->getFilterPt();
-                        int imgw = point->width();
-                        int imgh = point->height();
-
-                        HJRoiInfo roi;
-                        roi.x = filterPt[5].x * i_encWidth / imgw;
-                        roi.y = filterPt[5].y * i_encHeight / imgh;
-                        roi.w = (filterPt[8].x - filterPt[5].x) * i_encWidth / imgw;
-                        roi.h = (filterPt[8].y - filterPt[5].y) * i_encHeight / imgh;
-                        roi.quant_offset = m_quantOffset;
-                        roiInfo = std::make_shared<HJRoiInfoVector>();
-                        roiInfo->push_back(std::move(roi));
-                        HJFLogi(" roi cb enter flag:{} find face x,y:{} {} w,h:{} {} quant:{}", i_nFlag, roi.x, roi.y, roi.w, roi.h, roi.quant_offset);
-                    }    
-                    else
-                    {
-                        HJFLogi(" roi cb enter flag:{} not find face", i_nFlag);
-                    }    
-                    m_cache.recovery(point);
-                }
-               
-            }   
-        }   
-        else if (i_nFlag == HJ_ROI_CB_FLAG_CLOSE)
-        {
-            m_cache.clear();
-            m_pointSubscriberPtr = nullptr;
-            HJFLogi(" roi cb enter flag:{} destroy roicom", i_nFlag);
-        }        
-    };
-    (*param)["ROIEncodeCb"] = roicb; 
-    
+        HJFLogi("HVSwitchStat setPreviewRotation:{}", i_rotation);
+        m_bridge->setPreviewRotation(i_rotation);
+    }
 }
 int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJPusherAudioInfo &i_audioInfo, const HJPusherRTMPInfo &i_rtmpInfo, const HJEntryStatInfo& i_statInfo)
 {
@@ -217,7 +154,7 @@ int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJP
             }
             int64_t t0 = HJCurrentSteadyMS();
             HJFLogi("setwindow enter {}", i_bCreate ? "create" : "detroy");
-            int ret = priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_EncoderPusher, m_encoderFps);
+            int ret = HJEntryBaseRender::setBaseNativeWindow(HJRteGraphConfig::HJNodeClass_TargetEncoder, HJRteGraphConfig::HJNodeClass_TargetEncoder, i_window, i_width, i_height, state, m_encoderFps);
             HJFLogi("setwindow state:{} timediff:{}", state, (HJCurrentSteadyMS() - t0));
             return ret;
         };
@@ -241,7 +178,8 @@ int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJP
         HJFLogi("bRoiEncode:{} ", bRoiEncode);
         if (bRoiEncode)
         {
-            priROIPrepare(param, videoInfo->m_width, videoInfo->m_height);
+            //priROIPrepare(param, videoInfo->m_width, videoInfo->m_height);
+            HJEntryBaseRender::prepareROI(HJRteGraphConfig::HJNodeClass_SourceBridge, param, videoInfo->m_width, videoInfo->m_height);
         }
         m_encoderFps = i_videoInfo.videoFramerate;
         
@@ -352,7 +290,7 @@ int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJP
             if (!ntf) {
                 return HJ_OK;
             }
-            HJFLogi("pusher notify id:{}, msg:{}", HJPluginNofityTypeToString((HJPluginNofityType)ntf->getID()), ntf->getMsg());
+            HJFLogi("pusher notify id:{}, msg:{}", HJPluginNotifyTypeToString((HJPluginNotifyType)ntf->getID()), ntf->getMsg());
             int type = HJ_PUSHER_NOTIFY_NONE;
             std::string msg = ntf->getMsg();
             switch (ntf->getID())
@@ -401,6 +339,12 @@ int HJNAPILiveStream::openPusher(const HJPusherVideoInfo &i_videoInfo, const HJP
 }
 void HJNAPILiveStream::closePreview()
 {
+    for (const auto & native_window_map : m_nativeWindowMap) {
+        HJFLogi("{} close closePreview enter, destroy window enter", getInsName());
+        HJEntryBaseRender::setBaseNativeWindow(native_window_map.second.classStyle, native_window_map.second.insName, native_window_map.second.nativeWindow, 0, 0, HJTargetState_Destroy, m_previewFps);
+        OH_NativeWindow_DestroyNativeWindow(native_window_map.second.nativeWindow);
+    }
+    m_nativeWindowMap.clear();
     int64_t t0 = HJCurrentSteadyMS();
     HJFLogi("closePreview enter");
     if (m_graphPusher)
@@ -409,13 +353,14 @@ void HJNAPILiveStream::closePreview()
         m_graphPusher->done();
         HJFLogi("m_graphPusher done end");
         m_graphPusher = nullptr;
+        HJFLogi("m_graphPusher clear end");
     }
+
+
+    HJEntryBaseRender::closeNativeSource();
+
     HJFLogi("m_graphVideoCapture done enter");
-    if (m_prioGraphProc)
-    {
-        m_prioGraphProc->done();
-        m_prioGraphProc = nullptr;
-    }
+    HJEntryBaseRender::doneRender();
     HJFLogi("m_graphVideoCapture done end time:{}", (HJCurrentSteadyMS() - t0));
 }
 
@@ -454,19 +399,19 @@ void HJNAPILiveStream::setDoubleScreen(bool i_bDoubleScreen)
     HJFLogi("setDoubleScreen");
     do
     {
-        if (m_prioGraphProc)
+        if (m_graphProc)
         {
             bool bLandscape = m_previewWidth > m_previewHeight;
-            m_prioGraphProc->setDoubleScreen(i_bDoubleScreen, bLandscape);
+            m_graphProc->setDoubleScreen(i_bDoubleScreen, bLandscape);
         }
     } while (false);
 }
 void HJNAPILiveStream::setGiftPusher(bool i_bGiftPusher)
 {
     HJFLogi("setGiftPusher");
-    if (m_prioGraphProc)
+    if (m_graphProc)
     {
-        m_prioGraphProc->setGiftPusher(i_bGiftPusher);
+        m_graphProc->setGiftPusher(i_bGiftPusher);
     }
 }
 int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIEntryNotify i_notify, const HJEntryStatInfo& i_statInfo, uint64_t &o_surfaceId)
@@ -482,7 +427,7 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
             break;
         }
 
-        if (m_prioGraphProc)
+        if (m_graphProc)
         {
             i_err = -1;
             HJFLoge("pusher has already created, not open again");
@@ -490,6 +435,7 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
         }
         m_previewWidth = i_previewInfo.videoWidth;
         m_previewHeight = i_previewInfo.videoHeight;
+        HJFLogi("HVSwitchStat preview w:{} h:{}", m_previewWidth, m_previewHeight);
         m_notify = i_notify;
 
         if (i_statInfo.bUseStat)
@@ -511,88 +457,28 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
         (*param)[HJBaseParam::s_paramFps] = i_previewInfo.videoFps;
         m_previewFps = i_previewInfo.videoFps;
 
-        m_prioGraphProc = HJPrioGraphProc::Create();
-        if (!m_prioGraphProc)
-        {
-            i_err = -1;
-            HJFLoge("HJGraphComVideoCapture create error");
-            break;
-        }
+        //HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJRteGraphProcType), (int)HJRteGraphProcType_PLACEHOLDER_Default);
+        HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJRteGraphProcType), HJRteGraphProcType_CONFIG_SETUP);
 
-        HJListener renderListener = [&](const HJNotification::Ptr ntf) -> int
+        std::string configInfo = i_previewInfo.m_graphConfig;
+        if (configInfo.empty())
         {
-            if (!ntf)
-            {
-                return HJ_OK;
-            }
-            HJFLogi("graph video capture notify id:{}, msg:{}", HJVideoRenderGraphEventToString((HJVideoRenderGraphEvent)ntf->getID()), ntf->getMsg());
-            int type = HJVIDEORENDERGRAPH_EVENT_NONE;
-            std::string msg = ntf->getMsg();
-            switch (ntf->getID())
-            {
-            case HJVIDEORENDERGRAPH_EVENT_ERROR_DEFAULT:
-            {
-                type = HJ_RENDER_NOTIFY_ERROR_DEFAULT;
-                break;
-            }
-            case HJVIDEORENDERGRAPH_EVENT_ERROR_UPDATE:
-            {
-                type = HJ_RENDER_NOTIFY_ERROR_UPDATE;
-                break;
-            }
-            case HJVIDEORENDERGRAPH_EVENT_ERROR_DRAW:
-            {
-                type = HJ_RENDER_NOTIFY_ERROR_DRAW;
-                break;
-            }
-            case HJVIDEORENDERGRAPH_EVENT_ERROR_INIT:
-            {
-                type = HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT;
-                break;
-            }
-            case HJVIDEORENDERGRAPH_EVENT_ERROR_PNGSEQ_INIT:
-            {
-                type = HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT;
-                break;
-            }
-            case HJVIDEORENDERGRAPH_EVENT_PNGSEQ_COMPLETE:
-            {
-                type = HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE;
-                break;
-            }
-            case HJVIDEORENDERGRAPH_EVENT_FACEU_ERROR:
-            {
-                type = HJ_RENDER_NOTIFY_FACEU_ERROR;
-                break; 
-            }
-            case HJVIDEORENDERGRAPH_EVENT_FACEU_COMPLETE:
-            {
-                type = HJ_RENDER_NOTIFY_FACEU_COMPLETE;
-                break;
-            }
-            default:
-            {
-                break;
-            }
-            }
-            if (m_notify && (HJVIDEORENDERGRAPH_EVENT_NONE != type))
-            {
-                m_notify(type, msg);
-            }
-            return HJ_OK;
-        };
-        (*param)["renderListener"] = (HJListener)renderListener;
-        HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioComSourceType), (int)HJPrioComSourceType_SERIES);
-        i_err = m_prioGraphProc->init(param);
+            HJ_CatchMapSetVal(param, HJRteGraphConstructorType, HJRteGraphConstructorType_PlaceHolder);
+            configInfo = HJRteGraphConfigConstructor::constructGraph(param);
+        }
+        
+        HJ_CatchMapPlainSetVal(param, std::string, "graphConfigInfo", configInfo);
+
+        i_err = HJEntryBaseRender::initRender(param);
         if (i_err < 0)
         {
-            HJLoge("m_graphVideoCapture init error:{}", i_err);
+            HJLoge("HJEntryBaseRender initRender error:{}", i_err);
             break;
         }
 
-        if (m_prioGraphProc)
+        if (m_graphProc)
         {
-            m_bridge = m_prioGraphProc->renderWindowBridgeAcquire();
+            m_bridge = m_graphProc->renderWindowBridgeAcquire();
         }
 
         if (!m_bridge)
@@ -611,52 +497,83 @@ int HJNAPILiveStream::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNA
         }
 
         NativeWindow *nativeWindow = m_bridge->getNativeWindow();
+        HJFLogi("HVSwitchStat SET_BUFFER_GEOMETRY w:{} h:{}", m_previewWidth, m_previewHeight);
         i_err = OH_NativeWindow_NativeWindowHandleOpt(nativeWindow, SET_BUFFER_GEOMETRY, i_previewInfo.videoWidth, i_previewInfo.videoHeight);
         if (i_err != 0)
         {
             i_err = -1;
-            HJFLoge("OH_NativeWindow_NativeWindowHandleOpt set wh error w:{} h:{}", i_previewInfo.videoWidth, i_previewInfo.videoHeight);
+            HJFLoge("HVSwitchStat OH_NativeWindow_NativeWindowHandleOpt set wh error w:{} h:{}", i_previewInfo.videoWidth, i_previewInfo.videoHeight);
             break;
         }
     } while (false);
     HJFLogi("openPreview end i_err:{}", i_err);
     return i_err;
 }
-int HJNAPILiveStream::setNativeWindow(void *window, int i_width, int i_height, int i_state)
+int HJNAPILiveStream::setNativeWindow(const std::string &i_classStyle, const std::string &i_insName, void *window, int i_width, int i_height, int i_state)
 {
-    return priSetWindow(window, i_width, i_height, i_state, HJOGEGLSurfaceType_UI, m_previewFps);
+    return HJEntryBaseRender::setBaseNativeWindow(i_classStyle, i_insName, window, i_width, i_height, i_state, m_previewFps);
 }
 
-int HJNAPILiveStream::priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps)
+int HJNAPILiveStream::setNativeWindow(const std::string &i_classStyle, const std::string &i_insName, int64_t i_surfaceId, int i_width, int i_height, int i_state)
 {
-    int i_err = 0;
-    do
+    NativeWindow* window = nullptr;
+    auto winIt = m_nativeWindowMap.find(i_surfaceId);
+    if (winIt != m_nativeWindowMap.end())
     {
-        HJTransferRenderTargetInfo renderTargetInfo;
-        renderTargetInfo.nativeWindow = (int64_t)i_window;
-        renderTargetInfo.width = i_width;
-        renderTargetInfo.height = i_height;
-        renderTargetInfo.state = i_state;
-        renderTargetInfo.type = i_type;
-        renderTargetInfo.fps = i_fps;
-        std::string renderTargetStr = renderTargetInfo.initSerial();
-        if (renderTargetStr.empty())
-        {
-            i_err = -1;
-            break;
+        window = winIt->second.nativeWindow;
+    }
+
+    if (i_state == HJTargetState_Create) {
+        OH_NativeWindow_CreateNativeWindowFromSurfaceId(i_surfaceId, &window);
+        PriSurfaceBindInfo bind{};
+        bind.nativeWindow = window;
+        bind.classStyle = i_classStyle;
+        bind.insName = i_insName;
+        m_nativeWindowMap.emplace(i_surfaceId, std::move(bind));
+    } else if (i_state == HJTargetState_Change) {
+        m_nativeWindowMap[i_surfaceId].classStyle = i_classStyle;
+        m_nativeWindowMap[i_surfaceId].insName = i_insName;
+    }
+    int i_err = HJEntryBaseRender::setBaseNativeWindow(i_classStyle, i_insName, window, i_width, i_height, i_state, m_previewFps);
+    if (i_state == HJTargetState_Destroy) {
+        OH_NativeWindow_DestroyNativeWindow(window);
+        if (winIt != m_nativeWindowMap.end()) {
+            m_nativeWindowMap.erase(winIt);
         }
-        if (m_prioGraphProc)
-        {
-            i_err = m_prioGraphProc->eglSurfaceProc(renderTargetStr);
-            if (i_err < 0)
-            {
-                HJFLoge("eglSurfaceProc error i_err:{} w:{} h:{} state:{}", i_err, i_width, i_height, i_state);
-                break;
-            }
-        }
-    } while (false);
+    }
     return i_err;
 }
+
+// int HJNAPILiveStream::priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps)
+// {
+//     int i_err = 0;
+//     do
+//     {
+//         HJTransferRenderTargetInfo renderTargetInfo;
+//         renderTargetInfo.nativeWindow = (int64_t)i_window;
+//         renderTargetInfo.width = i_width;
+//         renderTargetInfo.height = i_height;
+//         renderTargetInfo.state = i_state;
+//         renderTargetInfo.type = i_type;
+//         renderTargetInfo.fps = i_fps;
+//         std::string renderTargetStr = renderTargetInfo.initSerial();
+//         if (renderTargetStr.empty())
+//         {
+//             i_err = -1;
+//             break;
+//         }
+//         if (m_graphProc)
+//         {
+//             i_err = m_graphProc->eglSurfaceProc(renderTargetStr);
+//             if (i_err < 0)
+//             {
+//                 HJFLoge("eglSurfaceProc error i_err:{} w:{} h:{} state:{}", i_err, i_width, i_height, i_state);
+//                 break;
+//             }
+//         }
+//     } while (false);
+//     return i_err;
+// }
 
 int HJNAPILiveStream::openSpeechRecognizer(HJPluginSpeechRecognizer::Call i_call) {
     int i_err = 0;
@@ -683,170 +600,170 @@ void HJNAPILiveStream::closeSpeechRecognizer() {
     HJFLogi("closeSpeechRecognizer end");
 }
 
-void HJNAPILiveStream::openEffect(int i_effectType)
-{
-    HJBaseParam::Ptr param = HJBaseParam::Create();
-    HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioEffectType), i_effectType);
-    if (m_prioGraphProc)
-    {
-        HJFLogi("HJNAPIPlayer openeffect enter");
-        m_prioGraphProc->openEffect(param);
-    }
-}
-void HJNAPILiveStream::closeEffect(int i_effectType)
-{
-    HJBaseParam::Ptr param = HJBaseParam::Create();
-    HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioEffectType), i_effectType);
-    if (m_prioGraphProc)
-    {
-        m_prioGraphProc->closeEffect(param);
-    }    
-}
+// void HJNAPILiveStream::openEffect(int i_effectType)
+// {
+//     HJBaseParam::Ptr param = HJBaseParam::Create();
+//     HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioEffectType), i_effectType);
+//     if (m_graphProc)
+//     {
+//         HJFLogi("HJNAPIPlayer openeffect enter");
+//         m_graphProc->openEffect(param);
+//     }
+// }
+// void HJNAPILiveStream::closeEffect(int i_effectType)
+// {
+//     HJBaseParam::Ptr param = HJBaseParam::Create();
+//     HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioEffectType), i_effectType);
+//     if (m_graphProc)
+//     {
+//         m_graphProc->closeEffect(param);
+//     }    
+// }
 
-std::shared_ptr<HJRGBAMediaData> HJNAPILiveStream::acquireNativeSource()
-{
-    HJRGBAMediaData::Ptr data = nullptr;
-    if (m_gpuToRamPtr)
-    {
-        data = m_gpuToRamPtr->getMediaRGBAData();
-    }    
-    return data;
-}
+// std::shared_ptr<HJRGBAMediaData> HJNAPILiveStream::acquireNativeSource()
+// {
+//     HJRGBAMediaData::Ptr data = nullptr;
+//     if (m_gpuToRamPtr)
+//     {
+//         data = m_gpuToRamPtr->getMediaRGBAData();
+//     }    
+//     return data;
+// }
 
-int HJNAPILiveStream::openFaceu(const std::string &i_faceuUrl, bool i_bDebugPoint)
-{
-    int i_err = HJ_OK;
-    do 
-    {
-        HJFLogi("openFaceu enter i_bDebugPoint:{}", i_bDebugPoint);
-        if (m_prioGraphProc)
-        {
-            HJBaseParam::Ptr param = HJBaseParam::Create();
-            HJ_CatchMapPlainSetVal(param, std::string, "faceuUrl", i_faceuUrl);
-            HJ_CatchMapPlainSetVal(param, bool, "bDebugPoint", i_bDebugPoint);
-            i_err = m_prioGraphProc->openFaceu(param);
-            if (i_err < 0)
-            {
-                break;
-            }
-        }
-    } while (false);
-    HJFLogi("openFaceu end i_err:{}", i_err);
-    return i_err;
-}
-void HJNAPILiveStream::closeFaceu()
-{
-    if (m_prioGraphProc)
-    {   
-        m_prioGraphProc->closeFaceu();
-    }   
-}
+// int HJNAPILiveStream::openFaceu(const std::string &i_faceuUrl, bool i_bDebugPoint)
+// {
+//     int i_err = HJ_OK;
+//     do 
+//     {
+//         HJFLogi("openFaceu enter i_bDebugPoint:{}", i_bDebugPoint);
+//         if (m_graphProc)
+//         {
+//             HJBaseParam::Ptr param = HJBaseParam::Create();
+//             HJ_CatchMapPlainSetVal(param, std::string, HJRteUtils::ParamUrlFaceu, i_faceuUrl);
+//             HJ_CatchMapPlainSetVal(param, bool, "bDebugPoint", i_bDebugPoint);
+//             i_err = m_graphProc->openFaceu(param);
+//             if (i_err < 0)
+//             {
+//                 break;
+//             }
+//         }
+//     } while (false);
+//     HJFLogi("openFaceu end i_err:{}", i_err);
+//     return i_err;
+// }
+// void HJNAPILiveStream::closeFaceu()
+// {
+//     if (m_graphProc)
+//     {   
+//         m_graphProc->closeFaceu();
+//     }   
+// }
 
-int HJNAPILiveStream::openNativeSource(bool i_bUsePBO)
-{
-    int i_err = HJ_OK;
-    HJFLogi("openNativeSource enter bUsePBO:{}", i_bUsePBO);
-    HJ_LOCK(m_nativeSourceLock);
-    do 
-    {
-        if (!m_prioGraphProc)
-        {
-            i_err = -1;
-            break;
-        }
-        if (!m_gpuToRamPtr)
-        {
-            HJGPUToRAMType type = i_bUsePBO ? HJGPUToRAMType_PBO : HJGPUToRAMType_ImageReceiver;
-            m_gpuToRamPtr = HJBaseGPUToRAM::CreateGPUToRAM(type);
+// int HJNAPILiveStream::openNativeSource(bool i_bUsePBO)
+// {
+//     int i_err = HJ_OK;
+//     HJFLogi("openNativeSource enter bUsePBO:{}", i_bUsePBO);
+//     HJ_LOCK(m_nativeSourceLock);
+//     do 
+//     {
+//         if (!m_graphProc)
+//         {
+//             i_err = -1;
+//             break;
+//         }
+//         if (!m_gpuToRamPtr)
+//         {
+//             HJGPUToRAMType type = i_bUsePBO ? HJGPUToRAMType_PBO : HJGPUToRAMType_ImageReceiver;
+//             m_gpuToRamPtr = HJBaseGPUToRAM::CreateGPUToRAM(type);
 
-            HJBaseParam::Ptr param = HJBaseParam::Create();
-            if (!i_bUsePBO)
-            {
-                HJGPUToRAMImageReceiver::HOImageReceiverSurfaceCb surfaceCb = [this](void *i_window, int i_width, int i_height, bool i_bCreate)
-                {
-                    int state = 0;
-                    if (i_bCreate)
-                    {
-                        state = HJTargetState_Create;
-                    }
-                    else
-                    {
-                        state = HJTargetState_Destroy;
-                    }
-                    return priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_FaceDetect, 30);
-                };
-                HJ_CatchMapSetVal(param, HJGPUToRAMImageReceiver::HOImageReceiverSurfaceCb, surfaceCb);
-            }
+//             HJBaseParam::Ptr param = HJBaseParam::Create();
+//             if (!i_bUsePBO)
+//             {
+//                 HJGPUToRAMImageReceiver::HOImageReceiverSurfaceCb surfaceCb = [this](void *i_window, int i_width, int i_height, bool i_bCreate)
+//                 {
+//                     int state = 0;
+//                     if (i_bCreate)
+//                     {
+//                         state = HJTargetState_Create;
+//                     }
+//                     else
+//                     {
+//                         state = HJTargetState_Destroy;
+//                     }
+//                     return priSetWindow(i_window, i_width, i_height, state, HJOGEGLSurfaceType_ImageReceiver, 30);
+//                 };
+//                 HJ_CatchMapSetVal(param, HJGPUToRAMImageReceiver::HOImageReceiverSurfaceCb, surfaceCb);
+//             }
 
-            i_err = m_gpuToRamPtr->init(param);
-            if (i_err < 0)
-            {
-                break;
-            }    
+//             i_err = m_gpuToRamPtr->init(param);
+//             if (i_err < 0)
+//             {
+//                 break;
+//             }    
     
-            if (i_bUsePBO)
-            {
-                HJBaseGPUToRAM::Wtr wtr = m_gpuToRamPtr;
-                m_prioGraphProc->openPBO([wtr](HJSPBuffer::Ptr i_buffer, int width, int height)
-                {
-                    HJBaseGPUToRAM::Ptr gpuToRamPtr = wtr.lock();
-                    if (gpuToRamPtr)
-                    {
-                        gpuToRamPtr->setMediaData(i_buffer, width, height);
-                    }
-                    return HJ_OK;
-                });
-            }
+//             if (i_bUsePBO)
+//             {
+//                 HJBaseGPUToRAM::Wtr wtr = m_gpuToRamPtr;
+//                 m_graphProc->openPBO([wtr](HJSPBuffer::Ptr i_buffer, int width, int height)
+//                 {
+//                     HJBaseGPUToRAM::Ptr gpuToRamPtr = wtr.lock();
+//                     if (gpuToRamPtr)
+//                     {
+//                         gpuToRamPtr->setMediaData(i_buffer, width, height);
+//                     }
+//                     return HJ_OK;
+//                 });
+//             }
                            
-            m_prioGraphProc->openFaceMgr();
-            m_bNativeSourceOpen = true;
-        }    
-    } while (false);
-    HJFLogi("openNativeSource end bUsePBO:{} i_err:{}", i_bUsePBO, i_err);
-    return i_err;
-}
-void HJNAPILiveStream::closeNativeSource()
-{
-    HJFLogi("closeNativeSource enter");
+//             m_graphProc->openFaceMgr();
+//             m_bNativeSourceOpen = true;
+//         }    
+//     } while (false);
+//     HJFLogi("openNativeSource end bUsePBO:{} i_err:{}", i_bUsePBO, i_err);
+//     return i_err;
+// }
+// void HJNAPILiveStream::closeNativeSource()
+// {
+//     HJFLogi("closeNativeSource enter");
 
-    HJ_LOCK(m_nativeSourceLock);
-    if (m_prioGraphProc)
-    {
-        m_prioGraphProc->closePBO();
-        m_prioGraphProc->closeFaceMgr();
-    }
+//     HJ_LOCK(m_nativeSourceLock);
+//     if (m_graphProc)
+//     {
+//         m_graphProc->closePBO();
+//         m_graphProc->closeFaceMgr();
+//     }
     
-    if (m_gpuToRamPtr)
-    {
-        m_gpuToRamPtr->done();
-        m_gpuToRamPtr = nullptr;
-    }   
+//     if (m_gpuToRamPtr)
+//     {
+//         m_gpuToRamPtr->done();
+//         m_gpuToRamPtr = nullptr;
+//     }   
 
-    m_bNativeSourceOpen = false;
+//     m_bNativeSourceOpen = false;
 
-    HJFLogi("closeNativeSource end");
-}
+//     HJFLogi("closeNativeSource end");
+// }
 
-void HJNAPILiveStream::setFaceInfo(HJFacePointsWrapper::Ptr faceInfo)
-{
-    if (m_prioGraphProc)
-    {
-        m_prioGraphProc->setFaceInfo(faceInfo);
-    }    
-}
+// void HJNAPILiveStream::setFaceInfo(HJFacePointsWrapper::Ptr faceInfo)
+// {
+//     if (m_graphProc)
+//     {
+//         m_graphProc->setFaceInfo(faceInfo);
+//     }    
+// }
 
-void HJNAPILiveStream::setVideoEncQuantOffset(int i_quantOffset)
-{
-    m_quantOffset = i_quantOffset;
-}
-void HJNAPILiveStream::setFaceProtected(bool i_bProtect)
-{
-    HJFLogi("setFaceProtected enter i_bProtect:{}", i_bProtect);
-    if (m_prioGraphProc)
-    {
-        m_prioGraphProc->setFaceProtected(i_bProtect);
-    }
-    HJFLogi("setFaceProtected end i_bProtect:{}", i_bProtect);
-}
+// void HJNAPILiveStream::setVideoEncQuantOffset(int i_quantOffset)
+// {
+//     m_quantOffset = i_quantOffset;
+// }
+// void HJNAPILiveStream::setFaceProtected(bool i_bProtect)
+// {
+//     HJFLogi("setFaceProtected enter i_bProtect:{}", i_bProtect);
+//     if (m_graphProc)
+//     {
+//         m_graphProc->setFaceProtected(i_bProtect);
+//     }
+//     HJFLogi("setFaceProtected end i_bProtect:{}", i_bProtect);
+// }
 
 NS_HJ_END

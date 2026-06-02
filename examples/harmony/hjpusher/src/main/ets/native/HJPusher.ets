@@ -3,11 +3,31 @@ import { MediaStateInfo, SetWindowInfo } from './HJCommTypes';
 import {
   PreviewInfo, PusherConfig, RecorderInfo,
 } from './HJPusherTypes';
+import { HJRteAdjacentNodeInfo, HJRteAdjacentNodeInfoWrapper } from './HJRteGraphSetupInfo';
 
 //import {HJNativeSourceData} from 'hjmediautils'
 import { HJNativeSourceData } from '../HJFaceDetectMgr'
 
 const TAG = "wkshhh"
+
+function priParseAdjacentNodes(json: string): HJRteAdjacentNodeInfo[] {
+  if (!json || json.length === 0) {
+    return [];
+  }
+  try {
+    const parsedArray = JSON.parse(json) as HJRteAdjacentNodeInfo[];
+    if (parsedArray && parsedArray.length !== undefined) {
+      return parsedArray;
+    }
+    const parsedWrapper = JSON.parse(json) as HJRteAdjacentNodeInfoWrapper;
+    if (parsedWrapper && parsedWrapper.nodes !== undefined) {
+      return parsedWrapper.nodes ?? [];
+    }
+  } catch (error) {
+    console.error(TAG, 'parseAdjacentNodes failed', JSON.stringify(error));
+  }
+  return [];
+}
 
 export class HJPusher {
   static m_contextInitFlag: boolean = false;
@@ -37,10 +57,12 @@ export class HJPusher {
 
   public createPusher() {
     this.m_pusherHandler = nPusher.n_createPusher()
+    console.info(TAG, "createPusher", this.m_pusherHandler)
   }
 
   public destroyPusher() {
     if (this.m_pusherHandler) {
+      console.info(TAG, "destroyPusher", this.m_pusherHandler)
       nPusher.n_destroyPusher(this.m_pusherHandler);
       this.m_pusherHandler = undefined
     }
@@ -48,21 +70,30 @@ export class HJPusher {
 
   public openPreview(previewInfo: PreviewInfo, pusherStateCall: (str: string) => void): bigint {
     if (this.m_pusherHandler) {
-      return nPusher.n_openPreview(this.m_pusherHandler, JSON.stringify(previewInfo), pusherStateCall)
+      const previewInfoStr: string = JSON.stringify(previewInfo);
+      const result: bigint = nPusher.n_openPreview(this.m_pusherHandler, previewInfoStr, pusherStateCall)
+      console.info(TAG, "openPreview", this.m_pusherHandler, previewInfoStr, result)
+      return result
     }
+    console.warn(TAG, 'openPreview skipped: invalid handler')
     return 0n;
   }
 
   public closePreview() {
     if (this.m_pusherHandler) {
+      console.info(TAG, "closePreview", this.m_pusherHandler)
       nPusher.n_closePreview(this.m_pusherHandler)
     }
   }
 
-  public setWindow(setWindowInfo: SetWindowInfo) {
+  public setWindow(setWindowInfo: SetWindowInfo): number {
     if (this.m_pusherHandler) {
-      nPusher.n_setWindow(this.m_pusherHandler, JSON.stringify(setWindowInfo));
+      const result: number = nPusher.n_setWindow(this.m_pusherHandler, JSON.stringify(setWindowInfo));
+      console.info(TAG, 'setWindow', this.m_pusherHandler, JSON.stringify(setWindowInfo), result);
+      return result;
     }
+    console.warn(TAG, 'setWindow skipped: invalid handler', JSON.stringify(setWindowInfo));
+    return -1;
   }
 
   public openPusher(pusherConfig: PusherConfig, stateInfo: MediaStateInfo, stateCall: (str: string) => void) {
@@ -91,6 +122,13 @@ export class HJPusher {
   public setMute(mute: boolean) {
     if (this.m_pusherHandler) {
       nPusher.n_setMute(this.m_pusherHandler,mute);
+    }
+  }
+
+  public setPreviewRotation(rotation: number) {
+    if (this.m_pusherHandler) {
+      console.info(TAG, "setPreviewRotation", this.m_pusherHandler, rotation)
+      nPusher.n_setPreviewRotation(this.m_pusherHandler, rotation);
     }
   }
 
@@ -138,10 +176,10 @@ export class HJPusher {
     }
   }
 
-  public setFaceInfo(width: number, height: number, faceinfo: string)
+  public setFaceInfo(i_sourceInsName: string, width: number, height: number, faceinfo: string)
   {
     if (this.m_pusherHandler) {
-      nPusher.n_setFaceInfo(this.m_pusherHandler, width, height, faceinfo);
+      nPusher.n_setFaceInfo(this.m_pusherHandler, i_sourceInsName, width, height, faceinfo);
     }
   }
   public nativeSourceOpen(isPBO: boolean) : number
@@ -190,6 +228,72 @@ export class HJPusher {
       nPusher.n_setFaceProtected(this.m_pusherHandler, i_bFaceProtected);
     }
   }
+
+  public nodeEnable(classString:string, insName:string, bEnable:boolean, info:string):number
+  {
+    if (this.m_pusherHandler) {
+      return nPusher.n_nodeEnable(this.m_pusherHandler, classString, insName, bEnable, info);
+    }
+    return -1;
+  }
+
+  public nodeCreate(nodeInfo:string):number {
+    if (this.m_pusherHandler) {
+      return nPusher.n_nodeCreate(this.m_pusherHandler, nodeInfo);
+    }
+    return -1;
+  }
+
+  public nodeConnect(srcClass:string, srcIns:string, dstClass:string, dstIns:string, shaderType:string, linkInfo:string):number {
+    if (this.m_pusherHandler) {
+      return nPusher.n_nodeConnect(this.m_pusherHandler, srcClass, srcIns, dstClass, dstIns, shaderType, linkInfo);
+    }
+    return -1;
+  }
+  public nodeSetParam(classString:string, insName:string, paramInfo:string):number
+  {
+    if (this.m_pusherHandler) {
+      return nPusher.n_nodeSetParam(this.m_pusherHandler, classString, insName, paramInfo);
+    }
+    return -1;
+  }
+  public nodeDelete(classStyle:string, insName:string, relink:boolean):number {
+    if (this.m_pusherHandler) {
+      return nPusher.n_nodeDelete(this.m_pusherHandler, classStyle, insName, relink);
+    }
+    return -1;
+  }
+
+  public nodeDisconnect(srcClass:string, srcIns:string, dstClass:string, dstIns:string, linkId:string):number {
+    if (this.m_pusherHandler) {
+      return nPusher.n_nodeDisconnect(this.m_pusherHandler, srcClass, srcIns, dstClass, dstIns, linkId);
+    }
+    return -1;
+  }
+
+  public nodeLinkInfoChange(srcClass:string, srcIns:string, dstClass:string, dstIns:string, linkInfo:string):number {
+    if (this.m_pusherHandler) {
+      return nPusher.n_nodeLinkInfoChange(this.m_pusherHandler, srcClass, srcIns, dstClass, dstIns, linkInfo);
+    }
+    return -1;
+  }
+
+  public nodeGetPre(curClass:string, curIns:string): HJRteAdjacentNodeInfo[] {
+    if (this.m_pusherHandler) {
+      const result: string = nPusher.n_nodeGetPre(this.m_pusherHandler, curClass, curIns);
+      return priParseAdjacentNodes(result);
+    }
+    return [];
+  }
+
+  public nodeGetNext(curClass:string, curIns:string): HJRteAdjacentNodeInfo[] {
+    if (this.m_pusherHandler) {
+      const result: string = nPusher.n_nodeGetNext(this.m_pusherHandler, curClass, curIns);
+      return priParseAdjacentNodes(result);
+    }
+    return [];
+  }
+
   // public openPixelMapOutput() {
   //   this.m_ImageNativeHandler = nPusher.n_openPixelMapOutput()
   // }

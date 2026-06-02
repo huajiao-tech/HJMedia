@@ -1,11 +1,41 @@
 export interface OpenPlayerInfo {
   url: string
+  localDir: string
+  rid: string
   fps: number
+  repeats: number
   videoCodecType: HJPlayerVideoCodecType
   sourceType: HJPlayerSourceType
   playerType: HJPlayerType
   bSplitScreenMirror: boolean
   disableMFlag: number
+  m_graphConfig: string
+  m_enableSEIUUids: Map<string, boolean>
+}
+
+function serializeEnableSeiUuids(enable_sei_uuids: Map<string, boolean>): string {
+  let uuid_entries: Array<string> = new Array<string>()
+  enable_sei_uuids.forEach((value: boolean, key: string) => {
+    uuid_entries.push(JSON.stringify(key) + ':' + (value ? 'true' : 'false'))
+  })
+  return '{' + uuid_entries.join(',') + '}'
+}
+
+export function serializeOpenPlayerInfo(open_player_info: OpenPlayerInfo): string {
+  let json_parts: Array<string> = new Array<string>()
+  json_parts.push('"url":' + JSON.stringify(open_player_info.url))
+  json_parts.push('"localDir":' + JSON.stringify(open_player_info.localDir))
+  json_parts.push('"rid":' + JSON.stringify(open_player_info.rid))
+  json_parts.push('"fps":' + open_player_info.fps.toString())
+  json_parts.push('"repeats":' + open_player_info.repeats.toString())
+  json_parts.push('"videoCodecType":' + open_player_info.videoCodecType.toString())
+  json_parts.push('"sourceType":' + open_player_info.sourceType.toString())
+  json_parts.push('"playerType":' + open_player_info.playerType.toString())
+  json_parts.push('"bSplitScreenMirror":' + (open_player_info.bSplitScreenMirror ? 'true' : 'false'))
+  json_parts.push('"disableMFlag":' + open_player_info.disableMFlag.toString())
+  json_parts.push('"m_graphConfig":' + JSON.stringify(open_player_info.m_graphConfig))
+  json_parts.push('"m_enableSEIUUids":' + serializeEnableSeiUuids(open_player_info.m_enableSEIUUids))
+  return '{' + json_parts.join(',') + '}'
 }
 
 export enum HJPlayerVideoCodecType {
@@ -30,24 +60,26 @@ export enum HJPlayerNotifyType {
   HJ_PLAYER_NOTIFY_AUDIO_FRAME = 6,
   HJ_PLAYER_NOTIFY_EOF = 7,
 
+  HJ_PLAYER_NOTIFY_DURATION = 50,
+  HJ_PLAYER_NOTIFY_SEI_INFOS = 51,
+
   HJ_PLAYER_NOTIFY_CLOSEDONE = 90,
-
-  HJ_RENDER_NOTIFY_ERROR_DEFAULT = 100,
-  HJ_RENDER_NOTIFY_ERROR_UPDATE = 101,
-  HJ_RENDER_NOTIFY_ERROR_DRAW = 102,
-  HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT = 103,
-  HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT = 104,
-  HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE = 105,
-  HJ_RENDER_NOTIFY_NEED_SURFACE = 106,
-
-  HJ_RENDER_NOTIFY_FACEU_ERROR = 107,
-  HJ_RENDER_NOTIFY_FACEU_COMPLETE = 108,
 }
 
 export enum HJPlayerType {
   HJPlayerType_UNKNOWN = 0,
   HJPlayerType_LIVESTREAM = 1,
   HJPlayerType_VOD = 2,
+}
+
+export interface HJPlayerSeiData {
+  uuid: string
+  data: ArrayBuffer
+}
+
+export interface HJPlayerSeiInfo {
+  seiDatas: HJPlayerSeiData[]
+  isKeyFrame: boolean
 }
 
 export enum HJPlayerMediaType

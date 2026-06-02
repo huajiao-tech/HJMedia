@@ -6,8 +6,8 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-#include <cstring>
-#include <stdexcept>
+#include <limits>
+#include <memory>
 #include <type_traits>
 #include <algorithm>
 #include "HJMacros.h"
@@ -73,13 +73,16 @@ NS_HJ_BEGIN
 class HJByteBuffer {
 public:
     using Ptr = std::shared_ptr<HJByteBuffer>;
+    static constexpr uint32_t kMax24BitValue = 0x00FFFFFFU;
+
     HJByteBuffer(size_t capacity = 1024)
         : m_buffer(capacity) {
     }
 
-    const int IS_LITTLE_ENDIAN() {
-        int __dummy = 1;
-        return (*((unsigned char*)(&(__dummy))));
+    static bool IS_LITTLE_ENDIAN() noexcept {
+        const uint16_t dummy = 0x1;
+        const auto* bytes = reinterpret_cast<const uint8_t*>(&dummy);
+        return bytes[0] == 0x1;
     }
 
     template<typename T>
@@ -87,32 +90,31 @@ public:
         static_assert(std::is_integral_v<T>, "Integral required.");
         ensureCapacity(sizeof(T));
         T networkValue = swapIfNeeded(value);
-        memcpy(&m_buffer[m_writePos], &networkValue, sizeof(T));
+        const auto* byte_data = reinterpret_cast<const uint8_t*>(&networkValue);
+        std::copy_n(byte_data, sizeof(T), m_buffer.data() + m_writePos);
         m_writePos += sizeof(T);
     }
 
     void write24(uint32_t value) {
-        ensureCapacity(3);
-        if (IS_LITTLE_ENDIAN()) {
-            uint8_t buf[3];
-            buf[0] = (value >> 16) & 0xFF;
-            buf[1] = (value >> 8) & 0xFF;
-            buf[2] = value & 0xFF;
-            memcpy(&m_buffer[m_writePos], buf, 3);
-            //m_buffer[m_writePos++] = (value >> 16) & 0xFF;
-            //m_buffer[m_writePos++] = (value >> 8) & 0xFF;
-            //m_buffer[m_writePos++] = value & 0xFF;
-        } else {
-            uint8_t* p = reinterpret_cast<uint8_t*>(&value);
-            memcpy(&m_buffer[m_writePos], p + 1, 3);
+        if (value > kMax24BitValue) {
+            HJ_EXCEPT(HJException::ERR_INVALIDPARAMS, "24-bit value out of range");
         }
+        ensureCapacity(3);
+        m_buffer[m_writePos] = static_cast<uint8_t>((value >> 16) & 0xFFU);
+        m_buffer[m_writePos + 1] = static_cast<uint8_t>((value >> 8) & 0xFFU);
+        m_buffer[m_writePos + 2] = static_cast<uint8_t>(value & 0xFFU);
         m_writePos += 3;
     }
 
     void writeBytes(const uint8_t* data, size_t length) {
-        if (!data || length == 0) return;
+        if (length == 0) {
+            return;
+        }
+        if (data == nullptr) {
+            HJ_EXCEPT(HJException::ERR_INVALIDPARAMS, "Buffer write data is null");
+        }
         ensureCapacity(length);
-        memcpy(&m_buffer[m_writePos], data, length);
+        std::copy_n(data, length, m_buffer.data() + m_writePos);
         m_writePos += length;
     }
 
@@ -121,37 +123,36 @@ public:
         static_assert(std::is_integral_v<T>, "Integral required.");
         checkAvailable(sizeof(T));
         T value;
-        memcpy(&value, &m_buffer[m_readPos], sizeof(T));
+        auto* byte_data = reinterpret_cast<uint8_t*>(&value);
+        std::copy_n(m_buffer.data() + m_readPos, sizeof(T), byte_data);
         m_readPos += sizeof(T);
         return swapIfNeeded(value);
     }
 
     uint32_t read24() {
         checkAvailable(3);
-        uint32_t value = 0;
-        if(IS_LITTLE_ENDIAN()) {
-            value = (static_cast<uint32_t>(m_buffer[m_readPos]) << 16) |
-                (static_cast<uint32_t>(m_buffer[m_readPos + 1]) << 8) |
-                static_cast<uint32_t>(m_buffer[m_readPos + 2]);
-        }
-        else {
-            value = (static_cast<uint32_t>(m_buffer[m_readPos + 2]) << 16) |
-                (static_cast<uint32_t>(m_buffer[m_readPos + 1]) << 8) |
-                static_cast<uint32_t>(m_buffer[m_readPos]);
-        }
+        const uint32_t value = (static_cast<uint32_t>(m_buffer[m_readPos]) << 16) |
+            (static_cast<uint32_t>(m_buffer[m_readPos + 1]) << 8) |
+            static_cast<uint32_t>(m_buffer[m_readPos + 2]);
         m_readPos += 3;
         return value;
     }
 
     void readBytes(uint8_t* dest, size_t length) {
+        if (length == 0) {
+            return;
+        }
+        if (dest == nullptr) {
+            HJ_EXCEPT(HJException::ERR_INVALIDPARAMS, "Buffer read destination is null");
+        }
         checkAvailable(length);
-        memcpy(dest, &m_buffer[m_readPos], length);
+        std::copy_n(m_buffer.data() + m_readPos, length, dest);
         m_readPos += length;
     }
 
     const uint8_t* data() const { return m_buffer.data(); }
     size_t size() const { return m_writePos; }
-    size_t capacity() const { return m_buffer.capacity(); }
+    size_t capacity() const { return m_buffer.size(); }
     size_t remaining() const { return m_writePos - m_readPos; }
     bool eof() const { return m_readPos >= m_writePos; }
     void clear() { m_readPos = m_writePos = 0; }
@@ -182,13 +183,23 @@ private:
     }
 
     void ensureCapacity(size_t additional) {
-        if (m_writePos + additional > m_buffer.size()) {
-            m_buffer.resize(HJ_MAX(m_buffer.size() * 2, m_writePos + additional));
+        if (additional > std::numeric_limits<size_t>::max() - m_writePos) {
+            HJ_EXCEPT(HJException::ERR_INVALIDPARAMS, "Buffer size overflow");
+        }
+
+        const size_t required_size = m_writePos + additional;
+        if (required_size > m_buffer.size()) {
+            const size_t current_size = m_buffer.size();
+            const size_t doubled_size = current_size > (std::numeric_limits<size_t>::max() / 2) ?
+                std::numeric_limits<size_t>::max() :
+                current_size * 2;
+            const size_t new_size = std::max(required_size, std::max<size_t>(1, doubled_size));
+            m_buffer.resize(new_size);
         }
     }
 
     void checkAvailable(size_t length) const {
-        if (m_readPos + length > m_writePos) {
+        if (length > remaining()) {
             HJ_EXCEPT(HJException::ERR_INVALID_CALL, "Buffer read out of range");
         }
     }

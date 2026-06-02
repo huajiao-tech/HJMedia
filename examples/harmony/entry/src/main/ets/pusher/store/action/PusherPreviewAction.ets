@@ -65,6 +65,9 @@ export class SelectorAction implements Action<PusherPreviewState> {
 export class DoubleScreenAction implements Action<PusherPreviewState> {
 }
 
+export class ScreenModeAction implements Action<PusherPreviewState> {
+}
+
 export class FaceuAction implements Action<PusherPreviewState> {
   payload: number
   url: string

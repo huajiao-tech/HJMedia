@@ -9,7 +9,8 @@ NS_HJ_BEGIN
 const std::map<int, int> HJXIOFile::XIO_FILE_MODE_MAPS = {
 	{HJ_XIO_READ, HJXF_MODE_RONLY},
 	{HJ_XIO_WRITE, HJXF_MODE_WONLY},
-	{HJ_XIO_RW, HJXF_MODE_RW}
+	{HJ_XIO_RW, HJXF_MODE_RW},
+	{HJ_XIO_RWONLY, HJXF_MODE_RWONLY}
 };
 //***********************************************************************************//
 HJXIOFile::HJXIOFile()
@@ -32,6 +33,7 @@ int HJXIOFile::open(HJUrl::Ptr url)
 	}
 	m_file = std::make_unique<HJFStream>();
 	m_size = 0;
+    m_last_io_type = LastIOType::NONE;
 	const char* path = m_url->getUrl().c_str();
 	std::ios::openmode fmode = xioToFMode(m_url->getMode());
 	m_file->open(path, fmode);
@@ -41,7 +43,7 @@ int HJXIOFile::open(HJUrl::Ptr url)
 	}
 
 	int mode = m_url->getMode();
-	if (mode == HJ_XIO_READ || mode == HJ_XIO_RW) {
+	if (mode == HJ_XIO_READ || mode == HJ_XIO_RW || mode == HJ_XIO_RWONLY) {
 		if (HJ_OK != seek(0, std::ios::end)) {
 			HJLoge("seek to end failed.");
 			return HJErrIOSeek;
@@ -62,6 +64,7 @@ void HJXIOFile::close()
 		m_file->close();
 		m_file = nullptr;
 	}
+    m_last_io_type = LastIOType::NONE;
 }
 
 int HJXIOFile::read(void* buffer, size_t cnt)
@@ -69,8 +72,17 @@ int HJXIOFile::read(void* buffer, size_t cnt)
 	if (!m_file || !buffer) {
 		return HJErrIORead;
 	}
+    m_last_io_type = LastIOType::READ;
 	m_file->read((char *)buffer, cnt);
-	return (int)m_file->gcount();
+	int bytes_read = (int)m_file->gcount();
+	// 区分EOF和I/O错误
+	if (bytes_read == 0 && m_file->eof()) {
+		return 0; // 正常EOF
+	}
+	if (m_file->bad()) {
+		return HJErrIORead;
+	}
+	return bytes_read;
 }
 
 int HJXIOFile::write(const void* buffer, size_t cnt)
@@ -78,6 +90,7 @@ int HJXIOFile::write(const void* buffer, size_t cnt)
 	if (!m_file || !buffer) {
 		return HJErrIOWrite;
 	}
+    m_last_io_type = LastIOType::WRITE;
 	m_file->write((const char*)buffer, cnt);
 	if (!m_file->good()){
 		return HJErrIOWrite;
@@ -94,17 +107,28 @@ int HJXIOFile::seek(int64_t offset, int whence)
 	if (!m_file) {
 		return HJErrIOSeek;
 	}
-    std::ios::openmode mode = m_url->getMode();
-    std::ios::seekdir dir = (std::ios::seekdir)whence;
-    checkState();
-	if (mode == HJXF_MODE_WONLY) {
-		m_file->seekp(offset, dir);
-	} else {
-		m_file->seekg(offset, dir);
-	}
-    int ret = checkState();
-    if (HJ_OK != ret) {
-        return HJErrIOSeek;
+	int mode = m_url->getMode();
+	std::ios::seekdir dir = (std::ios::seekdir)whence;
+	checkState();
+    if (mode == HJ_XIO_WRITE) {
+        m_file->seekp(offset, dir);
+        if (HJ_OK != checkState()) {
+            return HJErrIOSeek;
+        }
+    } else if (mode == HJ_XIO_READ) {
+        m_file->seekg(offset, dir);
+        if (HJ_OK != checkState()) {
+            return HJErrIOSeek;
+        }
+    } else {
+        m_file->seekg(offset, dir);
+        if (HJ_OK != checkState()) {
+            return HJErrIOSeek;
+        }
+        m_file->seekp(offset, dir);
+        if (HJ_OK != checkState()) {
+            return HJErrIOSeek;
+        }
     }
 	return HJ_OK;
 }
@@ -122,17 +146,21 @@ int HJXIOFile::flush()
 int64_t HJXIOFile::tell()
 {
 	if (!m_file) {
-		return 0;
+		return -1;
 	}
-	size_t lar = 0;
-	std::ios::openmode mode = m_url->getMode();
-    checkState();
-	if (mode == HJXF_MODE_WONLY) {
-		lar = m_file->tellp();
-	}else {
-		lar = m_file->tellg();
+	int64_t pos = 0;
+	int mode = m_url->getMode();
+	checkState();
+	if (m_last_io_type == LastIOType::WRITE) {
+		pos = m_file->tellp();
+	} else if (m_last_io_type == LastIOType::READ) {
+		pos = m_file->tellg();
+    } else if (mode == HJ_XIO_WRITE) {
+        pos = m_file->tellp();
+    } else {
+		pos = m_file->tellg();
 	}
-	return lar;
+	return pos;
 }
 
 int64_t HJXIOFile::size()
@@ -142,17 +170,24 @@ int64_t HJXIOFile::size()
 
 int HJXIOFile::checkState()
 {
-    if (m_file->fail() || m_file->bad()) {
-        HJLoge("checkState error, stat:" + HJ2STR(m_file->rdstate()));
-        m_file->clear();
-        return HJErrIOFail;
-    }
-    return HJ_OK;
+	if (!m_file) {
+		return HJErrIOFail;
+	}
+	if (m_file->fail() || m_file->bad()) {
+		HJLoge("checkState error, stat:" + HJ2STR(m_file->rdstate()));
+		m_file->clear();
+		return HJErrIOFail;
+	}
+	return HJ_OK;
 }
 
 bool HJXIOFile::eof()
 {
-    return (m_file->eof() || (tell() >= m_size) ) ? true : false;
+	if (!m_file || !m_file->is_open()) {
+		return true;
+	}
+	int64_t pos = tell();
+	return m_file->eof() || (pos >= 0 && pos >= (int64_t)m_size);
 }
 
 int HJXIOFile::xioToFMode(int mode)

@@ -1,0 +1,49 @@
+{
+    "Name": "",
+    "ID": "",
+    "Type": 0,
+    "loop": 1,
+    "music": "",
+    "texture": [
+        {
+            "mframeCount": 96,
+            "radius_Type": 0,
+            "mid_Type": 0,
+            "scale_Type": 0,
+            "scale_ratio": 221.39999389648438,
+            "anchor_offset_x": -528,
+            "anchor_offset_y": 134,
+            "asize_offset_x": 1000,
+            "asize_offset_y": 1500,
+            "mfaceCount": 1,
+            "imageName": "sticker3_"
+        },
+        {
+            "mframeCount": 96,
+            "radius_Type": 0,
+            "mid_Type": 0,
+            "scale_Type": 0,
+            "scale_ratio": 150.5,
+            "anchor_offset_x": -493,
+            "anchor_offset_y": -422,
+            "asize_offset_x": 1000,
+            "asize_offset_y": 1500,
+            "mfaceCount": 1,
+            "imageName": "sticker2_"
+        },
+        {
+            "mframeCount": 1,
+            "radius_Type": 0,
+            "mid_Type": 0,
+            "scale_Type": 0,
+            "scale_ratio": 154.5,
+            "anchor_offset_x": -221,
+            "anchor_offset_y": -477,
+            "asize_offset_x": 445,
+            "asize_offset_y": 434,
+            "mfaceCount": 1,
+            "imageName": "sticker1_"
+        }
+    ],
+    "framerate": 15
+}

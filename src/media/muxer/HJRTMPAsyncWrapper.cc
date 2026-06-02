@@ -67,7 +67,9 @@ void HJRTMPAsyncWrapper::tryWait()
 	if (m_isQuit && m_wrapper) {
 		m_wrapper->setQuit();
 	}
-	HJFLogi("end, time:{}, m_isQuit:{}", HJCurrentSteadyMS() - t0, m_isQuit);
+	HJFLogi("end, time:{}, m_isQuit:{}",
+	        HJCurrentSteadyMS() - t0,
+	        m_isQuit.load(std::memory_order_relaxed));
 }
 
 void HJRTMPAsyncWrapper::done()
@@ -179,14 +181,18 @@ int HJRTMPAsyncWrapper::run()
 		}
 	} while (!m_isQuit);
 	//
-    HJFLogi("loop end, res:{}, m_isQuit:{}", res, m_isQuit);
+    HJFLogi("loop end, res:{}, m_isQuit:{}",
+            res,
+            m_isQuit.load(std::memory_order_relaxed));
 	if (HJ_OK == res) {
 		m_wrapper->sendFooter(lastTimestamp, isHevc);
 	}
 	m_wrapper->close();
 	m_isQuit = false;
 	//
-	HJFLogi("end, res:{}, m_isQuit:{}", res, m_isQuit);
+	HJFLogi("end, res:{}, m_isQuit:{}",
+	        res,
+	        m_isQuit.load(std::memory_order_relaxed));
 
 	return res;
 }

@@ -5,6 +5,7 @@
 NS_HJ_BEGIN
 
 int HJJNIField::m_exceptionVal = -65536;
+std::string HJJNIField::m_handleName = "mHandle";
 
 HJJNIField::SLFieldVariant HJJNIField::GetFieldValueTest(HJJNIField::SLFieldVariant i_value, const std::string& name)
 {
@@ -99,7 +100,7 @@ HJJNIField::SLFieldVariant HJJNIField::GetFieldValue(JNIEnv* env, jobject thiz, 
 	}
 	else
 	{
-		ret = (int)m_excepationVal;
+		ret = (int)m_exceptionVal;
 	}
 	return ret;
 }
@@ -295,7 +296,7 @@ void HJJNIField::SetIntArrayElements(JNIEnv* env, jobject thiz, const int32_t* v
 	env->DeleteLocalRef(cls);
 }
 
-void SLJNIField::SetByteArrayElements(JNIEnv* env, jobject thiz, const int8_t* values, const std::string& name)
+void HJJNIField::SetByteArrayElements(JNIEnv* env, jobject thiz, const int8_t* values, const std::string& name)
 {
 	jclass cls = env->GetObjectClass(thiz);
 	jfieldID jvaluesID = env->GetFieldID(cls, name.c_str(), "[B");

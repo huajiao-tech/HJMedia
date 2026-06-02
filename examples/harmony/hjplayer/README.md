@@ -145,7 +145,7 @@ onSurfaceDestroyed(surfaceId: string) {
 
 -   `setWindowInfo`: `SetWindowInfo` - 窗口信息 (见 `SetWindowInfo`)。
 
-#### `openPlayer(openPlayerInfo: OpenPlayerInfo, stateCall: (str: string) => void, stateInfo: MediaStateInfo, statCall: (str: string) => void)`
+#### `openPlayer(openPlayerInfo: OpenPlayerInfo, stateCall: (str: string) => void, stateInfo: MediaStateInfo, statCall: (str: string) => void, seiCall?: (seiInfo: HJPlayerSeiInfo) => void)`
 
 打开播放器。
 
@@ -153,6 +153,7 @@ onSurfaceDestroyed(surfaceId: string) {
 -   `stateCall`: `(str: string) => void` - 状态回调。
 -   `stateInfo`: `MediaStateInfo`        - 设置为默认值即可。
 -   `statCall`: `(str: string) => void`  - 统计回调。
+-   `seiCall`: `(seiInfo: HJPlayerSeiInfo) => void` - 可选 SEI ArrayBuffer 回调。
 
 #### `closePlayer()`
 
@@ -252,16 +253,6 @@ onSurfaceDestroyed(surfaceId: string) {
 -   `sourceType`: `HJPlayerSourceType` - 播放源类型，如果使用左右分屏透明礼物使用HJPlayerSourceType_SPLITSCREEN，否则一律使用HJPlayerSourceType_SERIES
 -   `playerType`: `HJPlayerType` - 播放类型，HJPlayerType_LIVESTREAM为直播，HJPlayerType_VOD为点播。
 -   `bSplitScreenMirror`: `boolean` -如果使用左右分屏透明礼物播放，是否启动水平轴镜像。
--   `disableMFlag`: `number` - 详见HJPlayerMediaType具体枚举值，默认为HJPLAYER_MEDIA_TYPE_NONE
-
-HJPlayerMediaType
-{
-    HJPLAYER_MEDIA_TYPE_NONE       = 0x0000,
-    HJPLAYER_MEDIA_TYPE_VIDEO      = 0x0001,
-    HJPLAYER_MEDIA_TYPE_AUDIO      = 0x0002,
-    HJPLAYER_MEDIA_TYPE_DATA       = 0x0004,
-    HJPLAYER_MEDIA_TYPE_SUBTITLE   = 0x0008,
-}
 
 #### `SetWindowInfo`    - 上层窗口设置
 

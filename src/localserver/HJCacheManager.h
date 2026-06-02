@@ -11,7 +11,7 @@
 #include "HJCacheFile.h"
 
 NS_HJ_BEGIN
-class HJMediaStorageManager;
+class HJMediaDBManager;
 //***********************************************************************************//
 typedef struct HJCacheInfo
 {
@@ -36,7 +36,7 @@ public:
 	int cancelCacheFile(std::string rid);
 	void clearCache();
 
-	void setStorageManager(const std::shared_ptr<HJMediaStorageManager>& storageManager) {
+	void setStorageManager(const std::shared_ptr<HJMediaDBManager>& storageManager) {
 		m_storageManager = storageManager;
 	}
 	HJCacheFile::Ptr getCacheFile(std::string rid) {
@@ -60,7 +60,7 @@ private:
 	HJListener				m_listener{};
 	HJExecutorPool::Utr		m_pool;
 	std::mutex              m_mutex;
-	std::shared_ptr<HJMediaStorageManager> m_storageManager;
+	std::shared_ptr<HJMediaDBManager> m_storageManager;
 	std::map<std::string, HJCacheFile::Ptr> m_cacheFiles;
 	// std::map<int, std::queue<HJCacheInfo>>  m_cacheInfos;
 };

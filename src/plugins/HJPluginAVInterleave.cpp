@@ -8,13 +8,13 @@ NS_HJ_BEGIN
 int HJPluginAVInterleave::internalInit(HJKeyStorage::Ptr i_param)
 {
 	GET_PARAMETER(HJLooperThread::Ptr, thread);
-	GET_PARAMETER(HJListener, pluginListener);
-	auto param = std::make_shared<HJKeyStorage>();
-	(*param)["thread"] = thread;
+//	GET_PARAMETER(HJListener, pluginListener);
+	auto param = HJKeyStorage::dupFrom(i_param);
+//	(*param)["thread"] = thread;
 	(*param)["createThread"] = (thread == nullptr);
-	if (pluginListener) {
-		(*param)["pluginListener"] = pluginListener;
-	}
+//	if (pluginListener) {
+//		(*param)["pluginListener"] = pluginListener;
+//	}
 	return HJPlugin::internalInit(param);
 }
 
@@ -33,18 +33,16 @@ void HJPluginAVInterleave::onInputAdded(size_t i_srcKeyHash, HJMediaType i_type)
 int HJPluginAVInterleave::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
-	std::string route = "0";
+	std::string route{};
 	int64_t enter = HJCurrentSteadyMS();
-	int ret;
+	int ret{ HJ_OK };
 	do {
-		ret = SYNC_CONS_LOCK([&route, this] {
-			if (m_status == HJSTATUS_Done) {
-				route += "_1";
-				return HJErrAlreadyDone;
-			}
-			return HJ_OK;
+		auto status = SYNC_CONS_LOCK([this] {
+			return m_status;
 		});
-		if (ret != HJ_OK) {
+		if (status == HJSTATUS_Done) {
+			route += "_0";
+			ret = HJErrAlreadyDone;
 			break;
 		}
 
@@ -52,17 +50,17 @@ int HJPluginAVInterleave::runTask(int64_t* o_delay)
 		auto inputAudioKeyHash = m_inputAudioKeyHash.load();
 		auto inputVideoKeyHash = m_inputVideoKeyHash.load();
 
-		size_t audioSize = -1;
+//		size_t audioSize = -1;
 		HJMediaFrame::Ptr previewAudio{};
 		if (flag & HJMEDIA_TYPE_AUDIO) {
-			route += "_2";
-			previewAudio = preview(inputAudioKeyHash, &audioSize);
+			route += "_1";
+			previewAudio = preview(inputAudioKeyHash/*, &audioSize*/);
 		}
-		size_t videoSize = -1;
+//		size_t videoSize = -1;
 		HJMediaFrame::Ptr previewVideo{};
 		if (flag & HJMEDIA_TYPE_VIDEO) {
-			route += "_3";
-			previewVideo = preview(inputVideoKeyHash, &videoSize);
+			route += "_2";
+			previewVideo = preview(inputVideoKeyHash/*, &videoSize*/);
 		}
 
 		HJMediaFrame::Ptr outFrame{};
@@ -70,6 +68,7 @@ int HJPluginAVInterleave::runTask(int64_t* o_delay)
 			if (previewAudio != nullptr) {
 				route += HJFMT("_ADTS({})", previewAudio->getDTS());
 				if (!(flag & HJMEDIA_TYPE_VIDEO) || ((previewVideo != nullptr) && (previewAudio->getDTS() <= previewVideo->getDTS()))) {
+					int64_t audioSize = -1;
 					receive(inputAudioKeyHash, &audioSize);
 					route += HJFMT("<=VDTS({})_ASize({})", previewVideo->getDTS(), audioSize);
 					outFrame = previewAudio;
@@ -81,6 +80,7 @@ int HJPluginAVInterleave::runTask(int64_t* o_delay)
 				route += previewAudio ? ">=" : "_";
 				route += HJFMT("VDTS({})", previewVideo->getDTS());
 				if (!(flag & HJMEDIA_TYPE_AUDIO) || ((previewAudio != nullptr) && (previewVideo->getDTS() <= previewAudio->getDTS()))) {
+					int64_t videoSize = -1;
 					receive(inputVideoKeyHash, &videoSize);
 					route += HJFMT("_VSize({})", videoSize);
 					outFrame = previewVideo;
@@ -89,19 +89,19 @@ int HJPluginAVInterleave::runTask(int64_t* o_delay)
 			}
 		} while (false);
 		if (outFrame == nullptr) {
-			route += "_4";
+			route += "_3";
 			ret = HJ_WOULD_BLOCK;
 			break;
 		}
 
-		route += "_5";
 		deliverToOutputs(outFrame);
+		route += "_4";
 	} while (false);
 
 	RUNTASKLog("{}, leave, route({}), duration({}), ret({})", getName(), route, (HJCurrentSteadyMS() - enter), ret);
 	return ret;
 }
-
+/*
 void HJPluginAVInterleave::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 {
 	auto now = HJCurrentSteadyMS();
@@ -134,5 +134,5 @@ void HJPluginAVInterleave::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 
 	HJPlugin::deliverToOutputs(i_mediaFrame);
 }
-
+*/
 NS_HJ_END

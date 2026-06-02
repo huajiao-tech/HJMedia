@@ -7,7 +7,9 @@
 #include <string>
 #include <unordered_map>
 #include "HJVerifyRender.h"
-#include "HJNAPITestLive.h"
+#if defined(HJ_ENABLE_RENDER_PRIO)
+    #include "HJNAPITestLive.h"
+#endif
 #include "HJThreadPool.h"
 
 NS_HJ_USING
@@ -31,6 +33,8 @@ public:
     static napi_value tryOpenRecord(napi_env env, napi_callback_info info);
     static napi_value tryCloseRecord(napi_env env, napi_callback_info info);
     static napi_value trySetROIOffset(napi_env env, napi_callback_info info);
+    static napi_value tryNodeSetParam(napi_env env, napi_callback_info info);
+    static napi_value trySetPreviewRotation(napi_env env, napi_callback_info info);
     static napi_value tryGiftOpen(napi_env env, napi_callback_info info);
     static napi_value tryDoubleScreen(napi_env env, napi_callback_info info);
     static napi_value tryGiftPusher(napi_env env, napi_callback_info info);
@@ -55,8 +59,9 @@ private:
     
     static HJTimerThreadPool::Ptr m_testThreadTimer; 
     static HJThreadPool::Ptr m_testThreadPool;
+#if defined(HJ_ENABLE_RENDER_PRIO)    
     static HJNAPITestLive::Ptr m_testLiveStream;
-    
+#endif
     static int s_videoCodecId;
     static int s_previewFps;
     static int s_width;

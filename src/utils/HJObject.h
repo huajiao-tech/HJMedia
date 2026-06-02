@@ -24,7 +24,11 @@ public:
     
     template <typename WT>
     std::weak_ptr<WT> weak_ptr() {
-        return std::static_pointer_cast<WT>(weak_from_this());
+        auto base = weak_from_this().lock();
+        if (!base) {
+            return {};
+        }
+        return std::static_pointer_cast<WT>(base);
     }
 private:
     // Uses SFINAE to detect and call
@@ -84,10 +88,10 @@ public:
     virtual void setName(const std::string& name) {
         m_name = name;
     }
-    virtual const std::string getFMTName() {
+    virtual std::string getFMTName() const {
         return "[name:" + m_name + "], ";
     }
-    virtual const size_t getID() const {
+    virtual size_t getID() const {
         return m_id;
     }
     virtual void setID(const size_t ID) {
@@ -99,6 +103,9 @@ public:
     }
     template <typename T>
     std::shared_ptr<T> sharedFrom(T* ptr) {
+        if (!ptr) {
+            return nullptr;
+        }
         return std::dynamic_pointer_cast<T>(ptr->shared_from_this());
     }
 public:
@@ -121,8 +128,8 @@ public:
         return ret;
     }
 
-    static const size_t getGlobalID();
-    static const std::string getGlobalName(const std::string prefix = "");
+    static size_t getGlobalID();
+    static std::string getGlobalName(const std::string& prefix = "");
 protected:
     std::string             m_name = "";
     size_t                  m_id = 0;
@@ -194,11 +201,12 @@ public:
     HJObjectHolder(const T& v) {
         m_obj = v;
     }
-    void operator=(const T& v){
+    HJObjectHolder& operator=(const T& v){
         HJ_AUTO_LOCK(m_mutex)
         m_obj = v;
+        return *this;
     }
-    const T get() {
+    T get() {
         HJ_AUTO_LOCK(m_mutex)
         return m_obj;
     }

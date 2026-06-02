@@ -36,8 +36,8 @@ public:
     static const std::map<int, int>     XIO_AVIO_MODE_MAPS;
     static int xioToAvioMode(int mode);
 protected:
-    AVIOContext*        m_avio;
-    size_t              m_size = 0;
+    AVIOContext*        m_avio = nullptr;
+    bool                m_close_with_avio_closep = false;
 };
 
 //***********************************************************************************//

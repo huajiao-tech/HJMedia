@@ -10,7 +10,7 @@ import { ToastUtils } from '../../util/ToastUtils';
 @ObservedV2
 export class PusherState implements State {
   @Trace pusherConfigArray: MediaConfig[] = [
-    new MediaConfig("string", 'URL 推流地址', 'rtmp://live-push-1.huajiao.com/main/lfs?auth_key=1765507830-0-0-0c392a68f2c6336e4c8589861ff0e35e'),
+    new MediaConfig("string", 'URL 推流地址', 'rtmp://live-push-0.test.huajiao.com/main/test?auth_key=1780381073-0-0-160369ec13e62754f23f206e519da246'),
     new MediaConfig("boolean", '是否横屏', false),
     new MediaConfig("boolean", '是否保持屏幕常亮', false),
     new MediaConfig("boolean", '是否双屏预览', false),
@@ -34,14 +34,6 @@ export class PusherStore implements Store<PusherState> {
 
       this.state.config.roiQuantOffset = this.state.pusherConfigArray[4].value as number
       console.log("roiQuantOffset: ", this.state.pusherConfigArray[4].value);
-
-      if (this.state.config.isLandScape) {
-        this.state.config.videoConfig.width = 1280
-        this.state.config.videoConfig.height = 720
-      } else {
-        this.state.config.videoConfig.width = 720
-        this.state.config.videoConfig.height = 1280
-      }
       try {
         let atManager = abilityAccessCtrl.createAtManager();
         atManager.requestPermissionsFromUser(getContext(), ['ohos.permission.CAMERA', 'ohos.permission.MICROPHONE'])

@@ -24,12 +24,21 @@ MAKE_COMMON_CONFIG(${SOURCE_FILES})
 # set(CMAKE_EXE_LINKER_FLAGS"${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 add_executable(${PROJ_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 
+set(HJ_XMEDIATOOLS_HAS_LIBCURL 0)
+if(TARGET LIBCURL)
+    set(HJ_XMEDIATOOLS_HAS_LIBCURL 1)
+endif()
+target_compile_definitions(${PROJ_NAME} PRIVATE HJ_XMEDIATOOLS_HAS_LIBCURL=${HJ_XMEDIATOOLS_HAS_LIBCURL})
+
 if(WINDOWS)
     target_link_libraries(${PROJ_NAME} 
         Crypt32 IPHLPAPI opengl32 dwmapi
-        HJGraphs HJPlugins HJLocalServer HJPlatform
+        HJGraphs HJPlugins HJLocalServer HJMediaDBKit HJPlatform LIBSQLITEORM sqlite3
         HJGui ImGuiFileDialog ImFileDialog glfw implot imgui HJCore HJLinks HJMedia HJDataFuse HJStat HJUtils LIBSPDLOG
     )
+    if(HJ_XMEDIATOOLS_HAS_LIBCURL)
+        target_link_libraries(${PROJ_NAME} Wldap32 Secur32 LIBCURL)
+    endif()
     target_link_libraries(${PROJ_NAME} debug libavdeviced optimized libavdevice)
     target_link_libraries(${PROJ_NAME} debug libavfilterd optimized libavfilter)
     target_link_libraries(${PROJ_NAME} debug libavformatd optimized libavformat)
@@ -42,7 +51,7 @@ if(WINDOWS)
     # target_link_libraries(${PROJ_NAME} debug exception_handlerd optimized exception_handler)
 else()
     target_link_libraries(${PROJ_NAME} 
-        HJGraphs HJPlugins HJLocalServer
+        HJGraphs HJPlugins HJLocalServer HJMediaDBKit LIBSQLITEORM sqlite3
         HJGui ImGuiFileDialog ImFileDialog glfw implot imgui HJCore HJLinks HJMedia HJDataFuse HJStat HJUtils LIBSPDLOG LIBFFMPEG LIBX265 LIBX264 LIBSRT
     )
     target_link_libraries(${PROJ_NAME} 

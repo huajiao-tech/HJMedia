@@ -256,7 +256,7 @@ int HJPrioComSourceSeries::render(HJBaseParam::Ptr i_param)
                 int srch = m_LastFboInfo->m_height;
                 float *texMat = m_LastFboInfo->m_matrix;
                 
-                if (surface->getSurfaceType() == HJOGEGLSurfaceType_FaceDetect)
+                if (surface->getSurfaceType() == HJOGEGLSurfaceType_ImageReceiver)
                 {
                     int width = getWidth();
                     int height = getHeight();

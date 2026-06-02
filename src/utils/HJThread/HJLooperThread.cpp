@@ -15,7 +15,6 @@ HJLooperThread::Handler::~Handler()
 		auto timer = it->second;
 		if (timer) {
 			SYNCHRONIZED(timer->sync, timerLock);
-			removeMessages(it->first);
 			timer->quitting = true;
 			timer->run = nullptr;
 		}
@@ -59,6 +58,20 @@ bool HJLooperThread::Handler::runOrAsync(HJRunnable task, int id)
 	return false;
 }
 
+int  HJLooperThread::Handler::runOrSync(Run task)
+{
+	if (task == nullptr) {
+		return HJErrInvalidParams;
+	}
+
+	if (mLooper->isCurrentThread()) {
+		return task();
+	}
+	else {
+		return sync(task);
+	}
+}
+
 int HJLooperThread::Handler::openTimer(Timer::Run run, int den, int num, int id)
 {
 	if (!run || den <= 0 || num <= 0) {
@@ -69,9 +82,15 @@ int HJLooperThread::Handler::openTimer(Timer::Run run, int den, int num, int id)
 	if (id < 0) {
 		id = genMsgId();
 	}
+
 	auto timer = std::make_shared<Timer>();
+	std::weak_ptr<Timer> wTimer = timer;
 	Wtr wHandler = SHARED_FROM_THIS;
-	timer->run = [timer, wHandler, num, den, id, run] {
+	timer->run = [wTimer, wHandler, num, den, id, run] {
+		auto timer = wTimer.lock();
+		if (!timer) {
+			return;
+		}
 		SYNCHRONIZED_LOCK(timer->sync);
 		if (timer->quitting) {
 			return;
@@ -100,6 +119,10 @@ int HJLooperThread::Handler::openTimer(Timer::Run run, int den, int num, int id)
 	timer->numIndex = 0;
 	{
 		SYNCHRONIZED_LOCK(m_timerSync);
+		if (m_timerMap.find(id) != m_timerMap.end()) {
+			HJFLoge("openTimer error! id({}) already exists.", id);
+			return -1;
+		}
 		m_timerMap[id] = timer;
 	}
 
@@ -114,10 +137,10 @@ void HJLooperThread::Handler::closeTimer(int id)
 
 	auto it = m_timerMap.find(id);
 	if (it != m_timerMap.end()) {
+		removeMessages(it->first);
 		auto timer = it->second;
 		if (timer) {
 			SYNCHRONIZED(timer->sync, timerLock);
-			removeMessages(it->first);
 			timer->quitting = true;
 			timer->run = nullptr;
 		}
@@ -133,7 +156,7 @@ int HJLooperThread::currentThread()
 HJLooperThread::Ptr HJLooperThread::quickStart(const std::string& name, size_t identify)
 {
 	auto thread = std::make_shared<HJLooperThread>(name, identify);
-	int ret = thread->init(nullptr);
+	int ret = thread->init();
 	if (ret != HJ_OK) {
 		return nullptr;
 	}
@@ -141,39 +164,51 @@ HJLooperThread::Ptr HJLooperThread::quickStart(const std::string& name, size_t i
 	return thread;
 }
 
+HJLooperThread::~HJLooperThread()
+{
+	done();
+}
+
 int HJLooperThread::internalInit(HJKeyStorage::Ptr i_param)
 {
 	int ret = HJSyncObject::internalInit(i_param);
-	if (ret < 0) {
+	if (ret != HJ_OK) {
 		return ret;
 	}
+	if (m_quitting.load()) {
+		return HJErrAlreadyDone;
+	}
 
-	do {
-		try {
-			m_thread = std::thread([](HJLooperThread* thread) {
-				gThreadId = gThreadCount.fetch_add(1);
-				thread->run();
-			}, this);
+	try {
+		m_thread = std::thread([](HJLooperThread* thread) {
+			gThreadId = gThreadCount.fetch_add(1);
+			thread->run();
+		}, this);
+	}
+	catch (.../*const std::exception&*/) {
+		return HJErrExcep;
+	}
+
+	return HJ_OK;
+}
+
+int HJLooperThread::beforeDone()
+{
+	m_quitting.store(true);
+
+	auto looper = getLooper();
+	if (looper != nullptr) {
+		if (looper->isCurrentThread()) {
+			return HJErrNotSupport;
 		}
-		catch (.../*const std::exception&*/) {
-			ret = HJErrExcep;
-			break;
-		}
+		looper->quit();
+	}
 
-		return HJ_OK;
-	} while (false);
-
-	HJLooperThread::internalRelease();
-	return ret;
+	return HJSyncObject::beforeDone();
 }
 
 void HJLooperThread::internalRelease()
 {
-	auto looper = getLooper();
-	if (looper != nullptr) {
-		looper->quit();
-	}
-
 	if (m_thread.joinable()) {
 		try {
 			m_thread.join();
@@ -189,9 +224,14 @@ void HJLooperThread::run()
 {
 	try {
         HJFLogi("{}, start.", getName());
+
+		if (m_quitting.load()) {
+			return;
+		}
+
 		HJLooper::prepare();
 
-		int ret = SYNC_PROD_LOCK([=] {
+		int ret = SYNC_PROD_LOCK([this] {
 			CHECK_DONE_STATUS(HJErrAlreadyDone);
 			m_looper = HJLooper::myLooper();
 			return HJ_OK;
@@ -204,15 +244,15 @@ void HJLooperThread::run()
         HJFLogi("{}, stop.", getName());
 	}
 	catch (...) {
-		SYNC_PROD_LOCK([=] {
+		SYNC_PROD_LOCK([this] {
 			CHECK_DONE_STATUS();
 			m_status = HJSTATUS_Exception;
 		});
 	}
 }
 
-HJLooper::Ptr HJLooperThread::getLooper() {
-
+HJLooper::Ptr HJLooperThread::getLooper()
+{
 	{
 		SYNCHRONIZED_SYNC(lock);
 		if (m_status == HJSTATUS_NONE) {

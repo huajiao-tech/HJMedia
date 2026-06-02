@@ -7,6 +7,33 @@ class ImPlotDemo : public App
 {
 public:
     using App::App;
+
+	virtual int RenderEveryStart()
+	{
+        int i_err = 0;
+		for (auto& item : m_items)
+		{
+			i_err = item->renderEveryStart();
+			if (i_err < 0)
+			{
+				break;
+			}
+		}
+        return i_err;
+	}
+	virtual int RenderEveryEnd()
+	{
+		int i_err = 0;
+		for (auto& item : m_items)
+		{
+			i_err = item->renderEveryEnd();
+			if (i_err < 0)
+			{
+				break;
+			}
+		}
+		return i_err;
+	}
     void Update() override 
     {
         bool bOpen = true;
@@ -19,10 +46,25 @@ public:
             if (ImGui::BeginMenu("Items"))
             {
                 HJUIItemType type = HJUIItemType_None;
-                if (ImGui::MenuItem("PlayerCom"))
+
+#if !defined(HJ_MEDIA_GRAPHIC_UI)
+				if (ImGui::MenuItem("SR"))
+				{
+					type = HJUIItemType_SR;
+				}
+                if (ImGui::MenuItem("NodeEditor"))
                 {
-                    type = HJUIItemType_PlayerCom;
+                    type = HJUIItemType_NodeEditor;
                 }
+                if (ImGui::MenuItem("RendGraphWrapper"))
+                {
+                    type = HJUIItemType_RendGraphWrapper;
+                }
+                                                
+                if (ImGui::MenuItem("PlayerCom"))
+				{
+					type = HJUIItemType_PlayerCom;
+				}
 				if (ImGui::MenuItem("Test"))
 				{
 					type = HJUIItemType_Test;
@@ -46,13 +88,17 @@ public:
                 {
                     int a = 0;
                 }
+#endif
 
-
+				if (ImGui::MenuItem("FaceuTool"))
+				{
+					type = HJUIItemType_FaceuTool;
+				}
 
                 if (type != HJUIItemType_None)
                 {
                     m_items.clear();
-                    HJUIBaseItem::Ptr item = HJUIBaseItem::createItem(type);
+                    HJUIBaseItem::Ptr item = HJUIBaseItem::createItem(type, getWindow());
                     m_items.emplace_back(std::move(item));
                 }
 
@@ -69,6 +115,9 @@ public:
             {
                 break;
             }
+
+            bool bUpdate = item->updateTitle();
+            App::updateTitle(!bUpdate);
         }
     }
 
@@ -81,8 +130,8 @@ int main(int argc, char const *argv[])
 {
     HJ::HJLog::Instance().init(true, "e:/", 2, ((1 << 1) | (1 << 2)), true, 1024 * 1024 * 5, 5);
 
-    HJ::ImPlotDemo app("Demo", 1920,1080,argc,argv);
-    app.Run();
+    HJ::ImPlotDemo app("Demo", 1020,1400,argc,argv);
+    app.Run(30);
 
     return 0;
 }

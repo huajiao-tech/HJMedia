@@ -27,7 +27,7 @@ MAKE_COMMON_CONFIG()
 
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJPlugins HJMedia HJDataFuse HJStat HJUtils LIBFFMPEG LIBSPDLOG)
+target_link_libraries(${PROJ_NAME} PRIVATE HJPlugins HJMedia HJDataFuse HJComp HJStat HJUtils LIBFFMPEG LIBSPDLOG yyjson LIBREFLCPP LIBMINIAUDIO)
 if (WINDOWS)
     target_link_libraries(${PROJ_NAME} PRIVATE HJPlatform)
 endif()

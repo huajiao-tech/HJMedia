@@ -76,9 +76,9 @@ bool HJHandler::enqueueMessage(HJMessageQueue::Ptr queue, HJMessage::Ptr msg, ui
 	return queue->enqueueMessage(msg, uptimeMillis);
 }
 
-void HJHandler::removeMessages(int what)
+void HJHandler::removeMessages(int what, HJSyncObject::Ptr obj)
 {
-	mQueue->removeMessages(SHARED_FROM_THIS, what, nullptr);
+	mQueue->removeMessages(SHARED_FROM_THIS, what, obj);
 }
 
 HJMessage::Ptr HJHandler::getPostMessage(HJRunnable r)
@@ -90,7 +90,7 @@ HJMessage::Ptr HJHandler::getPostMessage(HJRunnable r)
 
 int HJHandler::BlockingRunnable::postAndWait(HJHandler::Ptr handler, uint64_t timeout)
 {
-	auto msg = getPostMessage([=] {
+	auto msg = getPostMessage([this] {
 		try {
 			mRet = mTask();
 		}
@@ -112,6 +112,7 @@ int HJHandler::BlockingRunnable::postAndWait(HJHandler::Ptr handler, uint64_t ti
 			while (m_status != HJSTATUS_Done) {
 				int64_t delay = expirationTime - HJCurrentSteadyMS();
 				if (delay <= 0) {
+					handler->removeMessages(msg->what, msg->obj);
 					return HJErrTimeOut; // timeout
 				}
 				try {

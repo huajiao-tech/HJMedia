@@ -31,6 +31,10 @@ int HJSharedMemoryProducer::init(int i_width, int i_height, int i_fps)
 			i_err = SHAREDMEM_RET_NO_READY;
 			break;
 		}
+		//fixme lfs
+		m_width = i_width;
+		m_height = i_height;
+		m_interval = interval;
 	} while (false);
     return i_err;
 }
@@ -66,33 +70,93 @@ int HJSharedMemoryProducer::write(std::shared_ptr<HJMediaFrame> i_frame)
 			width, height);
 
 		uint8_t* data[2] = { m_buffer->getBuf(), m_buffer->getBuf() + width * height };
-		uint32_t linesize[2] = {width, width};
+		uint32_t linesize[2] = { (uint32_t)width, (uint32_t)width };
 		uint64_t timestamp = HJCurrentSteadyMS();
 
 		video_queue_write(m_vq, data, linesize, timestamp);
 	} while (false);
     return i_err;
 }
+//int HJSharedMemoryProducer::write2(std::shared_ptr<HJMediaFrame> i_frame)
+//{
+//	int i_err = SHAREDMEM_RET_OK;
+//	do
+//	{
+//		if (!m_vq)
+//		{
+//			i_err = SHAREDMEM_RET_NO_READY;
+//			break;
+//		}
+//
+//		HJAVFrame::Ptr avFrame = i_frame->getMFrame();
+//		AVFrame* frame = avFrame->getAVFrame();
+//		//HJFLoge("video render frame: {}, {}, {}", frame->width, frame->height, frame->pts);
+//
+//		uint32_t linesize[3] = { frame->linesize[0], frame->linesize[1], frame->linesize[2] };
+//		uint64_t timestamp = HJCurrentSteadyMS();
+//
+//		video_queue_write2(m_vq, frame->data, linesize, timestamp, frame->width, frame->height);
+//	} while (false);
+//	return i_err;
+//}
 
+//fixme lfs; If the resolution increases, it can be restarted
+//for example https://file-6-huajiao.6.cn/a7cb1cc1596244fe62b26c789f2ebcb4.mp4 1320x2868
 int HJSharedMemoryProducer::write2(std::shared_ptr<HJMediaFrame> i_frame)
 {
 	int i_err = SHAREDMEM_RET_OK;
 	do
 	{
-		if (!m_vq)
+		if (!i_frame)
 		{
-			i_err = SHAREDMEM_RET_NO_READY;
+			i_err = SHAREDMEM_RET_INVALID_PARAM;
 			break;
 		}
 
 		HJAVFrame::Ptr avFrame = i_frame->getMFrame();
+		if (!avFrame)
+		{
+			i_err = SHAREDMEM_RET_INVALID_PARAM;
+			break;
+		}
+
 		AVFrame* frame = avFrame->getAVFrame();
+		if (!frame || frame->width <= 0 || frame->height <= 0)
+		{
+			i_err = SHAREDMEM_RET_INVALID_PARAM;
+			break;
+		}
 		//HJFLoge("video render frame: {}, {}, {}", frame->width, frame->height, frame->pts);
 
-		uint32_t linesize[3] = { frame->linesize[0], frame->linesize[1], frame->linesize[2] };
-		uint64_t timestamp = HJCurrentSteadyMS();
+		const uint32_t frameWidth = static_cast<uint32_t>(frame->width);
+		const uint32_t frameHeight = static_cast<uint32_t>(frame->height);
+		if (frameWidth > m_width || frameHeight > m_height)
+		{
+			if (m_vq)
+			{				
+				video_queue_close(m_vq); 
+				m_vq = nullptr;
+			}
 
-		video_queue_write2(m_vq, frame->data, linesize, timestamp, frame->width, frame->height);
+			auto interval = (m_interval > 0) ? m_interval : (10000000ULL / 30);
+			m_vq = video_queue_create(frameWidth, frameHeight, interval);
+			if (!m_vq)
+			{
+				i_err = SHAREDMEM_RET_NO_READY;
+				break;
+			}
+			m_width = frameWidth;
+			m_height = frameHeight;
+			m_interval = interval;
+		}
+
+		if (m_vq)
+		{
+			uint32_t linesize[3] = { (uint32_t)frame->linesize[0], (uint32_t)frame->linesize[1], (uint32_t)frame->linesize[2] };
+			uint64_t timestamp = HJCurrentSteadyMS();
+
+			video_queue_write2(m_vq, frame->data, linesize, timestamp, frame->width, frame->height);
+		}
 	} while (false);
 	return i_err;
 }

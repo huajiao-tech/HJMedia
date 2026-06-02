@@ -192,30 +192,44 @@ endif()
 #**********************************************************************************#
 # x64 x86 arm64 armv7
 #**********************************************************************************#
-# message(STATUS "detected processor: ${CMAKE_SYSTEM_PROCESSOR}")
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
-    set(ARCHS_NAME "x64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*")
-    set(ARCHS_NAME "x86")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*)")
-    # set(ARCHS_NAME "arm64")
-    set(ARCHS_NAME "arm64-v8a")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
-    # set(ARCHS_NAME "armv7")
-    set(ARCHS_NAME "armeabi-v7a")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)64le")
-    set(ARCHS_NAME "p64le")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)64")
-    set(ARCHS_NAME "p64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips.*|MIPS.*)")
-    set(ARCHS_NAME "mips")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv.*|RISCV.*)")
-    set(ARCHS_NAME "riscv")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64.*|LOONGARCH64.*)")
-    set(ARCHS_NAME "lg64")
+
+if(MSVC)
+    if(CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
+        set(ARCHS_NAME "x86")
+    elseif(CMAKE_GENERATOR_PLATFORM MATCHES "^(x64|AMD64)$")
+        set(ARCHS_NAME "x64")
+    elseif(CMAKE_GENERATOR_PLATFORM MATCHES "ARM64")
+        set(ARCHS_NAME "arm64-v8a")
+    elseif(CMAKE_GENERATOR_PLATFORM MATCHES "")    ### optional platform for generator (if empty, generator use x64)                                
+        set(ARCHS_NAME "x64")      
+    endif()
 else()
-    message(WARNING "unrecognized target processor configuration")
+    # message(STATUS "detected processor: ${CMAKE_SYSTEM_PROCESSOR}")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
+        set(ARCHS_NAME "x64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*")
+        set(ARCHS_NAME "x86")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*)")
+        # set(ARCHS_NAME "arm64")
+        set(ARCHS_NAME "arm64-v8a")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
+        # set(ARCHS_NAME "armv7")
+        set(ARCHS_NAME "armeabi-v7a")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)64le")
+        set(ARCHS_NAME "p64le")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)64")
+        set(ARCHS_NAME "p64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips.*|MIPS.*)")
+        set(ARCHS_NAME "mips")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv.*|RISCV.*)")
+        set(ARCHS_NAME "riscv")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64.*|LOONGARCH64.*)")
+        set(ARCHS_NAME "lg64")
+    else()
+        message(WARNING "unrecognized target processor configuration")
+    endif()
 endif()
+
 message(STATUS "detected ARCHS_NAME:${ARCHS_NAME}")
 
 # if(WINDOWS)
@@ -280,6 +294,36 @@ function(HJ_CONFIG_FRAMEWORK LIBNAME)
     endif()
 endfunction(HJ_CONFIG_FRAMEWORK)
 
+function(HJ_CONFIG_FRAMEWORK_EX LIBNAME)
+    set(PROP_PLIST_FILE "${CMAKE_SOURCE_DIR}/cmake/isys/Info.plist")
+
+    if (APPLE) #HJ_BUILD_LIBS_AS_FRAMEWORKS
+        set_target_properties(${LIBNAME} PROPERTIES 
+            FRAMEWORK TRUE
+            MACOSX_FRAMEWORK_INFO_PLIST ${PROP_PLIST_FILE}
+            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${LIBNAME}
+            XCODE_ATTRIBUTE_PRODUCT_MODULE_NAME ${LIBNAME}
+            XCODE_RESOURCE "${RESOURCE_FILES}"
+            # RESOURCE "${RESOURCE_FILES}"
+            # MACOSX_BUNDLE_RESOURCES "${RESOURCE_FILES}"
+            # FRAMEWORK_VERSION "1.9.12"
+            # MACOSX_FRAMEWORK_BUNDLE_NAME ${LIBNAME}
+        )
+        MESSAGE( STATUS "PROP_PLIST_FILE:${PROP_PLIST_FILE} RESOURCE_FILES:${RESOURCE_FILES}")
+
+        # Set the INSTALL_PATH so that frameworks can be installed in the application package
+        set_target_properties(${LIBNAME}
+            PROPERTIES BUILD_WITH_INSTALL_RPATH 1
+            INSTALL_NAME_DIR "@executable_path/../Frameworks"
+        )
+        #   set_target_properties(${LIBNAME} PROPERTIES PUBLIC_HEADER "${HEADER_FILES};" )
+        set_target_properties(${LIBNAME} PROPERTIES PUBLIC_HEADER "${PUBLIC_HEADERS}" )
+        set_target_properties(${LIBNAME} PROPERTIES RESOURCE "${RESOURCE_FILES}")
+        set_source_files_properties("${RESOURCE_FILES}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+
+        set_target_properties(${LIBNAME} PROPERTIES OUTPUT_NAME ${LIBNAME})
+    endif()
+endfunction(HJ_CONFIG_FRAMEWORK_EX)
 #**********************************************************************************#
 # build proto, grpc. not work ????
 #**********************************************************************************#

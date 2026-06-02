@@ -6,6 +6,7 @@
 #include "HJESHEVCParser.h"
 #include "HJESUtils.h"
 #include "HJMediaInfo.h"
+#include "HJFLog.h"
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -25,32 +26,32 @@ enum {
 };
 
 typedef struct HVCCNALUnitArray {
-	uint8_t array_completeness;
-	uint8_t NAL_unit_type;
-	uint16_t numNalus;
+	uint8_t array_completeness{0};
+	uint8_t NAL_unit_type{0};
+	uint16_t numNalus{0};
 	HJBuffer nalUnit;
 	//struct array_output_data nalUnitData;
 	//struct serializer nalUnit;
 } HVCCNALUnitArray;
 
 typedef struct HEVCDecoderConfigurationRecord {
-	uint8_t general_profile_space;
-	uint8_t general_tier_flag;
-	uint8_t general_profile_idc;
-	uint32_t general_profile_compatibility_flags;
-	uint64_t general_constraint_indicator_flags;
-	uint8_t general_level_idc;
-	uint16_t min_spatial_segmentation_idc;
-	uint8_t parallelismType;
-	uint8_t chromaFormat;
-	uint8_t bitDepthLumaMinus8;
-	uint8_t bitDepthChromaMinus8;
-	uint16_t avgFrameRate;
-	uint8_t constantFrameRate;
-	uint8_t numTemporalLayers;
-	uint8_t temporalIdNested;
-	uint8_t lengthSizeMinusOne;
-	uint8_t numOfArrays;
+	uint8_t general_profile_space{ 0 };
+	uint8_t general_tier_flag{ 0 };
+	uint8_t general_profile_idc{ 0 };
+	uint32_t general_profile_compatibility_flags{ 0 };
+	uint64_t general_constraint_indicator_flags{ 0 };
+	uint8_t general_level_idc{ 0 };
+	uint16_t min_spatial_segmentation_idc{ 0 };
+	uint8_t parallelismType{ 0 };
+	uint8_t chromaFormat{ 0 };
+	uint8_t bitDepthLumaMinus8{ 0 };
+	uint8_t bitDepthChromaMinus8{ 0 };
+	uint16_t avgFrameRate{ 0 };
+	uint8_t constantFrameRate{ 0 };
+	uint8_t numTemporalLayers{ 0 };
+	uint8_t temporalIdNested{ 0 };
+	uint8_t lengthSizeMinusOne{ 0 };
+	uint8_t numOfArrays{ 0 };
 	HVCCNALUnitArray arrays[HJ_NB_ARRAYS];
 } HEVCDecoderConfigurationRecord;
 
@@ -77,9 +78,32 @@ static inline uint32_t rb32(const uint8_t* ptr)
 	return (ptr[0] << 24) + (ptr[1] << 16) + (ptr[2] << 8) + ptr[3];
 }
 
+// 安全读取最多4字节，处理边界情况
+static inline uint32_t rb32_safe(const uint8_t* ptr, size_t bytes_available)
+{
+	if (bytes_available == 0) return 0;
+	uint32_t val = 0;
+	size_t to_read = (bytes_available >= 4) ? 4 : bytes_available;
+	for (size_t i = 0; i < to_read; i++) {
+		val = (val << 8) | ptr[i];
+	}
+	// 左移补齐到32位
+	val <<= (4 - to_read) * 8;
+	return val;
+}
+
 static inline void refill_32(HevcGetBitContext* s)
 {
-	s->cache = s->cache | (uint64_t)rb32(s->buffer + (s->index >> 3)) << (32 - s->bits_left);
+	size_t byte_index = s->index >> 3;
+	size_t buffer_size = s->buffer_end - s->buffer;
+	if (byte_index >= buffer_size) {
+		// 已经越界，不再读取
+		s->index += 32;
+		s->bits_left += 32;
+		return;
+	}
+	size_t bytes_left = buffer_size - byte_index;
+	s->cache = s->cache | (uint64_t)rb32_safe(s->buffer + byte_index, bytes_left) << (32 - s->bits_left);
 	s->index += 32;
 	s->bits_left += 32;
 }
@@ -131,19 +155,6 @@ static inline int init_get_bits8(HevcGetBitContext* s, const uint8_t* buffer, in
 	return init_get_bits(s, buffer, byte_size * 8);
 }
 
-static inline unsigned int get_bits(HevcGetBitContext* s, unsigned int n)
-{
-	unsigned int tmp = 0;
-
-	if (n > s->bits_left) {
-		refill_32(s);
-	}
-	tmp = (unsigned int)get_val(s, n);
-	return tmp;
-}
-
-#define skip_bits get_bits
-
 static inline int get_bits_count(HevcGetBitContext* s)
 {
 	return s->index - s->bits_left;
@@ -154,6 +165,9 @@ static inline int get_bits_left(HevcGetBitContext* gb)
 	return gb->size_in_bits - get_bits_count(gb);
 }
 
+// 前向声明
+static inline unsigned int get_bits(HevcGetBitContext* s, unsigned int n);
+
 static inline unsigned int get_bits_long(HevcGetBitContext* s, int n)
 {
 	if (!n)
@@ -162,6 +176,29 @@ static inline unsigned int get_bits_long(HevcGetBitContext* s, int n)
 }
 
 #define skip_bits_long get_bits_long
+
+static inline unsigned int get_bits(HevcGetBitContext* s, unsigned int n)
+{
+	if (n == 0) return 0;
+	if (n > 32) n = 32;  // 限制单次最大读取位数
+
+	unsigned int tmp = 0;
+	while (n > s->bits_left) {
+		refill_32(s);
+		// 防止无限循环：检查是否还能读取更多数据
+		if (get_bits_left(s) <= 0 && s->bits_left < n) {
+			// 不够数据，返回已有的
+			if (s->bits_left > 0) {
+				return (unsigned int)get_val(s, s->bits_left);
+			}
+			return 0;
+		}
+	}
+	tmp = (unsigned int)get_val(s, n);
+	return tmp;
+}
+
+#define skip_bits get_bits
 
 static inline uint64_t get_bits64(HevcGetBitContext* s, int n)
 {
@@ -179,7 +216,9 @@ static inline int ilog2(unsigned x)
 }
 static inline unsigned show_val(const HevcGetBitContext* s, unsigned n)
 {
-	return s->cache & ((UINT64_C(1) << n) - 1);
+	if (n == 0) return 0;
+	if (n >= 64) return (unsigned)(s->cache & 0xFFFFFFFF);
+	return (unsigned)(s->cache & ((UINT64_C(1) << n) - 1));
 }
 static inline unsigned int show_bits(HevcGetBitContext* s, unsigned int n)
 {
@@ -219,10 +258,12 @@ static inline int get_se_golomb_long(HevcGetBitContext* gb)
 
 static inline bool has_start_code(const uint8_t* data, size_t size)
 {
-	if (size > 3 && data[0] == 0 && data[1] == 0 && data[2] == 1)
+	if (!data || size < 3) return false;
+	
+	if (size >= 3 && data[0] == 0 && data[1] == 0 && data[2] == 1)
 		return true;
 
-	if (size > 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 1)
+	if (size >= 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 1)
 		return true;
 
 	return false;
@@ -249,7 +290,12 @@ uint8_t* ff_nal_unit_extract_rbsp(uint8_t* dst, const uint8_t* src, int src_len,
 	while (i < src_len)
 		dst[len++] = src[i++];
 
-	memset(dst + len, 0, 64);
+	// 安全填充：只填充实际分配的padding空间
+	if (len < (size_t)src_len + 64) {
+		size_t padding = (size_t)src_len + 64 - len;
+		if (padding > 64) padding = 64;
+		memset(dst + len, 0, padding);
+	}
 
 	*dst_len = (uint32_t)len;
 	return dst;
@@ -774,6 +820,11 @@ static const uint8_t* rtmp_nal_find_startcode(const uint8_t* p, const uint8_t* e
 
 HJBuffer::Ptr HJESHEVCParser::parseHeader(const uint8_t* data, size_t size)
 {
+	// 空指针和最小长度检查
+	if (!data || size == 0) {
+		return nullptr;
+	}
+	
 	const uint8_t* start = NULL;
 	const uint8_t* end = NULL;
 	HJBuffer::Ptr buffer = nullptr;
@@ -788,10 +839,10 @@ HJBuffer::Ptr HJESHEVCParser::parseHeader(const uint8_t* data, size_t size)
 		return std::make_shared<HJBuffer>(data, size);
 	}
 
-	//struct array_output_data nals;
-	//struct serializer sn;
-	//array_output_serializer_init(&sn, &nals);
-	HJBuffer::Ptr nals = std::make_shared<HJBuffer>(size + 32);
+	// 预分配更大的缓冲区以容纳NAL长度前缀(每个NAL额外4字节)
+	// 最坏情况：每个字节都是一个NAL单元，需要 size * 5 字节
+	size_t estimated_size = size + size / 4 + 128;
+	HJBuffer::Ptr nals = std::make_shared<HJBuffer>(estimated_size);
 	const uint8_t* nal_start, * nal_end;
 	start = data;
 	end = data + size;
@@ -819,18 +870,21 @@ HJBuffer::Ptr HJESHEVCParser::parseHeader(const uint8_t* data, size_t size)
 	start = nals->data();
 	end = nals->data() + nals->size();
 
-	// HVCC init
+	// HVCC init - 不能使用memset，因为HJBuffer是包含vtable的C++对象
 	HEVCDecoderConfigurationRecord hvcc;
-	memset(&hvcc, 0, sizeof(HEVCDecoderConfigurationRecord));
+	//memset(&hvcc, 0, sizeof(HEVCDecoderConfigurationRecord));
 	hvcc.lengthSizeMinusOne = 3;                           // 4 bytes
 	hvcc.general_profile_compatibility_flags = 0xffffffff; // all bits set
 	hvcc.general_constraint_indicator_flags = 0xffffffffffff;                       // all bits set
 	hvcc.min_spatial_segmentation_idc = 4096 + 1; // assume invalid value
+	// 初始化数组中的 POD 成员，HJBuffer已由默认构造函数初始化
 	for (unsigned i = 0; i < HJ_NB_ARRAYS; i++) {
-		HVCCNALUnitArray* const array = &hvcc.arrays[i];
-		//array_output_serializer_init(&array->nalUnit, &array->nalUnitData);
+		hvcc.arrays[i].array_completeness = 0;
+		hvcc.arrays[i].NAL_unit_type = 0;
+		hvcc.arrays[i].numNalus = 0;
+		hvcc.arrays[i].nalUnit.reset();
 	}
-
+	
 	uint8_t* buf = (uint8_t*)start;
 	while (end - buf > 4) {
 		uint32_t len = rb32(buf);
@@ -874,7 +928,7 @@ HJBuffer::Ptr HJESHEVCParser::parseHeader(const uint8_t* data, size_t size)
 	pps_count = hvcc.arrays[HJ_PPS_INDEX].numNalus;
 	if (!vps_count || vps_count > HJ_HEVC_MAX_VPS_COUNT || !sps_count ||
 		sps_count > HJ_HEVC_MAX_SPS_COUNT || !pps_count ||
-		pps_count > HJ_HEVC_MAX_PPS_COUNT)
+		pps_count > HJ_HEVC_MAX_PPS_COUNT) 
 		goto free;
 
 	buffer = std::make_shared<HJBuffer>(size + 32);
@@ -899,6 +953,7 @@ HJBuffer::Ptr HJESHEVCParser::parseHeader(const uint8_t* data, size_t size)
 	buffer->w8(hvcc.constantFrameRate << 6 | hvcc.numTemporalLayers << 3 | hvcc.temporalIdNested << 2 | hvcc.lengthSizeMinusOne);
 
 	buffer->w8(hvcc.numOfArrays);
+
 	for (unsigned i = 0; i < HJ_NB_ARRAYS; i++) {
 		const HVCCNALUnitArray* const array = &hvcc.arrays[i];
 
@@ -911,12 +966,13 @@ HJBuffer::Ptr HJESHEVCParser::parseHeader(const uint8_t* data, size_t size)
 		buffer->write(array->nalUnit.data(), array->nalUnit.size());
 		//buffer->write(array->nalUnitData.bytes.array, array->nalUnitData.bytes.num);
 	}
+	
 free:
-	for (unsigned i = 0; i < HJ_NB_ARRAYS; i++) {
-		HVCCNALUnitArray* const array = &hvcc.arrays[i];
-		array->numNalus = 0;
-		//array_output_serializer_free(&array->nalUnitData);
-	}
+	//for (unsigned i = 0; i < HJ_NB_ARRAYS; i++) {
+	//	HVCCNALUnitArray* const array = &hvcc.arrays[i];
+	//	array->numNalus = 0;
+	//	//array_output_serializer_free(&array->nalUnitData);
+	//}
 	//done:
 	return buffer;
 }

@@ -12,14 +12,14 @@ int HJPluginFDKAACEncoder::internalInit(HJKeyStorage::Ptr i_param)
 	if (!audioInfo) {
 		return HJErrInvalidParams;
 	}
-	GET_PARAMETER(HJLooperThread::Ptr, thread);
-	GET_PARAMETER(HJListener, pluginListener);
-	auto param = std::make_shared<HJKeyStorage>();
+//	GET_PARAMETER(HJLooperThread::Ptr, thread);
+//	GET_PARAMETER(HJListener, pluginListener);
+	auto param = HJKeyStorage::dupFrom(i_param);
 	(*param)["streamInfo"] = std::static_pointer_cast<HJStreamInfo>(audioInfo);
-	(*param)["thread"] = thread;
-	if (pluginListener) {
-		(*param)["pluginListener"] = pluginListener;
-	}
+//	(*param)["thread"] = thread;
+//	if (pluginListener) {
+//		(*param)["pluginListener"] = pluginListener;
+//	}
 	return HJPluginCodec::internalInit(param);
 }
 
@@ -27,45 +27,51 @@ int HJPluginFDKAACEncoder::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	int64_t enter = HJCurrentSteadyMS();
-	std::string route = "0";
-	size_t size = -1;
+	std::string route{};
+	int64_t size = -1;
 	int ret = HJ_OK;
 	do {
 		auto inFrame = receive(m_inputKeyHash.load(), &size);
 		if (inFrame == nullptr) {
-			route += "_1";
+			route += "_0";
 			ret = HJ_WOULD_BLOCK;
 			break;
 		}
 
 		auto err = SYNC_CONS_LOCK([&route, inFrame, this] {
 			if (m_status == HJSTATUS_Done) {
-				route += "_2";
+				route += "_1";
 				return HJErrAlreadyDone;
 			}
 			if (m_status < HJSTATUS_Inited) {
-				route += "_3";
+				route += "_2";
 				return HJErrNotInited;
 			}
 			if (m_status >= HJSTATUS_Stoped) {
-				route += "_4";
+				route += "_3";
 				return HJErrFatal;
 			}
 			auto err = m_codec->run(inFrame);
 			if (err < 0) {
-				route += "_5";
+				route += "_4";
 				HJFLoge("{}, m_codec->run() error({})", getName(), err);
-				if (m_pluginListener) {
-					m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_RUN)));
-				}
-				m_status = HJSTATUS_Exception;
+				//if (m_pluginListener) {
+				//	m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_RUN)));
+				//}
+				//m_status = HJSTATUS_Exception;
 				return HJErrExcep;
 			}
+
+			route += "_5";
 			return HJ_OK;
 		});
 		if (err != HJ_OK) {
 			if (err == HJErrAlreadyDone) {
 				ret = HJErrAlreadyDone;
+			}
+			else if (err == HJErrExcep) {
+				IF_FALSE_BREAK(setStatus(HJSTATUS_Exception), HJErrAlreadyDone);
+				report(EVENT_PLUGIN_NOTIFY_ID, HJ_PLUGIN_NOTIFY_ERROR_CODEC_RUN, getID());
 			}
 			break;
 		}
@@ -82,27 +88,34 @@ int HJPluginFDKAACEncoder::runTask(int64_t* o_delay)
 				if (err < 0) {
 					route += "_8";
 					HJFLoge("{}, 0, m_codec->getFrame() error({})", getName(), err);
-					if (m_pluginListener) {
-						m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME)));
-					}
-					m_status = HJSTATUS_Exception;
+					//if (m_pluginListener) {
+					//	m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME)));
+					//}
+					//m_status = HJSTATUS_Exception;
 					return HJErrExcep;
 				}
+
+				route += "_9";
 				return HJ_OK;
 			});
 			if (err != HJ_OK) {
 				if (err == HJErrAlreadyDone) {
 					ret = HJErrAlreadyDone;
 				}
+				else if (err == HJErrExcep) {
+					IF_FALSE_BREAK(setStatus(HJSTATUS_Exception), HJErrAlreadyDone);
+					report(EVENT_PLUGIN_NOTIFY_ID, HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME, getID());
+				}
 				break;
 			}
 			if (outFrame == nullptr) {
-				route += "_9";
+				route += "_A";
 				break;
 			}
 
-			route += "_10";
+			publish(EVENT_GRAPH_AUDIO_FRAME_ID, outFrame);
 			deliverToOutputs(outFrame);
+			route += "_B";
 		}
 	} while (false);
 
@@ -112,10 +125,9 @@ int HJPluginFDKAACEncoder::runTask(int64_t* o_delay)
 
 HJBaseCodec::Ptr HJPluginFDKAACEncoder::createCodec()
 {
-	return HJBaseCodec::createAEncoder();
-	// return std::make_shared<HJAEncFDKAAC>();
+	return std::make_shared<HJAEncFDKAAC>();
 }
-
+/*
 void HJPluginFDKAACEncoder::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 {
 	auto info = i_mediaFrame->getAudioInfo();
@@ -135,5 +147,5 @@ void HJPluginFDKAACEncoder::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 
 	HJPluginCodec::deliverToOutputs(i_mediaFrame);
 }
-
+*/
 NS_HJ_END

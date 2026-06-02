@@ -125,7 +125,7 @@ int HJPrioGraphProc::openFaceu(HJBaseParam::Ptr i_param)
             }
             bool bDebugPoint = false;
             HJ_CatchMapPlainGetVal(i_param, bool, "bDebugPoint", bDebugPoint);
-            faceu->setPointDebug(bDebugPoint);
+            //faceu->setPointDebug(bDebugPoint);
             HJPrioGraph::insert(faceu);
             faceu->renderModeClearAll(); 
             faceu->renderModeAdd(HJOGEGLSurfaceType_UI);
@@ -183,7 +183,7 @@ void HJPrioGraphProc::setFaceProtected(bool i_bProtected)
             HJBaseParam::Ptr param = HJBaseParam::Create();
             HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioEffectType), HJPrioEffect_Blur);
             HJFLogi("setFaceProtected async thread i_bProtect:{} closeEffect enter", i_bProtected);
-            closeEffect(param);          
+            priCloseEffect(param);          
             HJFLogi("setFaceProtected async thread i_bProtect:{} closeEffect end", i_bProtected);  
         }
         return 0; 
@@ -280,7 +280,7 @@ int HJPrioGraphProc::init(HJBaseParam::Ptr i_param)
                     m_videoCapture->renderModeAdd(HJOGEGLSurfaceType_UI);
                     m_videoCapture->renderModeAdd(HJOGEGLSurfaceType_EncoderPusher);
                     m_videoCapture->renderModeAdd(HJOGEGLSurfaceType_EncoderPusher);
-                    m_videoCapture->renderModeAdd(HJOGEGLSurfaceType_FaceDetect);
+                    m_videoCapture->renderModeAdd(HJOGEGLSurfaceType_ImageReceiver);
 					i_err = m_videoCapture->init(captureParam);
 					if (i_err < 0)
 					{
@@ -362,9 +362,9 @@ void HJPrioGraphProc::openEffect(HJBaseParam::Ptr i_param)
 {
     HJFLogi("openeffect enter");
     HJPrioGraphBaseEGL::async([this, i_param]()
-        {
-            return priOpenEffect(i_param);
-        });
+    {
+        return priOpenEffect(i_param);
+    });
     HJFLogi("openeffect end");
 }
 void HJPrioGraphProc::closeEffect(HJBaseParam::Ptr i_param)
@@ -379,7 +379,7 @@ void HJPrioGraphProc::closeEffect(HJBaseParam::Ptr i_param)
 void HJPrioGraphProc::setDoubleScreen(bool i_bDoubleScreen, bool i_bLandscape)
 {
     HJPrioGraphBaseEGL::async([this, bDoubleScreen = i_bDoubleScreen, bLandScape = i_bLandscape]()
-                              {
+     {
         if (m_videoCapture)
         {
             m_videoCapture->renderModeClear(HJOGEGLSurfaceType_UI);
@@ -505,6 +505,7 @@ int HJPrioGraphProc::openPNGSeq(HJBaseParam::Ptr i_param)
                 {
                     if (i_info->getType() == HJVIDEORENDERGRAPH_EVENT_PNGSEQ_COMPLETE)
                     {
+                        HJFLogi("PNG Complete");
                         HJPrioComGiftSeq::Ptr filterPNGSeqPtr = HJPrioComGiftSeq::GetPtrFromWtr(filterPNGSeqWtr);
                         if (filterPNGSeqPtr)
                         {

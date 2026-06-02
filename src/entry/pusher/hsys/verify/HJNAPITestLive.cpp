@@ -1,3 +1,6 @@
+#if defined(HJ_ENABLE_RENDER_PRIO)
+
+
 #include "HJNAPITestLive.h"
 #include "HJFLog.h"
 #include "HJMediaInfo.h"
@@ -11,7 +14,8 @@
 #include "HJGraphComPusher.h"
 #include "HJOGRenderWindowBridge.h"
 #include "HJPrioUtils.h"
-
+#include "HJEntryBaseRender.h"
+#include "HJRteUtils.h"
 NS_HJ_BEGIN
     
 bool HJNAPITestLive::s_bContextInit = false;
@@ -47,11 +51,11 @@ int HJNAPITestLive::openPngSeq(const HJPusherPNGSegInfo &i_pngseqInfo)
     int i_err = 0;
     do 
     {
-        if (m_prioGraphProc)
+        if (m_graphProc)
         {
             HJ::HJBaseParam::Ptr param = HJ::HJBaseParam::Create();
-            (*param)["pngsequrl"] = std::string(i_pngseqInfo.pngSeqUrl);
-            i_err = m_prioGraphProc->openPNGSeq(param);
+            (*param)[HJRteUtils::ParamUrlImgSeq] = std::string(i_pngseqInfo.pngSeqUrl);
+            i_err = m_graphProc->openPNGSeq(param);
             if (i_err < 0)
             {
                 break;
@@ -79,7 +83,14 @@ void HJNAPITestLive::setMute(bool i_mute)
         m_graphPusher->setMute(i_mute);
     }    
 }
-
+void HJNAPITestLive::setPreviewRotation(int i_rotation)
+{
+    if (m_bridge)
+    {
+        HJFLogi("HVSwitchStat setPreviewRotation:{}", i_rotation);
+        m_bridge->setPreviewRotation(i_rotation);
+    }
+}
 void HJNAPITestLive::removeInterleave()
 {
     if (m_graphPusher)
@@ -206,12 +217,12 @@ void HJNAPITestLive::closePreview()
     }    
     
     HJFLogi("closePreview m_graphVideoCapture done enter");
-    if (m_prioGraphProc)
+    if (m_graphProc)
     {
         HJFLogi("closePreview m_graphVideoCapture-> done enter");
-        m_prioGraphProc->done();
+        m_graphProc->done();
         HJFLogi("closePreview m_graphVideoCapture-> done end");
-        m_prioGraphProc = nullptr;
+        m_graphProc = nullptr;
     }     
     HJFLogi("closePreview m_graphVideoCapture done end time:{}", (HJCurrentSteadyMS() - t0));
 }
@@ -253,7 +264,7 @@ int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPI
             break;
         }
         
-        if (m_prioGraphProc)
+        if (m_graphProc)
         {
             i_err = -1;
             HJFLoge("pusher has already created, not open again");
@@ -266,8 +277,8 @@ int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPI
         (*param)[HJBaseParam::s_paramFps] = i_previewInfo.videoFps;
         m_previewFps = i_previewInfo.videoFps;
         
-        m_prioGraphProc = HJPrioGraphProc::Create();
-        if (!m_prioGraphProc)
+        m_graphProc = HJPrioGraphProc::Create();
+        if (!m_graphProc)
         {
             i_err = -1;
             HJFLoge("HJGraphComVideoCapture create error");
@@ -328,15 +339,15 @@ int HJNAPITestLive::openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPI
         };
         (*param)["renderListener"] = (HJListener)renderListener;
         HJ_CatchMapPlainSetVal(param, int, HJ_CatchName(HJPrioComSourceType), (int)HJPrioComSourceType_SERIES);
-        i_err = m_prioGraphProc->init(param);
+        i_err = m_graphProc->init(param);
         if (i_err < 0)
         {
             HJLoge("m_graphVideoCapture init error:{}", i_err);
             break;
         }
-        if (m_prioGraphProc)
+        if (m_graphProc)
         {
-            m_bridge = m_prioGraphProc->renderWindowBridgeAcquire();
+            m_bridge = m_graphProc->renderWindowBridgeAcquire();
         }    
         
         if (!m_bridge)
@@ -390,9 +401,10 @@ int HJNAPITestLive::priSetWindow(void *i_window, int i_width, int i_height, int 
             i_err = -1;
             break;
         }    
-        if (m_prioGraphProc)
+        if (m_graphProc)
         {
-            i_err = m_prioGraphProc->eglSurfaceProc(renderTargetStr);
+            HJOGEGLSurface::Ptr eglSurface = nullptr;
+            i_err = m_graphProc->eglSurfaceProc(renderTargetStr, eglSurface);
             if (i_err < 0)
             {
                 HJFLoge("eglSurfaceProc error i_err:{} w:{} h:{} state:{}", i_err, i_width, i_height, i_state);
@@ -412,3 +424,5 @@ std::unique_ptr<ThreadSafeFunctionWrapper> HJNAPITestLive::getThreadSafeFunction
 }
 
 NS_HJ_END
+
+#endif

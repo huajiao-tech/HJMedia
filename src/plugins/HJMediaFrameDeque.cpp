@@ -1,128 +1,97 @@
 #include "HJMediaFrameDeque.h"
 #include "HJFFHeaders.h"
 
-//#define HJ_PIN_DEQUE_MAX_SIZE	0
-
 NS_HJ_BEGIN
-
-HJMediaFrameDeque::HJMediaFrameDeque(const std::string& i_name, size_t i_identify)
-	: HJSyncObject(i_name, i_identify)
-{
-}
-
-HJMediaFrameDeque::~HJMediaFrameDeque()
-{
-	HJMediaFrameDeque::done();
-}
 
 size_t HJMediaFrameDeque::size()
 {
 	SYNCHRONIZED_SYNC_LOCK;
-	if (m_status == HJSTATUS_Done) {
-		return 0;
-	}
+	CHECK_DONE_STATUS(0);
 
-	return m_deque.size();
+	int cached = m_cached != nullptr ? 1 : 0;
+	return m_deque.size() + cached;
 }
 
 int64_t HJMediaFrameDeque::audioDuration()
 {
 	SYNCHRONIZED_SYNC_LOCK;
-	if (m_status == HJSTATUS_Done) {
-		return 0;
-	}
+	CHECK_DONE_STATUS(0);
 
-	return m_audioDuration;
+	return m_info.audioDuration;
 }
 
-int64_t HJMediaFrameDeque::videoKeyFrames()
+bool HJMediaFrameDeque::hasControlFrame()
 {
 	SYNCHRONIZED_SYNC_LOCK;
-	if (m_status == HJSTATUS_Done) {
-		return 0;
+	CHECK_DONE_STATUS(false);
+
+	if (m_cached && m_cached->isClearFrame()) {
+		return true;
 	}
 
-	return m_videoKeyFrames;
-}
-
-int64_t HJMediaFrameDeque::audioSamples()
-{
-    SYNCHRONIZED_SYNC_LOCK;
-	if (m_status == HJSTATUS_Done) {
-		return 0;
+	if (m_eofCount > 0) {
+		return true;
 	}
 
-	return m_audioSamples;
+	return false;
 }
 
-bool HJMediaFrameDeque::deliver(HJMediaFrame::Ptr i_mediaFrame, size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames, int64_t* o_audioSamples)
+bool HJMediaFrameDeque::deliver(HJMediaFrame::Ptr i_mediaFrame, FrameDequeInfo* o_info)
 {
-	SYNCHRONIZED_SYNC_LOCK;
-	if (m_status == HJSTATUS_Done) {
+	if (i_mediaFrame == nullptr) {
 		return false;
 	}
 
-	if (i_mediaFrame != nullptr) {
-		m_deque.push_back(i_mediaFrame);
+	SYNCHRONIZED_SYNC_LOCK;
+	CHECK_DONE_STATUS(false);
 
-		if (i_mediaFrame->isAudio()) {
-			m_audioDuration += i_mediaFrame->getDuration();
+	if (i_mediaFrame->isEofFrame()) { 
+		m_eofCount++;
+	}
+
+	m_deque.push_back(i_mediaFrame);
+
+	m_info.dequeSize = static_cast<int64_t>(m_deque.size());
+	if (i_mediaFrame->isAudio()) {
+		m_info.audioDuration += i_mediaFrame->getDuration();
             
-            HJAVFrame::Ptr avFrame = i_mediaFrame->getMFrame();
-            if (avFrame) {
-    			AVFrame* frame = avFrame->getAVFrame();
-                if (frame) {
-                    m_audioSamples += frame->nb_samples;
-                }
+        HJAVFrame::Ptr avFrame = i_mediaFrame->getMFrame();
+        if (avFrame) {
+    		AVFrame* frame = avFrame->getAVFrame();
+            if (frame) {
+				m_info.audioSamples += frame->nb_samples;
+				// 注意：PCM队列的sampleRate可能不一致，例如重采样的输入队列
+				m_info.sampleRate = frame->sample_rate;
             }
-		}
-		else if (i_mediaFrame->isVideo()) {
-			m_videoFrames++;
-			if (i_mediaFrame->isKeyFrame()) {
-				m_videoKeyFrames++;
-			}
-		}
+        }
 	}
-	else {
-		internalFlush();
+	else if (i_mediaFrame->isVideo()) {
+		m_info.videoFrames++;
+		if (i_mediaFrame->isKeyFrame()) {
+			m_info.videoKeyFrames++;
+		}
 	}
 
-    if (o_size != nullptr) {
-		*o_size = m_deque.size();
+	if (o_info) {
+		*o_info = m_info;
 	}
-    if (o_audioDuration != nullptr) {
-		*o_audioDuration = m_audioDuration;
-	}
-	if (o_videoKeyFrames != nullptr) {
-		*o_videoKeyFrames = m_videoKeyFrames;
-	}
-	if (o_audioSamples != nullptr) {
-		*o_audioSamples = m_audioSamples;
-	}
+
 	return true;
 }
 
-HJMediaFrame::Ptr HJMediaFrameDeque::receive(size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames, int64_t* o_audioSamples)
+HJMediaFrame::Ptr HJMediaFrameDeque::receive(FrameDequeInfo* o_info)
 {
 	SYNCHRONIZED_SYNC_LOCK;
-	if (m_status == HJSTATUS_Done) {
-		if (o_size != nullptr) {
-			*o_size = 0;
-		}
-		if (o_audioDuration != nullptr) {
-			*o_audioDuration = 0;
-		}
-		if (o_videoKeyFrames != nullptr) {
-			*o_videoKeyFrames = 0;
-		}
-        if (o_audioSamples != nullptr) {
-			*o_audioSamples = 0;
-		}
-		return nullptr;
-	}
+	CHECK_DONE_STATUS(nullptr);
 
 	HJMediaFrame::Ptr mediaFrame = nullptr;
 	do {
+		if (m_cached != nullptr) {
+			mediaFrame = m_cached;
+			m_cached = nullptr;
+			break;
+		}
+
 		if (m_deque.empty()) {
 			break;
 		}
@@ -130,42 +99,33 @@ HJMediaFrame::Ptr HJMediaFrameDeque::receive(size_t* o_size, int64_t* o_audioDur
 		MediaFrameDequeIt it = m_deque.begin();
 		mediaFrame = *it;
 		m_deque.erase(it);
+
 		eraseFrame(mediaFrame);
 	} while (false);
 
-	if (o_size != nullptr) {
-		*o_size = m_deque.size();
+	if (o_info) {
+		*o_info = m_info;
 	}
-	if (o_audioDuration != nullptr) {
-		*o_audioDuration = m_audioDuration;
+
+	if (mediaFrame && mediaFrame->isEofFrame()) {
+		m_eofCount--;
 	}
-	if (o_videoKeyFrames != nullptr) {
-		*o_videoKeyFrames = m_videoKeyFrames;
-	}
-	if (o_audioSamples != nullptr) {
-		*o_audioSamples = m_audioSamples;
-	}
+
 	return mediaFrame;
 }
 
-HJMediaFrame::Ptr HJMediaFrameDeque::preview(size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames)
+HJMediaFrame::Ptr HJMediaFrameDeque::preview(FrameDequeInfo* o_info)
 {
 	SYNCHRONIZED_SYNC_LOCK;
-	if (m_status == HJSTATUS_Done) {
-		if (o_size != nullptr) {
-			*o_size = -1;
-		}
-		if (o_audioDuration != nullptr) {
-			*o_audioDuration = -1;
-		}
-		if (o_videoKeyFrames != nullptr) {
-			*o_videoKeyFrames = -1;
-		}
-		return nullptr;
-	}
+	CHECK_DONE_STATUS(nullptr);
 
 	HJMediaFrame::Ptr mediaFrame = nullptr;
 	do {
+		if (m_cached != nullptr) {
+			mediaFrame = m_cached;
+			break;
+		}
+
 		if (m_deque.empty()) {
 			break;
 		}
@@ -173,38 +133,86 @@ HJMediaFrame::Ptr HJMediaFrameDeque::preview(size_t* o_size, int64_t* o_audioDur
 		mediaFrame = *m_deque.begin();
 	} while (false);
 
-	if (o_size != nullptr) {
-		*o_size = m_deque.size();
+	if (o_info) {
+		*o_info = m_info;
 	}
-	if (o_audioDuration != nullptr) {
-		*o_audioDuration = m_audioDuration;
-	}
-	if (o_videoKeyFrames != nullptr) {
-		*o_videoKeyFrames = m_videoKeyFrames;
-	}
+
 	return mediaFrame;
 }
 
-void HJMediaFrameDeque::dropFrames(int64_t i_audioDutation, size_t* o_size, int64_t* o_audioDuration, int64_t* o_audioSamples, int64_t* o_videoKeyFrames, int64_t* o_videoFrames)
+bool HJMediaFrameDeque::store(HJMediaFrame::Ptr i_mediaFrame)
 {
 	SYNCHRONIZED_SYNC_LOCK;
-	CHECK_DONE_STATUS();
+	CHECK_DONE_STATUS(false);
 
-    for (auto it = m_deque.begin(); it != m_deque.end();) {
-        auto mediaFrame = *it;
+	if (m_cached != nullptr && m_cached->isClearFrame()) {
+		return false;
+	}
+
+	if (m_cached != nullptr && m_cached->isEofFrame()) {
+		m_eofCount--;
+	}
+	if (i_mediaFrame != nullptr && i_mediaFrame->isEofFrame()) {
+		m_eofCount++;
+	}
+
+	m_cached = i_mediaFrame;
+	return true;
+}
+
+// 注意：此接口只对压缩帧队列才有效，PCM队列的audioDuration可能永远为0
+bool HJMediaFrameDeque::dropFrames(int64_t i_audioDutation, FrameDequeInfo* o_info)
+{
+	if (i_audioDutation <= 0) {
+		return false;
+	}
+
+	SYNCHRONIZED_SYNC_LOCK;
+	CHECK_DONE_STATUS(false);
+
+	bool droppedVideo = false;
+	for (auto it = m_deque.begin(); it != m_deque.end();) {
+		auto mediaFrame = *it;
 		if (mediaFrame->isFlushFrame() || mediaFrame->isEofFrame()) {
-			break;
+			break; // 控制帧不丢
 		}
 
-		if (m_videoFrames > 0) {
-			if (mediaFrame->isVideo() && mediaFrame->isKeyFrame() &&
-				(m_audioDuration <= i_audioDutation || m_videoKeyFrames <= 1)) {
+		const bool hasVideo = (m_info.videoFrames > 0);
+		const bool audioOk = (m_info.audioDuration <= i_audioDutation);
+
+		if (hasVideo) {
+			// 音频已达标且尚未丢过视频帧，直接退出
+			if (audioOk && !droppedVideo) {
 				break;
 			}
+
+			const bool firstVideoOk = mediaFrame->isVideo() && mediaFrame->isKeyFrame();
+
+			// 已经触发过丢视频帧，并且音频达标且首个视频帧已是关键帧/控制帧
+			if (audioOk && droppedVideo && firstVideoOk) {
+				break;
+			}
+
+			if (mediaFrame->isVideo()) {
+				if (mediaFrame->isKeyFrame()) {
+					if (m_info.videoKeyFrames <= 1) {
+						break; // 至少保留一个关键帧
+					}
+					// 音频未达标，允许继续丢当前关键帧推进
+				}
+				else {
+					if (m_info.videoKeyFrames == 0) {
+						break; // 队列里没有关键帧可保，避免破坏条件
+					}
+					// 非关键视频帧：继续丢，直到队头变为关键帧/控制帧
+				}
+				droppedVideo = true;
+			}
+			// 队头是音频帧：继续前进，直到满足首帧关键帧/控制帧约束
 		}
 		else {
-			if (m_audioDuration <= i_audioDutation) {
-				break;
+			if (audioOk) {
+				break; // 纯音频，音频达标即停
 			}
 		}
 
@@ -212,31 +220,22 @@ void HJMediaFrameDeque::dropFrames(int64_t i_audioDutation, size_t* o_size, int6
 		eraseFrame(mediaFrame);
 	}
 
-	if (o_size) {
-		*o_size = m_deque.size();
+	if (o_info) {
+		*o_info = m_info;
 	}
-	if (o_audioDuration) {
-		*o_audioDuration = m_audioDuration;
-	}
-	if (o_audioSamples) {
-		*o_audioSamples = m_audioSamples;
-	}
-	if (o_videoKeyFrames) {
-		*o_videoKeyFrames = m_videoKeyFrames;
-	}
-	if (o_videoFrames) {
-		*o_videoFrames = m_videoFrames;
-	}
+
+	return true;
 }
 
-void HJMediaFrameDeque::flush()
+void HJMediaFrameDeque::flush(bool i_storeClearFrame)
 {
 	SYNCHRONIZED_SYNC_LOCK;
-	if (m_status == HJSTATUS_Done) {
-		return;
-	}
+	CHECK_DONE_STATUS();
 
 	internalFlush();
+	if (i_storeClearFrame) {
+		m_cached = HJMediaFrame::makeClearFrame();
+	}
 }
 
 void HJMediaFrameDeque::internalRelease()
@@ -248,21 +247,22 @@ void HJMediaFrameDeque::internalRelease()
 
 void HJMediaFrameDeque::eraseFrame(HJMediaFrame::Ptr i_mediaFrame)
 {
+	m_info.dequeSize = static_cast<int64_t>(m_deque.size());
 	if (i_mediaFrame->isAudio()) {
-		m_audioDuration -= i_mediaFrame->getDuration();
+		m_info.audioDuration -= i_mediaFrame->getDuration();
 
 		HJAVFrame::Ptr avFrame = i_mediaFrame->getMFrame();
 		if (avFrame) {
 			AVFrame* frame = avFrame->getAVFrame();
 			if (frame) {
-				m_audioSamples -= frame->nb_samples;
+				m_info.audioSamples -= frame->nb_samples;
 			}
 		}
 	}
 	else if (i_mediaFrame->isVideo()) {
-		m_videoFrames--;
+		m_info.videoFrames--;
 		if (i_mediaFrame->isKeyFrame()) {
-			m_videoKeyFrames--;
+			m_info.videoKeyFrames--;
 		}
 	}
 }
@@ -270,10 +270,9 @@ void HJMediaFrameDeque::eraseFrame(HJMediaFrame::Ptr i_mediaFrame)
 void HJMediaFrameDeque::internalFlush()
 {
 	m_deque.clear();
-	m_audioDuration = 0;
-	m_audioSamples = 0;
-	m_videoKeyFrames = 0;
-	m_videoFrames = 0;
+	m_info.flush();
+	m_cached = nullptr;
+	m_eofCount = 0;
 }
 
 NS_HJ_END

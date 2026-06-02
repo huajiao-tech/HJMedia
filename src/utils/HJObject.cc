@@ -40,13 +40,13 @@ HJObject::~HJObject()
 #endif
 }
 
-const size_t HJObject::getGlobalID()
+size_t HJObject::getGlobalID()
 {
     static std::atomic<size_t> g_objectIDCounter(0);
     return g_objectIDCounter.fetch_add(1, std::memory_order_relaxed);
 }
 
-const std::string HJObject::getGlobalName(const std::string prefix)
+std::string HJObject::getGlobalName(const std::string& prefix)
 {
     auto value = HJFMT("{}",getGlobalID());
     return prefix.empty() ? value : (prefix + "_" + value);

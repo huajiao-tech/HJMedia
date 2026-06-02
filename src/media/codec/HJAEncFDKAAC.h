@@ -44,7 +44,7 @@ private:
     int64_t m_statIdx = 0;
     int64_t m_statSum = 0;
     
-    bool m_bADTS = false;
+    int m_aacType = 0;
 };
 
 NS_HJ_END

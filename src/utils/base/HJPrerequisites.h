@@ -45,3 +45,6 @@
         return ptr;\
     }\
     
+
+#define BEGIN_TIME {int64_t curTime = HJCurrentSteadyMS();
+#define END_TIME(name)   HJFLogi("{} timediff:{}", name, (HJCurrentSteadyMS() - curTime));}

@@ -77,8 +77,8 @@ TEST_F(MediaStorageManagerTest, InitializationValidation) {
     // Case 3: 数据库中的文件在磁盘上不存在
     fs::create_directory(fs::path(test_media_root) / "ghost"); // 先创建文件夹以通过第一层校验
     FileInfo ghost_file = {1, "", "ghost.gif", 1, 10, 3, 0, 0, 0};
-    manager->AddOrUpdateFile("ghost", ghost_file);
-    manager->DeleteFile("ghost", 1); // 从DB删除，模拟不一致
+    manager->addOrUpdateFile("ghost", ghost_file);
+    manager->deleteFile("ghost", 1); // 从DB删除，模拟不一致
     // 重新创建一个新的manager实例来触发校验
     manager.reset();
     manager = std::make_unique<MediaStorageManager>(test_db_path, test_media_root);
@@ -87,7 +87,7 @@ TEST_F(MediaStorageManagerTest, InitializationValidation) {
     ghost_folder_from_db.file_count = 1;
     ghost_folder_from_db.total_size = 10;
     manager->AddSubFolder(ghost_folder_from_db);
-    manager->AddOrUpdateFile("ghost", ghost_file);
+    manager->addOrUpdateFile("ghost", ghost_file);
     // 此时DB有记录，但磁盘没有ghost.gif
     ASSERT_THROW(manager->Initialize(), std::runtime_error);
 }
@@ -101,7 +101,7 @@ TEST_F(MediaStorageManagerTest, AddUpdateAndGetFile) {
 
     FileInfo file1 = {101, "url1", "file1.mp4", 1, 50, 1, 1000, 1000, 1};
     CreateDummyFile(fs::path(test_media_root) / "videos" / "file1.mp4");
-    manager->AddOrUpdateFile("videos", file1);
+    manager->addOrUpdateFile("videos", file1);
 
     auto files = manager->GetFilesInFolder("videos");
     ASSERT_EQ(files.size(), 1);
@@ -113,7 +113,7 @@ TEST_F(MediaStorageManagerTest, AddUpdateAndGetFile) {
 
     // 更新文件
     FileInfo file1_updated = {101, "url1_new", "file1.mp4", 1, 60, 1, 1000, 1001, 2};
-    manager->AddOrUpdateFile("videos", file1_updated);
+    manager->addOrUpdateFile("videos", file1_updated);
 
     files = manager->GetFilesInFolder("videos");
     ASSERT_EQ(files.size(), 1);
@@ -125,7 +125,7 @@ TEST_F(MediaStorageManagerTest, AddUpdateAndGetFile) {
 }
 
 // 测试：删除文件
-TEST_F(MediaStorageManagerTest, DeleteFile) {
+TEST_F(MediaStorageManagerTest, deleteFile) {
     SubFolderInfo folder = {"videos", 1, 1024, 0, 0};
     fs::create_directory(fs::path(test_media_root) / "videos");
     manager->AddSubFolder(folder);
@@ -133,9 +133,9 @@ TEST_F(MediaStorageManagerTest, DeleteFile) {
 
     FileInfo file1 = {101, "url1", "file1.mp4", 1, 50, 1, 1000, 1000, 1};
     CreateDummyFile(fs::path(test_media_root) / "videos" / "file1.mp4");
-    manager->AddOrUpdateFile("videos", file1);
+    manager->addOrUpdateFile("videos", file1);
 
-    ASSERT_TRUE(manager->DeleteFile("videos", 101));
+    ASSERT_TRUE(manager->deleteFile("videos", 101));
 
     auto files = manager->GetFilesInFolder("videos");
     EXPECT_TRUE(files.empty());
@@ -145,7 +145,7 @@ TEST_F(MediaStorageManagerTest, DeleteFile) {
     EXPECT_EQ(folder_info->total_size, 0);
 
     // 测试删除不存在的文件
-    ASSERT_FALSE(manager->DeleteFile("videos", 999));
+    ASSERT_FALSE(manager->deleteFile("videos", 999));
 }
 
 // 测试：删除子文件夹
@@ -178,11 +178,11 @@ TEST_F(MediaStorageManagerTest, CleanupLogic) {
     CreateDummyFile(fs::path(test_media_root) / "videos" / "f2.mp4");
     CreateDummyFile(fs::path(test_media_root) / "videos" / "f3.mp4");
 
-    manager->AddOrUpdateFile("videos", file1);
-    manager->AddOrUpdateFile("videos", file2);
+    manager->addOrUpdateFile("videos", file1);
+    manager->addOrUpdateFile("videos", file2);
     
     // 添加 file3, 总大小将为 120 > 100，触发清理
-    auto deleted_files = manager->AddOrUpdateFile("videos", file3);
+    auto deleted_files = manager->addOrUpdateFile("videos", file3);
 
     // 应该删除一个文件以满足大小限制 (120 - 40 = 80 <= 100)
     ASSERT_EQ(deleted_files.size(), 1);

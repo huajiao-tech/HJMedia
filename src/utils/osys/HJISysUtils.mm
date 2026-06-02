@@ -7,11 +7,12 @@
 #include "HJUtilitys.h"
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
+#import <TargetConditionals.h>
 //#import <UIKit/UIKit.h>
 #include <sys/sysctl.h>
 #import <mach/mach.h>
 #import <mach/mach_host.h>
-#if defined(HJ_OS_IOS)
+#if TARGET_OS_OSX
 #   import "GPUUtilization/GPUUtilization.h"
 #endif
 
@@ -171,7 +172,7 @@ float HJISysUtils::getCpuUsageX()
 
 float HJISysUtils::getGpuUsage()
 {
-#if defined(HJ_OS_IOS)
+#if TARGET_OS_OSX
     return [GPUUtilization gpuUsage];
 //    [GPUUtilization fetchCurrentUtilization:^(GPUUtilization *current) {
 //      NSLog(@"202412181932 gpu usage %ld", static_cast<long>(current.deviceUtilization));

@@ -65,6 +65,9 @@ uint64_t HJImage::bind()
 		glBindTexture(GL_TEXTURE_2D, (GLuint)m_texID);
 		return m_texID;
 	}
+    if (!m_data || m_width <= 0 || m_height <= 0) {
+        return 0;
+    }
 	GLuint tex = 0;
 	glGenTextures(1, &tex);
 	if (!tex) {
@@ -95,8 +98,27 @@ void HJImage::unbind()
 	GLuint texID = (GLuint)(m_texID);
 	if (0 != texID) {
 		glDeleteTextures(1, &texID);
-		texID = 0;
 	}
+    m_texID = 0;
+}
+
+HJ_INSTANCE(HJGuiImageManager);
+//***********************************************************************************//
+HJImage::Ptr HJGuiImageManager::load(const std::string& filename)
+{
+	if(filename.empty()) {
+		return nullptr;
+	}
+	auto it = m_images.find(filename);
+	if(it!= m_images.end()) {
+		return it->second;
+	}
+	auto image = std::make_shared<HJImage>();
+	if(image->init(filename) != HJ_OK) {
+		return nullptr;
+	}
+	m_images[filename] = image;
+	return image;
 }
 
 NS_HJ_END

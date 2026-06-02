@@ -63,8 +63,10 @@ public:
     virtual int setWindow(const std::any& window) override;
     virtual int seek(int64_t pos) override;
     virtual int seek(float progress) override;
+    virtual int switchAudioTrack(int trackID) override;
     virtual int speed(float speed) override;
     virtual int64_t getCurrentPos() override;
+    virtual int64_t getDuration() override;
     virtual float getProgress() override;
     virtual void setVolume(const float volume) override;
     //

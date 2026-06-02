@@ -7,11 +7,10 @@
 #include "HJPusherTypes.h"
 #include "HJMediaInfo.h"
 #include "ThreadSafeFunctionWrapper.h"
-#include "HJJNIField.h"
 #include "HJPusherBridge.h"
 #include <native_image/native_image.h>
-#include <native_window/external_window.h>
 #include <native_buffer/native_buffer.h>
+#include "HJJNIField.h"
 
 #include "HJImageNative.h"
 
@@ -87,12 +86,7 @@ napi_value HJPusherNapi::setWindow(napi_env env, napi_callback_info info)
         }
 
         int64_t surfaceId = std::stoll(config->surfaceId);
-        OHNativeWindow *nativeWindow;
-        i_err = OH_NativeWindow_CreateNativeWindowFromSurfaceId(surfaceId, &nativeWindow);
-        if (i_err != HJ_OK) {
-            break;
-        }
-        i_err = nPusher->setNativeWindow(nativeWindow, config->width, config->height, config->state);
+        i_err = nPusher->setNativeWindow(config->classStyle, config->insName, surfaceId, config->width, config->height, config->state);
     } while (false);
 
     NAPI_INT_RET
@@ -106,8 +100,7 @@ napi_value HJPusherNapi::openPreview(napi_env env, napi_callback_info info)
     bool lossless = true;
     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
 
-    std::string jsonStr;
-    NapiUtil::JsValueToString(env, args[INDEX_1], STR_DEFAULT_SIZE, jsonStr);
+    std::string jsonStr = NapiUtil::parseString(env, args[INDEX_1]);
     auto jsonDoc = std::make_shared<HJYJsonDocument>();
     auto config = std::make_shared<PreviewConfig>(jsonDoc);
     if (jsonDoc->init(jsonStr) != HJ_OK || config->deserialInfo() != HJ_OK) {
@@ -126,7 +119,7 @@ napi_value HJPusherNapi::openPreview(napi_env env, napi_callback_info info)
     statInfo.bUseStat = false; //fixme after modify
     
     nPusher->openPreview(
-        {.videoWidth = config->realWidth, .videoHeight = config->realHeight, .videoFps = config->previewFps}, [nPusher
+        {.videoWidth = config->realWidth, .videoHeight = config->realHeight, .videoFps = config->previewFps, .m_graphConfig = config->m_graphConfig}, [nPusher
         ](int i_type, const std::string &i_msgInfo) {
             // HJFLogi("{} HJPusherNapi::openPreview {} {}", TAG, i_type, i_msgInfo);
             auto data = new HJYJsonDocument{};
@@ -253,6 +246,26 @@ napi_value HJPusherNapi::setMute(napi_env env, napi_callback_info info)
 
     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
     nPusher->setMute(mute);
+
+    return nullptr;
+}
+
+napi_value HJPusherNapi::setPreviewRotation(napi_env env, napi_callback_info info)
+{
+    NAPI_PARSE_ARGS(PARAM_COUNT_2)
+
+    int64_t nPusherHandle;
+    bool lossless = true;
+    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+
+    int32_t rotation = 0;
+    napi_get_value_int32(env, args[INDEX_1], &rotation);
+
+    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+    if (nPusher)
+    {
+        nPusher->setPreviewRotation(rotation);
+    }
 
     return nullptr;
 }
@@ -451,192 +464,192 @@ napi_value HJPusherNapi::closePixelMapOutput(napi_env env, napi_callback_info in
     NAPI_INT_RET
 }
 
-napi_value HJPusherNapi::setFaceInfo(napi_env env, napi_callback_info info)
-{
-    int i_err = HJ_OK;
-    NAPI_PARSE_ARGS(PARAM_COUNT_4)
+// napi_value HJPusherNapi::setFaceInfo(napi_env env, napi_callback_info info)
+// {
+//     int i_err = HJ_OK;
+//     NAPI_PARSE_ARGS(PARAM_COUNT_4)
 
-    int64_t nPusherHandle;
-    bool lossless = true;
-    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+//     int64_t nPusherHandle;
+//     bool lossless = true;
+//     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
 
-    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
-    if (nPusher)
-    {
-        int32_t w;
-        napi_get_value_int32(env, args[INDEX_1], &w);
-        int32_t h;
-        napi_get_value_int32(env, args[INDEX_2], &h);
+//     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+//     if (nPusher)
+//     {
+//         int32_t w;
+//         napi_get_value_int32(env, args[INDEX_1], &w);
+//         int32_t h;
+//         napi_get_value_int32(env, args[INDEX_2], &h);
         
         
-        size_t strLen;
-        napi_get_value_string_utf8(env, args[INDEX_3], nullptr, 0, &strLen);
+//         size_t strLen;
+//         napi_get_value_string_utf8(env, args[INDEX_3], nullptr, 0, &strLen);
 
-        std::vector<char> buffer(strLen + 1);
-        napi_get_value_string_utf8(env, args[INDEX_3], buffer.data(), buffer.size(), nullptr);
-        std::string pointsInfo = std::string(buffer.data());
+//         std::vector<char> buffer(strLen + 1);
+//         napi_get_value_string_utf8(env, args[INDEX_3], buffer.data(), buffer.size(), nullptr);
+//         std::string pointsInfo = std::string(buffer.data());
         
-        HJFacePointsWrapper::Ptr faceInfo = HJFacePointsWrapper::Create<HJFacePointsWrapper>(w, h, pointsInfo);
-        nPusher->setFaceInfo(faceInfo);
-    }
+//         HJFacePointsWrapper::Ptr faceInfo = HJFacePointsWrapper::Create<HJFacePointsWrapper>(w, h, pointsInfo);
+//         nPusher->setFaceInfo(faceInfo);
+//     }
 
-    NAPI_INT_RET    
-}
-napi_value HJPusherNapi::nativeSourceOpen(napi_env env, napi_callback_info info)
-{
-    int i_err = HJ_OK;
-    NAPI_PARSE_ARGS(PARAM_COUNT_2)
+//     NAPI_INT_RET    
+// }
+// napi_value HJPusherNapi::nativeSourceOpen(napi_env env, napi_callback_info info)
+// {
+//     int i_err = HJ_OK;
+//     NAPI_PARSE_ARGS(PARAM_COUNT_2)
 
-    int64_t nPusherHandle;
-    bool lossless = true;
-    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
-    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
-    if (nPusher)
-    {
-        bool bUsePBO = false;
-        napi_get_value_bool(env, args[INDEX_1], &bUsePBO);
-        i_err = nPusher->openNativeSource(bUsePBO);
-    }
+//     int64_t nPusherHandle;
+//     bool lossless = true;
+//     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+//     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+//     if (nPusher)
+//     {
+//         bool bUsePBO = false;
+//         napi_get_value_bool(env, args[INDEX_1], &bUsePBO);
+//         i_err = nPusher->openNativeSource(bUsePBO);
+//     }
 
-    NAPI_INT_RET
-}
-napi_value HJPusherNapi::nativeSourceClose(napi_env env, napi_callback_info info)
-{
-    int i_err = HJ_OK;
-    NAPI_PARSE_ARGS(PARAM_COUNT_1)
+//     NAPI_INT_RET
+// }
+// napi_value HJPusherNapi::nativeSourceClose(napi_env env, napi_callback_info info)
+// {
+//     int i_err = HJ_OK;
+//     NAPI_PARSE_ARGS(PARAM_COUNT_1)
 
-    int64_t nPusherHandle;
-    bool lossless = true;
-    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
-    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
-    if (nPusher)
-    {
-        nPusher->closeNativeSource();
-    }
+//     int64_t nPusherHandle;
+//     bool lossless = true;
+//     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+//     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+//     if (nPusher)
+//     {
+//         nPusher->closeNativeSource();
+//     }
 
-    NAPI_INT_RET
-}
-napi_value HJPusherNapi::nativeSourceAcquire(napi_env env, napi_callback_info info)
-{
-    NAPI_PARSE_ARGS(PARAM_COUNT_1)
+//     NAPI_INT_RET
+// }
+// napi_value HJPusherNapi::nativeSourceAcquire(napi_env env, napi_callback_info info)
+// {
+//     NAPI_PARSE_ARGS(PARAM_COUNT_1)
 
-    int64_t nPusherHandle;
-    bool lossless = true;
-    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
-    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
-    std::shared_ptr<HJRGBAMediaData> data = nullptr;
-    if (nPusher)
-    {
-        data = nPusher->acquireNativeSource();
-        if (data)
-        {
-            void* arrayBufferPtr = nullptr;
-            napi_value arrayBuffer = nullptr;
-            size_t bufferSize = data->m_nSize;
-            napi_status status = napi_create_arraybuffer(env, bufferSize, &arrayBufferPtr, &arrayBuffer);
-            if (status != napi_ok || arrayBufferPtr == nullptr) 
-            {
-                napi_throw_error(env, nullptr, "Failed to create ArrayBuffer");
-                return nullptr;
-            }
-            uint8_t *pData = static_cast<uint8_t*>(arrayBufferPtr);
+//     int64_t nPusherHandle;
+//     bool lossless = true;
+//     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+//     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+//     std::shared_ptr<HJRGBAMediaData> data = nullptr;
+//     if (nPusher)
+//     {
+//         data = nPusher->acquireNativeSource();
+//         if (data)
+//         {
+//             void* arrayBufferPtr = nullptr;
+//             napi_value arrayBuffer = nullptr;
+//             size_t bufferSize = data->m_nSize;
+//             napi_status status = napi_create_arraybuffer(env, bufferSize, &arrayBufferPtr, &arrayBuffer);
+//             if (status != napi_ok || arrayBufferPtr == nullptr) 
+//             {
+//                 napi_throw_error(env, nullptr, "Failed to create ArrayBuffer");
+//                 return nullptr;
+//             }
+//             uint8_t *pData = static_cast<uint8_t*>(arrayBufferPtr);
         
-            //int64_t t0 = HJCurrentSteadyMS();
-            memcpy(pData, data->m_buffer->getBuf(), bufferSize);
-            //int64_t t1 = HJCurrentSteadyMS();
-            //HJFLogi("memcpy size:{} time is:{} ", bufferSize, (t1 - t0));
+//             //int64_t t0 = HJCurrentSteadyMS();
+//             memcpy(pData, data->m_buffer->getBuf(), bufferSize);
+//             //int64_t t1 = HJCurrentSteadyMS();
+//             //HJFLogi("memcpy size:{} time is:{} ", bufferSize, (t1 - t0));
                 
-            napi_value resultObj;
-            napi_create_object(env, &resultObj);
+//             napi_value resultObj;
+//             napi_create_object(env, &resultObj);
         
-            napi_value jsWidth, jsHeight;
-            napi_create_uint32(env, data->m_width, &jsWidth);
-            napi_create_uint32(env, data->m_height, &jsHeight);
+//             napi_value jsWidth, jsHeight;
+//             napi_create_uint32(env, data->m_width, &jsWidth);
+//             napi_create_uint32(env, data->m_height, &jsHeight);
 
-            napi_set_named_property(env, resultObj, "data", arrayBuffer);
-            napi_set_named_property(env, resultObj, "width", jsWidth);
-            napi_set_named_property(env, resultObj, "height", jsHeight);
-            return resultObj; 
-        }
-    }
-    return nullptr;
-}
+//             napi_set_named_property(env, resultObj, "data", arrayBuffer);
+//             napi_set_named_property(env, resultObj, "width", jsWidth);
+//             napi_set_named_property(env, resultObj, "height", jsHeight);
+//             return resultObj; 
+//         }
+//     }
+//     return nullptr;
+// }
 
-napi_value HJPusherNapi::openFaceu(napi_env env, napi_callback_info info)
-{
-    int i_err = HJ_OK;
-    NAPI_PARSE_ARGS(PARAM_COUNT_2)
+// napi_value HJPusherNapi::openFaceu(napi_env env, napi_callback_info info)
+// {
+//     int i_err = HJ_OK;
+//     NAPI_PARSE_ARGS(PARAM_COUNT_2)
     
-    int64_t nPusherHandle;
-    bool lossless = true;
-    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
-    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
-    if (nPusher)
-    {
-        size_t strLen;
-        napi_get_value_string_utf8(env, args[INDEX_1], nullptr, 0, &strLen);
+//     int64_t nPusherHandle;
+//     bool lossless = true;
+//     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+//     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+//     if (nPusher)
+//     {
+//         size_t strLen;
+//         napi_get_value_string_utf8(env, args[INDEX_1], nullptr, 0, &strLen);
 
-        std::vector<char> buffer(strLen + 1);
-        napi_get_value_string_utf8(env, args[INDEX_1], buffer.data(), buffer.size(), nullptr);
-        std::string url = std::string(buffer.data());
-        i_err = nPusher->openFaceu(url);
-    }
+//         std::vector<char> buffer(strLen + 1);
+//         napi_get_value_string_utf8(env, args[INDEX_1], buffer.data(), buffer.size(), nullptr);
+//         std::string url = std::string(buffer.data());
+//         i_err = nPusher->openFaceu(url);
+//     }
 
-    NAPI_INT_RET
-}
-napi_value HJPusherNapi::closeFaceu(napi_env env, napi_callback_info info)
-{
-    int i_err = HJ_OK;
-    NAPI_PARSE_ARGS(PARAM_COUNT_1)
+//     NAPI_INT_RET
+// }
+// napi_value HJPusherNapi::closeFaceu(napi_env env, napi_callback_info info)
+// {
+//     int i_err = HJ_OK;
+//     NAPI_PARSE_ARGS(PARAM_COUNT_1)
        
-    int64_t nPusherHandle;
-    bool lossless = true;
-    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
-    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
-    if (nPusher)
-    {
-        nPusher->closeFaceu();
-    }
+//     int64_t nPusherHandle;
+//     bool lossless = true;
+//     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+//     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+//     if (nPusher)
+//     {
+//         nPusher->closeFaceu();
+//     }
 
-    NAPI_INT_RET
-}
+//     NAPI_INT_RET
+// }
 
-napi_value HJPusherNapi::setVideoEncQuantOffset(napi_env env, napi_callback_info info)
-{
-    int i_err = HJ_OK;
-    NAPI_PARSE_ARGS(PARAM_COUNT_2)
+// napi_value HJPusherNapi::setVideoEncQuantOffset(napi_env env, napi_callback_info info)
+// {
+//     int i_err = HJ_OK;
+//     NAPI_PARSE_ARGS(PARAM_COUNT_2)
        
-    int64_t nPusherHandle;
-    bool lossless = true;
-    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
-    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
-    if (nPusher)
-    {
-        int32_t quantoffset = 0;
-        napi_get_value_int32(env, args[INDEX_1], &quantoffset);
-        nPusher->setVideoEncQuantOffset(quantoffset);
-    }
+//     int64_t nPusherHandle;
+//     bool lossless = true;
+//     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+//     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+//     if (nPusher)
+//     {
+//         int32_t quantoffset = 0;
+//         napi_get_value_int32(env, args[INDEX_1], &quantoffset);
+//         nPusher->setVideoEncQuantOffset(quantoffset);
+//     }
 
-    NAPI_INT_RET
-}
+//     NAPI_INT_RET
+// }
 
-napi_value HJPusherNapi::setFaceProtected(napi_env env, napi_callback_info info)
-{
-    int i_err = HJ_OK;
-    NAPI_PARSE_ARGS(PARAM_COUNT_2)
+// napi_value HJPusherNapi::setFaceProtected(napi_env env, napi_callback_info info)
+// {
+//     int i_err = HJ_OK;
+//     NAPI_PARSE_ARGS(PARAM_COUNT_2)
        
-    int64_t nPusherHandle;
-    bool lossless = true;
-    napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
-    auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
-    if (nPusher)
-    {
-        bool bFaceProtected = false;
-        napi_get_value_bool(env, args[INDEX_1], &bFaceProtected);
-        nPusher->setFaceProtected(bFaceProtected);
-    }
+//     int64_t nPusherHandle;
+//     bool lossless = true;
+//     napi_get_value_bigint_int64(env, args[INDEX_0], &nPusherHandle, &lossless);
+//     auto nPusher = reinterpret_cast<HJPusherBridge *>(nPusherHandle);
+//     if (nPusher)
+//     {
+//         bool bFaceProtected = false;
+//         napi_get_value_bool(env, args[INDEX_1], &bFaceProtected);
+//         nPusher->setFaceProtected(bFaceProtected);
+//     }
 
-    NAPI_INT_RET
-}
+//     NAPI_INT_RET
+// }
 
 NS_HJ_END

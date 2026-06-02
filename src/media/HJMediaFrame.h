@@ -22,16 +22,18 @@ NS_HJ_BEGIN
 #define HJ_VREND_STOREAGE_CAPACITY     3
 //***********************************************************************************//
 #define HJ_FRAME_FLAG_RESTRICT_DELAY       0x0001
+#define HJ_FRAME_FLAG_AUDIO_TRACK_SWITCH   0x0002
 
 typedef enum HJFrameType
 {
-    HJFRAME_NONE   = 0x00,
-    HJFRAME_NORMAL = 0x01,
-    HJFRAME_KEY    = 0x02,
-    HJFRAME_EOF    = 0x04,
-    HJFRAME_NULL   = 0x08,
-    HJFRAME_RESERVED = 0x00FF,
-    HJFRAME_FLUSH    = 0x0100,
+    HJFRAME_NONE        = 0x0000,
+    HJFRAME_NORMAL      = 0x0001,
+    HJFRAME_KEY         = 0x0002,
+    HJFRAME_EOF         = 0x0004,
+    HJFRAME_NULL        = 0x0008,
+    HJFRAME_CLEAR       = 0x0010,
+    HJFRAME_RESERVED    = 0x00FF,
+    HJFRAME_FLUSH       = 0x0100
 } HJFrameType;
 #define HJFRAME_MAINTYPE(v)    (v & HJFRAME_RESERVED)
 #define HJFRAME_OPTSTYPE(v)    (v & ~HJFRAME_RESERVED)
@@ -244,8 +246,17 @@ public:
     const bool isFlushFrame() const {
         return (HJFRAME_FLUSH & m_frameType);
     }
+    const bool hasFlag(const int flag) const {
+        return ((m_flag & flag) == flag);
+    }
+    const bool isClearFrame() const {
+        return (HJFRAME_CLEAR & m_frameType);
+    }
     void setFlush() {
         m_frameType = m_frameType | HJFRAME_FLUSH;
+    }
+    void reomveFlush() {
+        m_frameType = m_frameType & (~HJFRAME_FLUSH);
     }
     const bool isValidFrame() const {
         return ((HJFRAME_NORMAL & m_frameType) ||
@@ -329,8 +340,8 @@ public:
     virtual HJMediaFrame::Ptr dup();
     virtual HJMediaFrame::Ptr deepDup();
 
-    int addSEI(const HJSEINals::Ptr& nals);
-    HJSEINals::Ptr getSEI();
+    int addSEINals(const HJSEINals::Ptr& nals);
+    HJSEINals::Ptr getSEINals();
     HJSEINals::Ptr deriveSEINals();
 public:
     static HJMediaFrame::Ptr makeVideoFrame(const HJVideoInfo::Ptr& info = nullptr);
@@ -342,6 +353,7 @@ public:
     static HJMediaFrame::Ptr makeEofFrame(const HJMediaType type = HJMEDIA_TYPE_NONE);
     static HJMediaFrame::Ptr makeFlushFrame(const int streamIndex, const HJMediaInfo::Ptr info = nullptr, int flag = 0);
     static HJMediaFrame::Ptr makeFlushFrame(const int streamIndex, const HJStreamInfo::Ptr info, int flag = 0);
+    static HJMediaFrame::Ptr makeClearFrame();
 
     static int makeAVCodecParam(const HJStreamInfo::Ptr &i_info, HJBuffer::Ptr i_extradata);
     static HJCodecParameters::Ptr makeHJAVCodecParam(const HJStreamInfo::Ptr &i_info, HJBuffer::Ptr i_extradata);
@@ -356,6 +368,7 @@ public:
     static const std::string STORE_KEY_HJAVFRAME;
     static const std::string STORE_KEY_MEDIAINFO;
     static const std::string STORE_KEY_STREAMINFO;
+    static const std::string STORE_KEY_SEIINAL;
     static const std::string STORE_KEY_SEIINFO;
     static const std::string STORE_KEY_ROIINFO;
     static const std::string STORE_KEY_VID_BITRATE;     //video bitrate
@@ -383,6 +396,7 @@ public:
     int                 m_flag = 0;
     int32_t             m_bufferPos = 0;
     HJTracker::Ptr      m_tracker = nullptr;
+    bool                m_silence = false;
 };
 using HJMediaFrameList = HJList<HJMediaFrame::Ptr>;
 using HJMediaFrameMap = std::multimap<int64_t, HJMediaFrame::Ptr>;

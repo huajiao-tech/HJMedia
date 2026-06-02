@@ -32,6 +32,27 @@ public:
 		topicSubscribers[topic].emplace_back(std::move(callbackptr));
 	}
 
+	void unSubscribe(const std::string& topic, std::shared_ptr<CallbackType> i_callbackptr)
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		auto it = topicSubscribers.find(topic);
+		if (it != topicSubscribers.end())
+		{
+			auto& callbacks = it->second;
+			auto callbackIt = callbacks.begin();
+			while (callbackIt != callbacks.end())
+			{
+				auto callbackPtr = callbackIt->lock();
+				if (callbackPtr && (callbackPtr == i_callbackptr))
+				{
+					callbackIt = callbacks.erase(callbackIt);
+					break;
+				}
+				++callbackIt;
+			}
+		}
+	}
+
 	void publish(const std::string& topic, Args... args)
 	{
 		std::vector<std::shared_ptr<CallbackType>> activeCallbacks;

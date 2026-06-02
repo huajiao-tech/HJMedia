@@ -3,6 +3,7 @@
 //AUTHOR:
 //CREATE TIME:
 //***********************************************************************************//
+#include "HJFileDialog.h"
 #include "HJFileDialogView.h"
 #include "HJContext.h"
 #include "HJFLog.h"
@@ -26,6 +27,7 @@ const std::string HJFileDialogView::KEY_CC_FILTER = "CC FILE (*.c;*.cpp;*.cc;*.h
 HJFileDialogView::HJFileDialogView()
 {
 	m_name = HJMakeGlobalName("FileDialog");
+	m_isOpen = false;
 }
 
 HJFileDialogView::~HJFileDialogView()
@@ -41,8 +43,16 @@ int HJFileDialogView::init(const std::string& title, const std::string& filter, 
 		m_filter = filter;
 		m_isMultiselect = isMultiselect;
 		m_startingDir = startingDir;
-		//
-		ifd::FileDialog::Instance().Open(m_name, m_title, m_filter, isMultiselect, startingDir);
+		HJFileDialog& dialog = HJFileDialog::Instance();
+		res = dialog.init(m_name);
+		if (HJ_OK != res) {
+			break;
+		}
+		res = dialog.open(m_name, m_title, m_filter, m_isMultiselect, m_startingDir);
+		if (HJ_OK != res) {
+			break;
+		}
+		m_isOpen = true;
 	} while (false);
 
 	return res;
@@ -53,15 +63,17 @@ int HJFileDialogView::draw(const std::function<void(const std::vector<std::files
 	int res = HJ_OK;
 	do
 	{
-		if (ifd::FileDialog::Instance().IsDone(m_name)) {
-			if (ifd::FileDialog::Instance().HasResult()) {
-				const std::vector<std::filesystem::path>& files = ifd::FileDialog::Instance().GetResults();
-				if (cb) {
-					cb(files);
-				}
-			}
-			ifd::FileDialog::Instance().Close();
-            m_isOpen = false;
+		if (!m_isOpen) {
+			break;
+		}
+		HJFileDialog& dialog = HJFileDialog::Instance();
+		dialog.setOnComplete(cb);
+		res = dialog.draw();
+		if (HJ_OK != res) {
+			break;
+		}
+		if (dialog.isDone()) {
+			m_isOpen = false;
 		}
 	} while (false);
 

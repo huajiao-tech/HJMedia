@@ -37,6 +37,24 @@ struct App
     virtual void Update() { /*implement me*/ }
     // Runs the app.
     void Run();
+    // Runs the app with FPS cap (fps<=0 means uncapped)
+    void Run(int fps);
+
+    void buildFonts();
+    void updateTitle(bool i_bUpdate);
+    virtual int RenderEveryStart()
+    {
+        return 0;
+    }
+    virtual int RenderEveryEnd()
+    {
+        return 0;
+    }
+    void* getWindow() const
+    {
+        return Window;
+    }
+
     // Get window size
     ImVec2 GetWindowSize() const;
 
@@ -44,4 +62,10 @@ struct App
     GLFWwindow* Window;                   // GLFW window handle
     std::map<std::string,ImFont*> Fonts;  // font map
     bool UsingDGPU;                       // using discrete gpu (laptops only)
+
+private:
+    void priAlignWindow();
+
+    ImFont* m_DefaultFont = nullptr;
+    ImFont* m_HeaderFont = nullptr;
 };

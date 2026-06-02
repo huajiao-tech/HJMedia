@@ -30,7 +30,8 @@ struct HJAlignedAllocator {
         return static_cast<T*>(ptr);
     }
 
-    void deallocate(T* p) {
+    void deallocate(T* p, std::size_t n = 0) {
+        (void)n;  // 未使用，但保持接口兼容
         ::operator delete(p, std::align_val_t(HJ_ALIGNED_DEFAULT));
     }
 };
@@ -127,7 +128,16 @@ public:
         m_size = size;
     }
     void addSize(int64_t offset) {
-        setSize(m_size + offset);
+        if (offset < 0) {
+            size_t abs_offset = static_cast<size_t>(-offset);
+            if (abs_offset >= m_size) {
+                m_size = 0;
+            } else {
+                m_size -= abs_offset;
+            }
+        } else {
+            setSize(m_size + static_cast<size_t>(offset));
+        }
     }
     size_t offset() const {
         return m_offset;
@@ -158,14 +168,14 @@ public:
             appendData(block->data(), block->size());
         }
     }
-    size_t read(const uint8_t* data, size_t size) {
-        if (!data || size <= 0) {
+    size_t read(uint8_t* dst, size_t size) {
+        if (!dst || size == 0) {
             return 0;
         }
         if (m_offset + size > m_size) {
             size = m_size - m_offset;
         }
-        memcpy((void *)data, this->data(), size);
+        memcpy(dst, this->data(), size);
         m_offset += size;
 
         return size;
@@ -182,9 +192,8 @@ public:
         write((uint8_t*)str.c_str(), len);
     }
     std::string rstring(const size_t len) {
-        std::string str;
-        str.resize(len);
-        read((uint8_t*)str.c_str(), len);
+        std::string str(len, '\0');
+        read(reinterpret_cast<uint8_t*>(str.data()), len);
         return str;
     }
     void w8(uint8_t u8) {
@@ -236,19 +245,25 @@ public:
         return u64;
     }
     void wlf(float f) {
-        wl32(*(uint32_t*)&f);
+        uint32_t bits;
+        memcpy(&bits, &f, sizeof(bits));
+        wl32(bits);
     }
     float rlf() {
+        uint32_t bits = rl32();
         float f;
-        *(uint32_t*)&f = rl32();
+        memcpy(&f, &bits, sizeof(f));
         return f;
     }
     void wld(double d) {
-        wl64(*(uint64_t*)&d);
+        uint64_t bits;
+        memcpy(&bits, &d, sizeof(bits));
+        wl64(bits);
     }
     double rld() {
+        uint64_t bits = rl64();
         double d;
-        *(uint64_t*)&d = rl64();
+        memcpy(&d, &bits, sizeof(d));
         return d;
     }
 
@@ -273,11 +288,15 @@ public:
     }
 
     void wbf(float f) {
-        wb32(*(uint32_t*)&f);
+        uint32_t bits;
+        memcpy(&bits, &f, sizeof(bits));
+        wb32(bits);
     }
 
     void wbd(double d) {
-        wb64(*(uint64_t*)&d);
+        uint64_t bits;
+        memcpy(&bits, &d, sizeof(bits));
+        wb64(bits);
     }
     void wtimestamp(int32_t i32) {
         wb24((uint32_t)(i32 & 0xFFFFFF));
@@ -368,7 +387,7 @@ public:
     }
     virtual ~HJAudioBuffers() {
         for (T* p : m_datas) {
-            delete p;
+            delete[] p;  // 使用 delete[] 匹配 new[]
         }
         m_datas.clear();
     }

@@ -3,9 +3,7 @@ import { cameraService } from '../../camera/service/CameraService';
 import { State, Store, Action } from '../../interface/Store';
 import DateTimeUtil from '../../util/DateTimeUtils';
 import { applySaveVideo } from '../../util/RecorderVideoUtils';
-//import {HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet} from 'hjmediautils'
-
-import { HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet } from '../../../../../../hjpusher/src/main/ets/HJFaceDetectMgr'
+import { HJFaceDetectMgr, HJNativeSourceData, HJFaceDetectMgrRet } from '../../../../../../hjmediautils/src/main/ets/HJFaceDetectMgr'
 
 import {
   pusherPreset,
@@ -29,10 +27,13 @@ import {
   PusherAction,
   RecorderAction,
   SelectorAction,
-  TimerAction
+  TimerAction,
+  ScreenModeAction
 } from './action/PusherPreviewAction';
 import { NavStackUtil } from '../../util/NavStackUitl';
 import { ImageReceiverService } from '../../common/ImageReceiverService';
+import { HJRteGraphConfigConstructor, HJRteGraphConstructorType } from '../../../../../../hjpusher/src/main/ets/native/HJRteGraphConfigConstructor';
+import { HJRteGraphConfig } from 'hjpusher/src/main/ets/native/HJRteGraphSetupInfo';
 
 @ObservedV2
 export class PusherPreviewState implements State {
@@ -51,6 +52,7 @@ export class PusherPreviewState implements State {
   @Trace bSpeechRecognizer: boolean = false;
   @Trace selectorX: number | string = "50%"
   @Trace selectorY: number | string = 0
+  isLandscape: boolean = false
   path: string = ""
   src: string = ""
   ext: string = "mp4"
@@ -88,8 +90,12 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
   // private m_faceDetectRet : number = HJFaceDetectMgrRet.unknown;
   private m_faceDetectMgr : HJFaceDetectMgr = new HJFaceDetectMgr();
 
-  aboutToAppear() {
-    this.state.videoFormat.unit = this.state.config.videoConfig.codecID == VideoCodecType.HJCodecH264 ? "H264" : "H265"
+  async aboutToAppear() {
+    this.state.videoFormat.unit = "H264" //this.state.config.videoConfig.codecID == VideoCodecType.HJCodecH264 ? "H264" : "H265"
+    this.state.isLandscape = false //this.state.config.isLandScape
+    this.state.pusherSettings.push(
+      new PusherSetting("ScreenModeAction", "right", $r("app.media.portrait_or_landscape"), $r("app.media.portrait_or_landscape"),  this.state.isLandscape),
+    )
     if (!this.state.config.isLandScape) {
       this.state.selectorX = 0
       this.state.selectorY = "50%"
@@ -108,8 +114,12 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
 
     this.state.hjPusher.createPusher();
     const previewInfo = new PreviewInfo();
-    previewInfo.realWidth = this.state.config.videoConfig.width
-    previewInfo.realHeight = this.state.config.videoConfig.height
+    previewInfo.realWidth = 1280 //this.state.config.videoConfig.width
+    previewInfo.realHeight = 720 //this.state.config.videoConfig.height
+
+    previewInfo.m_graphConfig = HJRteGraphConfigConstructor.constructGraph({
+      type: HJRteGraphConstructorType.HJRteGraphConstructorType_PlaceHolder
+    });
 
     let previewSurfaceId: bigint = this.state.hjPusher.openPreview(previewInfo, (str: string) => {
       const strJson: ESObject = JSON.parse(str)
@@ -128,18 +138,24 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
 
     cameraService.initCamera(getContext() as Context);
     cameraService.bindSurfaceId(previewSurfaceId.toString());
-    cameraService.startPreview(this.state.pusherSettings[3].value ? 1 : 0)
-
-    if (this.state.enableFaceDetector) {
-      this.state.imageReceiverService.getReceivingSurfaceId().then((surfaceId) => {
-        this.state.hjPusher.setWindow({
-          surfaceId: surfaceId,
-          width: this.state.config.videoConfig.width,
-          height: this.state.config.videoConfig.height,
-          state: SetWindowState.TARGET_CREATE
-        })
-      })
+    await cameraService.startPreview(this.state.pusherSettings[3].value ? 1 : 0)
+    const initPreviewRotation = cameraService.getLastPreviewRotation()
+    if (initPreviewRotation !== undefined) {
+      this.state.hjPusher.setPreviewRotation(initPreviewRotation);
     }
+
+    // if (this.state.enableFaceDetector) {
+    //   this.state.imageReceiverService.getReceivingSurfaceId().then((surfaceId) => {
+    //     this.state.hjPusher.setWindow({
+    //       classStyle:'HJNodeClass_TargetImgReceiver',
+    //       insName: 'HJNodeClass_TargetImgReceiver',
+    //       surfaceId: surfaceId,
+    //       width: this.state.config.videoConfig.width,
+    //       height: this.state.config.videoConfig.height,
+    //       state: SetWindowState.TARGET_CREATE
+    //     })
+    //   })
+    // }
   }
 
   aboutToDisappear() {
@@ -155,6 +171,11 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
     }
   }
 
+  private toggleOrientation() {
+    this.state.isLandscape = !this.state.isLandscape
+    WindowUtils.setOrientation(this.state.isLandscape ? window.Orientation.LANDSCAPE : window.Orientation.PORTRAIT)
+  }
+
   onPageShow(): void {
     WindowUtils.setWindowLayoutFullScreen(true)
     if (this.state.config.isLandScape) {
@@ -164,7 +185,7 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
 
   onPageHide(): void {
     WindowUtils.setWindowLayoutFullScreen(false)
-    if (this.state.config.isLandScape) {
+    if (this.state.isLandscape) {
       WindowUtils.setOrientation(window.Orientation.UNSPECIFIED)
     }
   }
@@ -180,7 +201,7 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
       {
           this.m_faceDetectMgr.registerFaceInfoCb((width:number, height:number, faceInfo:string)=>
           {
-              this.state.hjPusher.setFaceInfo(width, height, faceInfo);
+              this.state.hjPusher.setFaceInfo(HJRteGraphConfig.HJNodeClass_SourceBridge, width, height, faceInfo);
           });
           this.m_faceDetectMgr.registerNativeSourceOpenCb(() =>
           {
@@ -227,15 +248,27 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
       }
       if (!this.state.bFaceu)  //open
       {
-            this.state.hjPusher.openFaceu(url);
-            this.state.bFaceu = true;
-            this.switchIcon(index);
+        this.state.hjPusher.nodeEnable(
+          HJRteGraphConfig.HJNodeClass_SourceFaceu,
+          HJRteGraphConfig.HJNodeClass_SourceFaceu,
+          true,
+          url
+        );
+	      //this.state.hjPusher.openFaceu(url);
+        this.state.bFaceu = true;
+        this.switchIcon(index);
       }
       else //close
       {
-          this.state.hjPusher.closeFaceu();
-          this.state.bFaceu = false;
-          this.switchIcon(index);
+        this.state.hjPusher.nodeEnable(
+          HJRteGraphConfig.HJNodeClass_SourceFaceu,
+          HJRteGraphConfig.HJNodeClass_SourceFaceu,
+          false,
+          ''
+        );
+	      //this.state.hjPusher.closeFaceu();
+        this.state.bFaceu = false;
+        this.switchIcon(index);
       }
   }
 
@@ -294,6 +327,8 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
       //   this.state.hjPusher.setFaceProtected(false);
       // }
 
+    } else if (action instanceof ScreenModeAction) {
+      this.toggleOrientation()
     }
     else if (action instanceof FaceuAction) {
         this.faceutCtrl(action.payload, action.url);
@@ -348,6 +383,11 @@ export class PusherPreviewStore implements Store<PusherPreviewState> {
   }
 
   private openPusher() {
+    if(this.state.isLandscape) {
+      let width = this.state.config.videoConfig.width;
+      this.state.config.videoConfig.width = this.state.config.videoConfig.height;
+      this.state.config.videoConfig.height = width;
+    }
     this.state.hjPusher.openPusher(this.state.config, {uid: 2342, device: "Harmony", sn: "HJPusher"}, (str: string) => {
       console.log("wkshhh", str)
     })

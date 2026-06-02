@@ -24,7 +24,7 @@ NS_HJ_BEGIN
 void HJNetManager::registerAllNetworks()
 {
     static HJOnceToken token([&] {
-        HJFLogi("registerAllNetworks, tls:{}, http:{}", HJGlobalSettingsManager::getUseTLSPool(), HJGlobalSettingsManager::getUseHTTPPool());
+        HJFLogi("registerAllNetworks, tls:{}, http:{}", HJGlobalSettingsManager::getUseTLSPool(), HJGlobalSettingsManager::getUseHTTPPool());   
         if (HJGlobalSettingsManager::getUseTLSPool())
         {
             HJTLSLinkManagerInit();

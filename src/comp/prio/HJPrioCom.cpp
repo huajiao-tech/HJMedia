@@ -1,5 +1,3 @@
-#pragma once
-
 #include "HJPrioCom.h"
 #include "HJFLog.h"
 

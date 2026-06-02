@@ -27,4 +27,14 @@ void HJPlayerBridge::stateCall(HJYJsonDocument* data) {
     }
 }
 
+void HJPlayerBridge::setSeiCall(std::unique_ptr<ThreadSafeFunctionWrapper> i_tsf) {
+    m_seiCall = std::move(i_tsf);
+}
+
+void HJPlayerBridge::seiCall(HJPlayerSeiCallbackData* data) {
+    if (m_seiCall) {
+        m_seiCall->Call(data);
+    }
+}
+
 NS_HJ_END

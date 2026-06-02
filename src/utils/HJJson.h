@@ -21,7 +21,103 @@ namespace simdjson {
 }
 #endif
 
+#include <any>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <map>
+
 NS_HJ_BEGIN
+
+class HJYJsonObject;
+class HJInterpreter;
+
+template<typename T> struct is_vector : std::false_type {};
+template<typename T, typename A> struct is_vector<std::vector<T, A>> : std::true_type {};
+
+template<typename T> struct is_pair : std::false_type {};
+template<typename T1, typename T2> struct is_pair<std::pair<T1, T2>> : std::true_type {};
+
+template<typename T> struct is_map : std::false_type {};
+template<typename K, typename V, typename C, typename A> struct is_map<std::map<K, V, C, A>> : std::true_type {};
+
+namespace detail {
+
+template <typename T>
+struct is_std_tuple : std::false_type {};
+template <typename... Ts>
+struct is_std_tuple<std::tuple<Ts...>> : std::true_type {};
+
+template <typename T, typename = void>
+struct is_reflectable : std::false_type {};
+template <typename T>
+struct is_reflectable<T, std::void_t<decltype(T::kJsonFields)>>
+    : is_std_tuple<typename std::decay<decltype(T::kJsonFields)>::type> {};
+
+template <typename Class, typename T>
+struct HJJsonField {
+    const char* name;
+    T Class::*member;
+};
+
+template <typename Class, typename T>
+constexpr HJJsonField<Class, T> makeField(const char* name, T Class::*member) {
+    return HJJsonField<Class, T>{name, member};
+}
+
+template <typename Tuple, typename Func, size_t... I>
+constexpr void tupleForEachImpl(Tuple&& tuple, Func&& func, std::index_sequence<I...>) {
+    (func(std::get<I>(tuple)), ...);
+}
+
+template <typename Tuple, typename Func>
+constexpr void tupleForEach(Tuple&& tuple, Func&& func) {
+    constexpr size_t kSize = std::tuple_size<typename std::decay<Tuple>::type>::value;
+    tupleForEachImpl(std::forward<Tuple>(tuple), std::forward<Func>(func), std::make_index_sequence<kSize>{});
+}
+
+template <typename Class, typename T>
+void deserialField(Class* instance, const HJYJsonObject* json, const HJJsonField<Class, T>& field);
+
+template <typename Class, typename T>
+void serialField(const Class* instance, HJYJsonObject* json, const HJJsonField<Class, T>& field);
+
+} // namespace detail
+
+struct HJJsonReflector {
+    template <typename Class>
+    static int deserial(Class* instance, const std::shared_ptr<HJYJsonObject>& obj);
+
+    template <typename Class>
+    static int serial(const Class* instance, const std::shared_ptr<HJYJsonObject>& obj);
+};
+
+#define HJ_JSON_REFLECT_BEGIN(ClassName) \
+public: \
+    ClassName() = default; \
+    ClassName(const HJ::HJYJsonObject::Ptr& obj) : HJ::HJInterpreter(obj) {} \
+    ClassName(const std::string& info) : HJ::HJInterpreter(info) { \
+        deserialInfo(); \
+    } \
+    using HJJsonSelf = ClassName; \
+    static constexpr auto kJsonFields = std::tuple{
+
+#define HJ_JSON_REFLECT_MEMBER(MemberName) \
+            HJ::detail::makeField<HJJsonSelf>(#MemberName, &HJJsonSelf::MemberName),
+
+#define HJ_JSON_REFLECT_END(ClassName) \
+    }; \
+    int deserialInfo(const HJ::HJYJsonObject::Ptr& obj = nullptr) override { \
+        return HJ::HJJsonReflector::deserial(this, obj ? obj : m_obj); \
+    } \
+    int serialInfo(const HJ::HJYJsonObject::Ptr& obj = nullptr) override { \
+        return HJ::HJJsonReflector::serial(this, obj ? obj : m_obj); \
+    }
+
+#define HJ_JSON_REFLECT_IMPLEMENT(ClassName) \
+    static_assert(HJ::detail::is_reflectable<ClassName>::value, \
+        "HJ_JSON_REFLECT_IMPLEMENT requires kJsonFields to be a std::tuple");
+
 //***********************************************************************************//
 template <typename T>
 class HJValue : public HJObject
@@ -81,7 +177,7 @@ public:
     void setRVal(yyjson_val* val) {
         m_rval = val;
     }
-    yyjson_val* getRVal() {
+    yyjson_val* getRVal() const {
         return m_rval;
     }
     void setWVal(yyjson_mut_val* val) {
@@ -93,7 +189,7 @@ public:
     void setKey(const std::string& key) {
         m_key = key;
     }
-    const std::string& getKey() {
+    const std::string& getKey() const {
         return m_key;
     }
     void setMDoc(yyjson_mut_doc* doc) {
@@ -103,49 +199,50 @@ public:
         return m_mdoc;
     }
     //self
-    bool isNull();
-    bool isObj();
-    bool isArr();
-    bool isStr();
-    bool isInt64();
-    bool isUInt64();
-    bool isReal();
-    bool isBool();
-    int getType();
+    bool isNull() const;
+    bool isObj() const;
+    bool isArr() const;
+    bool isStr() const;
+    bool isInt64() const;
+    bool isUInt64() const;
+    bool isReal() const;
+    bool isBool() const;
+    int getType() const;
     //child
-    bool hasObj(const std::string& key);
-    bool isObj(const std::string& key);
-    bool isArr(const std::string& key);
-    HJYJsonObject::Ptr getObj(const std::string& key);
+    bool hasObj(const std::string& key) const;
+    bool isObj(const std::string& key) const;
+    bool isArr(const std::string& key) const;
+    HJYJsonObject::Ptr getObj(const std::string& key) const;
     int addObj(HJYJsonObject::Ptr obj);
     //self
-    bool getBool();
-    int getInt();
-    int64_t getInt64();
-    uint64_t getUInt64();
-    double getReal();
-    std::string getString();
-    uint8_t* getRaw();
+    bool getBool() const;
+    int getInt() const;
+    int64_t getInt64() const;
+    uint64_t getUInt64() const;
+    double getReal() const;
+    std::string getString() const;
+    uint8_t* getRaw() const;
+    std::vector<std::string> getKeys() const;
     //read child
-    bool getBool(const std::string& key);
-    int getInt(const std::string& key);
-    int64_t getInt64(const std::string& key);
-    uint64_t getUInt64(const std::string& key);
-    double getReal(const std::string& key);
-    std::string getString(const std::string& key);
-    uint8_t* getRaw(const std::string& key);
-    std::deque<HJYJsonObject::Ptr> getArr(const std::string& key);
+    bool getBool(const std::string& key) const;
+    int getInt(const std::string& key) const;
+    int64_t getInt64(const std::string& key) const;
+    uint64_t getUInt64(const std::string& key) const;
+    double getReal(const std::string& key) const;
+    std::string getString(const std::string& key) const;
+    uint8_t* getRaw(const std::string& key) const;
+    std::deque<HJYJsonObject::Ptr> getArr(const std::string& key) const;
     
-    int getMember(const std::string& key, bool& value);
-    int getMember(const std::string& key, int& value);
-    int getMember(const std::string& key, int64_t& value);
-    int getMember(const std::string& key, uint64_t& value);
-    int getMember(const std::string& key, double& value);
-    int getMember(const std::string& key, std::string& value);
-    int getMember(const std::string& key, uint8_t*& value, size_t& len);
-    int getMember(const std::string& key, std::vector<HJYJsonObject::Ptr>& objs);
-    int forEach(const std::string& key, const std::function<int(const HJYJsonObject::Ptr &)>& cb);
-    int forEachAnonymous(const std::function<int(const HJYJsonObject::Ptr&)>& cb);
+    int getMember(const std::string& key, bool& value) const;
+    int getMember(const std::string& key, int& value) const;
+    int getMember(const std::string& key, int64_t& value) const;
+    int getMember(const std::string& key, uint64_t& value) const;
+    int getMember(const std::string& key, double& value) const;
+    int getMember(const std::string& key, std::string& value) const;
+    int getMember(const std::string& key, uint8_t*& value, size_t& len) const;
+    int getMember(const std::string& key, std::vector<HJYJsonObject::Ptr>& objs) const;
+    int forEach(const std::string& key, const std::function<int(const HJYJsonObject::Ptr &)>& cb) const;
+    int forEachAnonymous(const std::function<int(const HJYJsonObject::Ptr&)>& cb) const;
 //    template <typename T>
 //    int getMember(const std::string& key, T& value);
 //    template <typename T>
@@ -157,10 +254,10 @@ public:
     int setMember(const std::string& key, const int64_t value);
     int setMember(const std::string& key, const uint64_t value);
     int setMember(const std::string& key, const double value);
-    int setMember(const std::string& key, const std::string value);
+    int setMember(const std::string& key, const std::string& value);
     int setMember(const std::string& key, const char* value);
     int setMember(const std::string& key, const uint8_t* value, const size_t len);
-    int setMember(const std::string& key, std::vector<HJYJsonObject::Ptr> value);
+    int setMember(const std::string& key, const std::vector<HJYJsonObject::Ptr>& value);
     //add vector
     int setMember(const std::string& key, const std::vector<std::string>& value);
     int setMember(const std::string& key, const std::vector<int>& value);
@@ -169,45 +266,9 @@ public:
     int setMember(const std::string& key, const std::vector<double>& value);
 protected:
     //proxy []
-    class JsonProxy {
+    class ConstJsonProxy {
     public:
-        JsonProxy(HJYJsonObject* obj, const std::string& key) : m_obj(obj), m_key(key) {}
-        
-
-        JsonProxy& operator=(bool value) {
-            m_obj->setMember(m_key, value);
-            return *this;
-        }
-        
-        JsonProxy& operator=(int value) {
-            m_obj->setMember(m_key, value);
-            return *this;
-        }
-        
-        JsonProxy& operator=(int64_t value) {
-            m_obj->setMember(m_key, value);
-            return *this;
-        }
-        
-        JsonProxy& operator=(uint64_t value) {
-            m_obj->setMember(m_key, value);
-            return *this;
-        }
-        
-        JsonProxy& operator=(double value) {
-            m_obj->setMember(m_key, value);
-            return *this;
-        }
-        
-        JsonProxy& operator=(const std::string& value) {
-            m_obj->setMember(m_key, value);
-            return *this;
-        }
-        
-        JsonProxy& operator=(const char* value) {
-            m_obj->setMember(m_key, std::string(value));
-            return *this;
-        }
+        ConstJsonProxy(const HJYJsonObject* obj, const std::string& key) : m_obj(obj), m_key(key) {}
         
         operator bool() const {
             bool value = false;
@@ -244,17 +305,58 @@ protected:
             m_obj->getMember(m_key, value);
             return value;
         }
-    private:
-        HJYJsonObject* m_obj = NULL;
+    protected:
+        const HJYJsonObject* m_obj = nullptr;
         std::string m_key{""};
+    };
+
+    class JsonProxy : public ConstJsonProxy {
+    public:
+        JsonProxy(HJYJsonObject* obj, const std::string& key) : ConstJsonProxy(obj, key) {}
+        
+
+        JsonProxy& operator=(bool value) {
+            const_cast<HJYJsonObject*>(m_obj)->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(int value) {
+            const_cast<HJYJsonObject*>(m_obj)->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(int64_t value) {
+            const_cast<HJYJsonObject*>(m_obj)->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(uint64_t value) {
+            const_cast<HJYJsonObject*>(m_obj)->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(double value) {
+            const_cast<HJYJsonObject*>(m_obj)->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(const std::string& value) {
+            const_cast<HJYJsonObject*>(m_obj)->setMember(m_key, value);
+            return *this;
+        }
+        
+        JsonProxy& operator=(const char* value) {
+            const_cast<HJYJsonObject*>(m_obj)->setMember(m_key, std::string(value));
+            return *this;
+        }
     };
 public:
     JsonProxy operator[](const std::string& key) {
         return JsonProxy(this, key);
     }
     
-    const JsonProxy operator[](const std::string& key) const {
-        return JsonProxy(const_cast<HJYJsonObject*>(this), key);
+    ConstJsonProxy operator[](const std::string& key) const {
+        return ConstJsonProxy(this, key);
     }
 protected:
     std::string         m_key  = "";
@@ -288,7 +390,7 @@ public:
     yyjson_mut_doc* getWDoc() {
         return m_wdoc;
     }
-    std::string getSerialInfo();
+    std::string getSerialInfo() const;
     int writeFile(const std::string &path);
 public:
     static HJYJsonDocument::Ptr create() {
@@ -350,7 +452,8 @@ class HJInterpreter
 public:
     using Ptr = std::shared_ptr<HJInterpreter>;
     HJInterpreter() = default;
-    HJInterpreter(HJYJsonObject::Ptr obj)
+    HJInterpreter(const std::string& info);
+    HJInterpreter(const HJYJsonObject::Ptr& obj)
         : m_obj(obj) {}
     virtual ~HJInterpreter() {}
     
@@ -358,8 +461,10 @@ public:
     virtual int init(const std::string& info) { return  HJ_OK; }
     virtual int initWithUrl(const std::string& url) { return  HJ_OK; }
     
-    virtual int deserialInfo(const HJYJsonObject::Ptr& obj = nullptr) = 0;
-    virtual int serialInfo(const HJYJsonObject::Ptr& obj = nullptr) = 0;
+    virtual int deserialInfo(const HJYJsonObject::Ptr& obj = nullptr);
+    virtual int serialInfo(const HJYJsonObject::Ptr& obj = nullptr);
+
+    virtual std::string getSerialInfo();
     
     template <typename T>
     int getSubInfo(const std::string& key, std::shared_ptr<T>& subInfo) {
@@ -381,7 +486,7 @@ public:
             return HJErrJSONValue;
         }
         subInfo->setJObj(subObj);
-        subInfo->serialInfo();
+        //subInfo->serialInfo();
         m_obj->addObj(subObj);
         
         return HJ_OK;
@@ -405,16 +510,14 @@ public:
     int setSubArrInfo(const std::string& key, std::vector<std::shared_ptr<T>>& subInfos) {
         std::vector<HJYJsonObject::Ptr> objs;
         for (auto subInfo : subInfos) {
-            if(!subInfo->getJObj()) {
-                auto subObj = std::make_shared<HJYJsonObject>(key, m_obj);
-                if(!subObj) {
-                    return HJErrJSONValue;
-                }
-                subInfo->setJObj(subObj);
-                subInfo->serialInfo();
-                
-                objs.push_back(subObj);
+            auto subObj = std::make_shared<HJYJsonObject>(key, m_obj);
+            if(!subObj) {
+                return HJErrJSONValue;
             }
+            subInfo->setJObj(subObj);
+            //subInfo->serialInfo();
+            
+            objs.push_back(subObj);
         }
         if (objs.size() > 0) {
             m_obj->setMember(key, objs);
@@ -429,7 +532,7 @@ public:
         return m_obj;
     }
 protected:
-    HJYJsonObject::Ptr     m_obj = nullptr;
+    mutable HJYJsonObject::Ptr     m_obj = nullptr;
 };
 #endif //#if defined(HJ_HAVE_YYJSON)
 
@@ -445,5 +548,202 @@ protected:
 
 #define HJJsonGetObj(variable,type) getSubInfo<type>(HJ_VAR_NAME(variable), variable)
 #define HJJsonSetObj(variable,type) setSubInfo<type>(HJ_VAR_NAME(variable), variable)
+
+#if defined(HJ_HAVE_YYJSON)
+// Reflection helpers - must be after HJYJsonObject full declaration
+namespace detail {
+
+template <typename Class, typename T>
+void deserialField(Class* instance, const HJYJsonObject* json, const HJJsonField<Class, T>& field) {
+    if (!instance || !json) {
+        return;
+    }
+    const char* name = field.name;
+    auto member = field.member;
+
+    if constexpr (std::is_same_v<T, int>) {
+        instance->*member = json->getInt(name);
+    } else if constexpr (std::is_same_v<T, short>) {
+        instance->*member = static_cast<short>(json->getInt(name));
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+        instance->*member = json->getInt64(name);
+    } else if constexpr (std::is_same_v<T, float>) {
+        instance->*member = static_cast<float>(json->getReal(name));
+    } else if constexpr (std::is_same_v<T, double>) {
+        instance->*member = json->getReal(name);
+    } else if constexpr (std::is_same_v<T, bool>) {
+        instance->*member = json->getBool(name);
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        instance->*member = json->getString(name);
+    } else if constexpr (is_vector<T>::value) {
+        using ValType = typename T::value_type;
+        if constexpr (std::is_same_v<ValType, int>) {
+            std::deque<HJYJsonObject::Ptr> arr = json->getArr(name);
+            (instance->*member).clear();
+            for (auto& item : arr) {
+                (instance->*member).push_back(item->getInt());
+            }
+        } else if constexpr (std::is_base_of_v<HJInterpreter, ValType>) {
+            std::deque<HJYJsonObject::Ptr> arr = json->getArr(name);
+            (instance->*member).clear();
+            for (auto& item : arr) {
+                ValType elem;
+                elem.deserialInfo(item);
+                (instance->*member).push_back(elem);
+            }
+        } else if constexpr (is_pair<ValType>::value) {
+            using FirstType = typename ValType::first_type;
+            using SecondType = typename ValType::second_type;
+            if constexpr (std::is_same_v<FirstType, std::string> && std::is_same_v<SecondType, int>) {
+                std::deque<HJYJsonObject::Ptr> arr = json->getArr(name);
+                (instance->*member).clear();
+                for (auto& item : arr) {
+                    (instance->*member).push_back({item->getString("name"), item->getInt("max")});
+                }
+            }
+        }
+    } else if constexpr (is_map<T>::value) {
+        using KeyType = typename T::key_type;
+        using ValType = typename T::mapped_type;
+        if constexpr (std::is_same_v<KeyType, std::string>) {
+            auto target_obj = json->getObj(name);
+            if (target_obj && target_obj->isObj()) {
+                (instance->*member).clear();
+                std::vector<std::string> keys = target_obj->getKeys();
+                for (const auto& k : keys) {
+                    if constexpr (std::is_same_v<ValType, bool>) {
+                        (instance->*member)[k] = target_obj->getBool(k);
+                    } else if constexpr (std::is_same_v<ValType, int>) {
+                        (instance->*member)[k] = target_obj->getInt(k);
+                    } else if constexpr (std::is_same_v<ValType, std::string>) {
+                        (instance->*member)[k] = target_obj->getString(k);
+                    }
+                }
+            }
+        }
+    } else if constexpr (std::is_base_of_v<HJInterpreter, T>) {
+        auto subObj = json->getObj(name);
+        if (subObj) {
+            (instance->*member).deserialInfo(subObj);
+        }
+    }
+}
+
+template <typename Class, typename T>
+void serialField(const Class* instance, HJYJsonObject* json, const HJJsonField<Class, T>& field) {
+    if (!instance || !json) {
+        return;
+    }
+    const char* name = field.name;
+    auto member = field.member;
+
+    if constexpr (std::is_same_v<T, int> || std::is_same_v<T, short>) {
+        json->setMember(name, static_cast<int>(instance->*member));
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+        json->setMember(name, static_cast<int64_t>(instance->*member));
+    } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
+        json->setMember(name, static_cast<double>(instance->*member));
+    } else if constexpr (std::is_same_v<T, bool>) {
+        json->setMember(name, static_cast<bool>(instance->*member));
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        json->setMember(name, static_cast<std::string>(instance->*member));
+    } else if constexpr (is_vector<T>::value) {
+        using ValType = typename T::value_type;
+        if constexpr (std::is_same_v<ValType, int>) {
+            json->setMember(name, (instance->*member));
+        } else if constexpr (std::is_base_of_v<HJInterpreter, ValType>) {
+            std::vector<HJYJsonObject::Ptr> objs;
+            auto parent = const_cast<HJYJsonObject*>(json);
+            if (parent->getMDoc()) {
+                for (const auto& item : (instance->*member)) {
+                    auto subObj = std::make_shared<HJYJsonObject>("", (yyjson_mut_val*)nullptr, parent->getMDoc());
+                    const_cast<ValType&>(item).serialInfo(subObj);
+                    objs.push_back(subObj);
+                }
+                if (!objs.empty()) {
+                    parent->setMember(name, objs);
+                }
+            }
+        } else if constexpr (is_pair<ValType>::value) {
+            using FirstType = typename ValType::first_type;
+            using SecondType = typename ValType::second_type;
+            if constexpr (std::is_same_v<FirstType, std::string> && std::is_same_v<SecondType, int>) {
+                std::vector<HJYJsonObject::Ptr> objs;
+                auto parent = const_cast<HJYJsonObject*>(json);
+                if (parent->getMDoc()) {
+                    for (const auto& item : (instance->*member)) {
+                        auto subObj = std::make_shared<HJYJsonObject>("", (yyjson_mut_val*)nullptr, parent->getMDoc());
+                        subObj->setMember("name", item.first);
+                        subObj->setMember("max", item.second);
+                        objs.push_back(subObj);
+                    }
+                    if (!objs.empty()) {
+                        parent->setMember(name, objs);
+                    }
+                }
+            }
+        }
+    } else if constexpr (is_map<T>::value) {
+        using KeyType = typename T::key_type;
+        using ValType = typename T::mapped_type;
+        if constexpr (std::is_same_v<KeyType, std::string>) {
+            auto parent = const_cast<HJYJsonObject*>(json);
+            if (parent->getMDoc()) {
+                auto subObj = parent->setMember(name);
+                if (subObj) {
+                    for (const auto& kv : (instance->*member)) {
+                        if constexpr (std::is_same_v<ValType, bool>) {
+                            subObj->setMember(kv.first, static_cast<bool>(kv.second));
+                        } else if constexpr (std::is_same_v<ValType, int>) {
+                            subObj->setMember(kv.first, static_cast<int>(kv.second));
+                        } else if constexpr (std::is_same_v<ValType, std::string>) {
+                            subObj->setMember(kv.first, static_cast<std::string>(kv.second));
+                        }
+                    }
+                }
+            }
+        }
+    } else if constexpr (std::is_base_of_v<HJInterpreter, T>) {
+        auto parent = const_cast<HJYJsonObject*>(json);
+        if (parent->getMDoc()) {
+            auto subObj = std::make_shared<HJYJsonObject>(name, (yyjson_mut_val*)nullptr, parent->getMDoc());
+            const_cast<T&>(instance->*member).serialInfo(subObj);
+            parent->addObj(subObj);
+        }
+    }
+}
+
+} // namespace detail
+
+template <typename Class>
+int HJJsonReflector::deserial(Class* instance, const std::shared_ptr<HJYJsonObject>& obj) {
+    if (!instance) {
+        return HJErrInvalidParams;
+    }
+    auto target_obj = obj ? obj : instance->getJObj();
+    if (!target_obj) {
+        return HJErrInvalidParams;
+    }
+    detail::tupleForEach(Class::kJsonFields, [&](const auto& field) {
+        detail::deserialField(instance, target_obj.get(), field);
+    });
+    return HJ_OK;
+}
+
+template <typename Class>
+int HJJsonReflector::serial(const Class* instance, const std::shared_ptr<HJYJsonObject>& obj) {
+    if (!instance) {
+        return HJErrInvalidParams;
+    }
+    auto target_obj = obj ? obj : instance->getJObj();
+    if (!target_obj) {
+        return HJErrInvalidParams;
+    }
+    detail::tupleForEach(Class::kJsonFields, [&](const auto& field) {
+        detail::serialField(instance, target_obj.get(), field);
+    });
+    return HJ_OK;
+}
+#endif // HJ_HAVE_YYJSON
 
 NS_HJ_END

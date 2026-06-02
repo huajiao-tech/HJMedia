@@ -2,18 +2,39 @@ set(PROJ_NAME HJComp)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/prio)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rte)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/utils)
-include_directories(${HJ_EXTERNALS_PATH}/generic/ffmpeg)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/graphic)
+#include_directories(${HJ_EXTERNALS_PATH}/generic/ffmpeg)
+
+if (HJ_ENABLE_RENDER_PRIO)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/prio)
+endif()
+
 
 list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
-list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/prio)
+list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/rte)
 list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/utils)
+list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/graphic)
+
+if (HJ_ENABLE_RENDER_PRIO)
+    list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/prio)
+endif()
+
+if (HarmonyOS)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/graphic/hsys)
+	list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/graphic/hsys)
+endif()
+
 # message (STATUS "retrieve_files entry")
 HJ_SUBDIR_LIST(subdir_names ${CMAKE_CURRENT_SOURCE_DIR})
-# message (STATUS "core sub dir names:${subdir_names}")
+#essage (STATUS "core sub dir names:${subdir_names}")
+
+if (NOT HJ_ENABLE_RENDER_PRIO)
+    list(FILTER subdir_names EXCLUDE REGEX "^prio$")
+endif()
 
 HJ_RETRIEVE_XFILES(SUBPROJ_SOURCE_FILES ${subdir_names})
 HJ_RETRIEVE_HFILES(SUBPROJ_HEADER_FILES ${subdir_names})
@@ -29,7 +50,18 @@ MAKE_COMMON_CONFIG()
 
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJMedia HJStat LIBSPDLOG LIBYUV LIBFFMPEG LIBSTB libfdkaac HJUtils)
+target_link_libraries(${PROJ_NAME} PRIVATE HJConvert HJStat LIBSPDLOG LIBYUV LIBSTB HJUtils yyjson LIBREFLCPP)
+
+if (HJ_ENABLE_RENDER_PRIO)
+    target_compile_definitions(${PROJ_NAME} PRIVATE HJ_ENABLE_RENDER_PRIO)
+endif()
+
+if (WINDOWS OR MACOSX)
+    target_link_libraries(${PROJ_NAME} PRIVATE glfw)
+elseif(ANDROID)
+    target_link_libraries(${PROJ_NAME} PRIVATE EGL GLESv3)
+endif()
+
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

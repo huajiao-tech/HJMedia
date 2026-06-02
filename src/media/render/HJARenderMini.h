@@ -38,9 +38,14 @@ public:
 private:
     static void outAudioCallback(ma_device* dev, void* output, const void* input, unsigned int cnt);
 private:
-    ma_context*             m_actx = NULL;
     ma_device_config*       m_adevCfg = NULL;
     ma_device*              m_adev = NULL;
+    bool                    m_deviceInitialized = false;
+    
+    static ma_context*      s_sharedContext;
+    static std::mutex       s_contextMutex;
+    static int              s_contextRefCount;
+    bool                    m_contextRetained = false;
     
     HJAudioConverter::Ptr  m_converter = nullptr;
     HJAFifoProcessor::Ptr  m_fifoProcessor = nullptr;

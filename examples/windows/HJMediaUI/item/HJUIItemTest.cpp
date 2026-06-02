@@ -4,12 +4,17 @@
 #include "HJFLog.h"
 #include "imgui.h"
 
-#include "HJPrioCom.h"
-#include "HJPrioGraph.h"
+#if defined(HJ_ENABLE_RENDER_PRIO)
+	#include "HJPrioCom.h"
+	#include "HJPrioGraph.h"
+#endif
 
 #include "HJFaceuInfo.h"
-
+#include "HJFacePointsInfo.h"
 #include "HJRteGraph.h"
+#include "HJRteUtils.h"
+#include "HJReflCpp.h"
+#include "HJReflCppJson.h"
 
 NS_HJ_BEGIN
 
@@ -26,12 +31,93 @@ void HJUIItemTest::priTestRteRender()
 {
 	HJRteGraph::Ptr graph = HJRteGraph::Create();
 	//graph->testTopToBottom();
-	graph->tesetBottomToTop();
+	//graph->tesetBottomToTop();
+}
+
+
+class PointTest
+{
+public:
+	float x = 0.f;
+	float y = 1.f;
+};
+
+class Address {
+public:
+	std::string city;
+	int zip = 0;
+};
+class Foo : public HJ::HJReflCppJsonInterpreter<Foo> {
+public:
+	int id = 0;
+	std::string name;
+	PointTest pt;
+	HJ::HJPointf pos;
+	HJ::HJRecti rect;
+	Address addr;                 // Ç¶Ì×¶ÔÏó
+	std::vector<std::shared_ptr<Address>> addrList; // Ç¶Ì×Êý×é
+};
+
+NS_HJ_END
+
+REFL_AUTO_SIMPLE(HJ::PointTest, x, y)
+REFL_AUTO_SIMPLE(HJ::Address, city, zip)
+REFL_AUTO_SIMPLE(HJ::Foo, rect, pt, pos, id, name, addr, addrList)
+
+NS_HJ_BEGIN
+
+
+void HJUIItemTest::priTestReflCpp()
+{
+	Foo foo;
+	foo.id = 10;
+	foo.name = "HJ";
+    foo.addr.city = "Hangzhou";
+    foo.addr.zip = 100000;
+	foo.pos.x = 11.f;
+    foo.pos.y = 22.f;
+	foo.pt.x = 1.f;
+    foo.pt.y = 2.f;
+	foo.rect.x = 1;
+    foo.rect.y = 2;
+	foo.rect.w = 640;
+	foo.rect.h = 480;
+
+	std::shared_ptr<Address> addr1 = std::make_shared<Address>();
+	addr1->city = "Beijing";
+	addr1->zip = 200000;
+	foo.addrList.push_back(addr1);
+
+	std::string out = foo.serial();
+
+	Foo foo2;
+	foo2.deserial(out);
+
+	auto type = refl::reflect<HJ::PointTest>();
+	// ±éÀú×Ö¶Î
+	refl::util::for_each(type.members, [](auto member)
+		{
+		std::cout << member.name.c_str() << std::endl;
+		});
+
+
+	HJ::PointTest p;
+	p.x = 3.5f;
+	p.y = 9.0f;
+
+	//auto type = refl::reflect<HJ::PointTest>();
+	refl::util::for_each(type.members, [&](auto member)
+		{
+		// ¶Á×Ö¶Î
+		auto value = member(p);
+		std::cout << member.name.c_str() << " = " << value << std::endl;
+		});
 }
 void HJUIItemTest::priTestPrioRender()
 {
 	do
 	{
+#if defined(HJ_ENABLE_RENDER_PRIO)
 		HJPrioGraph::Ptr graph = HJPrioGraph::Create();
 
 		HJPrioCom::Ptr prioComA = HJPrioCom::Create();
@@ -68,7 +154,7 @@ void HJUIItemTest::priTestPrioRender()
 		graph->remove(prioComD);
 		graph->remove(prioComB);
 		graph->remove(prioComC);
-
+#endif
 	} while (false);
 }
 void HJUIItemTest::priTestJson()
@@ -132,7 +218,7 @@ void HJUIItemTest::priTestJson()
  //   HJFLogi("newTest: {}", newTest.c_str());
 
 	HJBaseParam::Ptr param = HJBaseParam::Create();
-	HJ_CatchMapPlainSetVal(param, std::string, "faceuUrl", "E:/video/gift/FaceU/2D/90237_1"); //90237_1  120067_1
+	HJ_CatchMapPlainSetVal(param, std::string, HJRteUtils::ParamUrlFaceu, "E:/video/gift/FaceU/2D/90237_1"); //90237_1  120067_1
 	HJFaceuInfo faceuInfo;
 
 	i_err = faceuInfo.parse(param);
@@ -220,7 +306,7 @@ void HJUIItemTest::priTestJson()
 ]
 )";
 	HJFacePointsInfo pointInfo;
-	i_err = pointInfo.init(pointsJson);
+	i_err = pointInfo.deserial(pointsJson);
 	if (i_err < 0)
 	{
 
@@ -350,7 +436,23 @@ int HJUIItemTest::run()
 	int i_err = 0;
 	do
 	{
+		//ImGui::SetWindowSize(ImVec2(1500, 200));
+		//ImGui::SetWindowPos(ImVec2(30, 30));
+		ImGui::Begin("test");
+		if (ImGui::Button("refl-cpp"))
+		{
+			priTestReflCpp();
+		}
+
+#if 0
 		ImGui::Begin("YuvParams");
+
+
+
+		ImGui::Button("testabc");
+
+		ImGui::Button("testefg");
+
 		if (ImGui::Button("RteRender"))
 		{
 			priTestRteRender();
@@ -369,6 +471,7 @@ int HJUIItemTest::run()
 		{
 			priTestPrioRender();
 		}
+#endif
 
 		ImGui::End();
 	} while (false);

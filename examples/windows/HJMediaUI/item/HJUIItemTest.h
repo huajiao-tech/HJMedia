@@ -21,6 +21,7 @@ private:
 	void priTestJson();
 	void priTestPrioRender();
 	void priTestRteRender();
+	void priTestReflCpp();
 };
 
 NS_HJ_END

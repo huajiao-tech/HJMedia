@@ -121,7 +121,9 @@ int HJCoroTask::initmco()
     //
     mco_result res = mco_create(&coHandle, &coDesc);
     if (MCO_SUCCESS != res) {
-        HJFLoge("HJMiniCoroTask create error:{}",res);
+        HJFLoge("HJMiniCoroTask create error:{} desc:{}",
+                static_cast<int>(res),
+                mco_result_description(res));
     }
     if (MCO_SUSPENDED != mco_status(coHandle)) {
         HJLoge("HJMiniCoroTask status error");
@@ -147,7 +149,7 @@ void HJCoroTask::destroy()
 
 int HJCoroTask::reAsync()
 {
-    HJExecutor::Ptr executor;// = m_executor.lock();
+    HJExecutor::Ptr executor = HJLockWtr(m_executor);
     if (!executor) {
         return HJErrNotAlready;
     }
@@ -179,7 +181,9 @@ void HJCoroTask::run()
     }
     mco_result res = mco_resume((mco_coro *)m_CoHandle);
     if (MCO_SUCCESS != res) {
-        HJFLoge("HJMiniCoroTask run resume error:{}", res);
+        HJFLoge("HJMiniCoroTask run resume error:{} desc:{}",
+                static_cast<int>(res),
+                mco_result_description(res));
     }
 //    HJLogi("HJMiniCoroTask coro run end, name:" + getName());
     return;

@@ -72,6 +72,8 @@ private:
     static int s_videoCodecType;
     static int s_sourceType;
     static std::string s_faceuUrl;
+    static bool s_bSplitScreenMirror;
+    static int s_repeats;
     
     std::unordered_map<std::string, OH_NativeXComponent*> m_nativeXComponentMap;
     std::unordered_map<std::string, HJVerifyRender*> m_HJVerifyRenderMap;

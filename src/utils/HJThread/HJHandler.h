@@ -23,7 +23,7 @@ public:
 	// Handle Message
 	virtual bool sendMessageDelayed(HJMessage::Ptr msg, uint64_t delayMillis) final;
 	virtual bool sendMessageAtTime(HJMessage::Ptr msg, uint64_t uptimeMillis);
-	virtual void removeMessages(int what) final;
+	virtual void removeMessages(int what, HJSyncObject::Ptr obj = nullptr) final;
 
 protected:
 	bool enqueueMessage(HJMessageQueue::Ptr queue, HJMessage::Ptr msg, uint64_t uptimeMillis);
@@ -38,9 +38,10 @@ private:
 	public:
 		using Ptr = std::shared_ptr<BlockingRunnable>;
 
-		BlockingRunnable(Run task) : HJSyncObject("BlockingRunnable"), mTask(task) { };
+		BlockingRunnable(Run task)
+			: HJSyncObject("BlockingRunnable"), mTask(task) { };
 		virtual ~BlockingRunnable() {
-			BlockingRunnable::done();
+			done();
 		}
 		int postAndWait(HJHandler::Ptr handler, uint64_t timeout);
 

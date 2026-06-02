@@ -4,6 +4,7 @@
 //CREATE TIME:
 //***********************************************************************************//
 #include "HJView.h"
+#include <filesystem>
 #include "HJContext.h"
 #include "HJFLog.h"
 #include "HJImguiUtils.h"
@@ -15,6 +16,22 @@
 #define GL_BGRA				0x80E1
 
 NS_HJ_BEGIN
+namespace {
+std::string getGuiImagePath(const std::string& icon_name, const std::string& icon_dir)
+{
+    if (icon_name.empty()) {
+        return "";
+    }
+    std::filesystem::path image_path(icon_name);
+    if (image_path.is_absolute() || image_path.has_parent_path()) {
+        return image_path.lexically_normal().u8string();
+    }
+    if (icon_dir.empty()) {
+        return image_path.lexically_normal().u8string();
+    }
+    return (std::filesystem::path(icon_dir) / image_path).lexically_normal().u8string();
+}
+}
 //***********************************************************************************//
 const float HJView::K_ICON_SIZE_W_DEFAULT = 26.0f;
 const float HJView::K_ICON_SIZE_H_DEFAULT = 26.0f;
@@ -183,14 +200,13 @@ int HJAppMainMenu::drawSubButton(std::shared_ptr<HJYJsonObject> obj)
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + style.ItemSpacing.y);
 
 		std::string iconName = obj->getString("icon");
-		size_t key = HJUtilitys::hash(iconName);
+        std::string tips = obj->getString("tips");
+		size_t key = HJUtilitys::hash(iconName + "#" + tips);
 		HJImageButton::Ptr button = nullptr; 
 		if (m_buttons.end() != m_buttons.find(key)) {
 			button = m_buttons.find(key)->second;
 		}
 		if (!button) {
-			//std::string iconPath = HJContext::Instance().getResDir() + "/icon/" + iconName;
-			std::string tips = obj->getString("tips");
 			button = std::make_shared<HJImageButton>();
 			res = button->init(iconName, tips, { iconSize, iconSize });
 			button->onBtnClick = [&]() {
@@ -209,7 +225,7 @@ int HJAppMainMenu::drawSubButton(std::shared_ptr<HJYJsonObject> obj)
 //***********************************************************************************//
 HJRightClickMenu::HJRightClickMenu()
 {
-
+    m_name = HJMakeGlobalName("rightclickmenu");
 }
 HJRightClickMenu::~HJRightClickMenu()
 {
@@ -242,7 +258,7 @@ int HJRightClickMenu::draw()
 		//
 		ImGuiWindowFlags window_flags = 0;
 		window_flags |= ImGuiWindowFlags_MenuBar;
-		if (!ImGui::Begin(HJAnsiToUtf8("tips menu").c_str(), &m_isOpen, window_flags)) {
+		if (!ImGui::Begin(HJAnsiToUtf8(m_name).c_str(), &m_isOpen, window_flags)) {
 			ImGui::End(); //�۵�
 			return HJ_OK;
 		}
@@ -362,7 +378,7 @@ int HJOverlayView::drawSubMenu()
 //***********************************************************************************//
 HJPopupView::HJPopupView()
 {
-	m_name = "popup view";
+	m_name = HJMakeGlobalName("popupview");
 }
 
 HJPopupView::~HJPopupView()
@@ -451,14 +467,18 @@ int HJImageButton::init(const std::string& iconName, const std::string& tips, co
 	int res = HJ_OK;
 	do
 	{
-		m_iconName = iconDir + iconName;
+		m_iconName = getGuiImagePath(iconName, iconDir);
 		m_tips = tips;
 		m_size = size;
-		m_image = std::make_shared<HJImage>();
-		res = m_image->init(m_iconName);
-		if (HJ_OK != res) {
-			return res;
+		m_image = HJGuiImageManager::getInstance()->load(m_iconName);
+		if (!m_image) {
+			return HJErrFatal;
 		}
+		// m_image = std::make_shared<HJImage>();
+		// res = m_image->init(m_iconName);
+		// if (HJ_OK != res) {
+		// 	return res;
+		// }
 
 	} while (false);
 
@@ -470,14 +490,18 @@ int HJImageButton::init(const std::string& iconName, const std::string& tips, co
 	int res = HJ_OK;
 	do
 	{
-		m_iconName = iconDir + iconName;
+		m_iconName = getGuiImagePath(iconName, iconDir);
 		m_tips = tips;
 		m_size = size;
 		onBtnClick = click;
-		m_image = std::make_shared<HJImage>();
-		res = m_image->init(m_iconName);
-		if (HJ_OK != res) {
-			return res;
+		// m_image = std::make_shared<HJImage>();
+		// res = m_image->init(m_iconName);
+		// if (HJ_OK != res) {
+		// 	return res;
+		// }
+		m_image = HJGuiImageManager::getInstance()->load(m_iconName);
+		if (!m_image) {
+			return HJErrFatal;
 		}
 
 	} while (false);
@@ -487,6 +511,9 @@ int HJImageButton::init(const std::string& iconName, const std::string& tips, co
 
 int HJImageButton::draw()
 {
+    if (!m_image) {
+        return HJErrInvalidData;
+    }
 	HJVec4f bgColor = m_showProps ? ColourPressedBG : ColourBG;
 	//if (ImGui::ImageButton(ImTextureID(m_image->bind()), { m_size.w, m_size.h }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, 3, ImVec4(bgColor.r, bgColor.g, bgColor.b, bgColor.a), ImVec4(ColourEnabledTint.r, ColourEnabledTint.g, ColourEnabledTint.b, ColourEnabledTint.a)))
 	if (ImGui::ImageButton(m_name.c_str(), ImTextureID(m_image->bind()), { m_size.w, m_size.h }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, ImVec4(bgColor.r, bgColor.g, bgColor.b, bgColor.a), ImVec4(ColourEnabledTint.r, ColourEnabledTint.g, ColourEnabledTint.b, ColourEnabledTint.a))) 
@@ -536,12 +563,22 @@ int HJComplexImageButton::init(const std::vector<std::pair<std::string, std::str
 	int res = HJ_OK;
 	do
 	{
+        if (icons.empty()) {
+            return HJErrInvalidParams;
+        }
+        m_icons.clear();
+        m_images.clear();
+        m_showIdx = 0;
 		for (auto& it : icons) {
-			auto iconName = iconDir + it.second;
-			auto img = std::make_shared<HJImage>();
-			res = img->init(iconName);
-			if (HJ_OK != res) {
-				return res;
+			auto iconName = getGuiImagePath(it.second, iconDir);
+			// auto img = std::make_shared<HJImage>();
+			// res = img->init(iconName);
+			// if (HJ_OK != res) {
+			// 	return res;
+			// }
+			auto img = HJGuiImageManager::getInstance()->load(iconName);
+			if (!img) {
+				return HJErrFatal;
 			}
 			m_icons.emplace_back(std::make_pair(it.first, iconName));
 			m_images[it.first] = img;
@@ -555,6 +592,9 @@ int HJComplexImageButton::init(const std::vector<std::pair<std::string, std::str
 
 int HJComplexImageButton::draw()
 {
+    if (m_icons.empty()) {
+        return HJErrInvalidData;
+    }
 	HJVec4f bgColor = m_showProps ? HJImageButton::ColourPressedBG : HJImageButton::ColourBG;
 	const auto& icon = m_icons[m_showIdx % m_icons.size()];
 	const auto& tips = icon.first;
@@ -562,7 +602,7 @@ int HJComplexImageButton::draw()
 	if (!img) {
 		return HJErrFatal;
 	}
-	if (ImGui::ImageButton(m_name.c_str(), ImTextureID(img->bind()), { m_size.w, m_size.h }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, ImVec4(bgColor.r, bgColor.g, bgColor.b, bgColor.a), ImVec4(HJImageButton::ColourEnabledTint.r, HJImageButton::ColourEnabledTint.g, HJImageButton::ColourEnabledTint.b, HJImageButton::ColourEnabledTint.a)))
+	if (ImGui::ImageButton(m_name.c_str(), ImTextureID(img->bind()), { m_size.w, m_size.h }, { 0.0f, 0.0f }, { 1.0f, 1.0f }, ImVec4(bgColor.r, bgColor.g, bgColor.b, bgColor.a), ImVec4(HJImageButton::ColourEnabledTint.r, HJImageButton::ColourEnabledTint.g, HJImageButton::ColourEnabledTint.b, HJImageButton::ColourEnabledTint.a)))
 	//if (ImGui::ImageButton(ImTextureID(img->bind()), { m_size.w, m_size.h }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, 3, ImVec4(bgColor.r, bgColor.g, bgColor.b, bgColor.a), ImVec4(HJImageButton::ColourEnabledTint.r, HJImageButton::ColourEnabledTint.g, HJImageButton::ColourEnabledTint.b, HJImageButton::ColourEnabledTint.a)))
 	{
 		m_showIdx++;
@@ -656,11 +696,15 @@ int HJImageView::init(const std::string& imgName)
 	do
 	{
 		m_imgName = imgName;
-		m_image = std::make_shared<HJImage>();
-		res = m_image->init(m_imgName);
-		if (HJ_OK != res) {
-			return res;
+		m_image = HJGuiImageManager::getInstance()->load(imgName);
+		if (!m_image) {
+			return HJErrFatal;
 		}
+		// m_image = std::make_shared<HJImage>();
+		// res = m_image->init(m_imgName);
+		// if (HJ_OK != res) {
+		// 	return res;
+		// }
 	} while (false);
 	return res;
 }
@@ -685,9 +729,16 @@ int HJFrameView::init()
 void HJFrameView::done()
 {
 	unbind();
+    m_converter = nullptr;
+    m_info = nullptr;
 }
 
 int HJFrameView::draw(const HJMediaFrame::Ptr frame)
+{
+	return draw(frame, HJSizef{ 0.0f, 0.0f });
+}
+
+int HJFrameView::draw(const HJMediaFrame::Ptr frame, const HJSizef& size)
 {
 	if (!frame) {
 		return HJErrInvalidParams;
@@ -696,12 +747,40 @@ int HJFrameView::draw(const HJMediaFrame::Ptr frame)
 	do
 	{
 		uint64_t texId = bind(frame);
-		if (!texId) {
+		if (!texId || !m_info) {
 			res = HJErrFatal;
 			break;
 		}
-		ImGui::Image(ImTextureID(texId), { (float)m_info->m_width, (float)m_info->m_height });
-		//ImGui::Image(ImTextureID(texId), { (float)720.f, (float)1280.f });
+
+		ImVec2 image_size((float)m_info->m_width, (float)m_info->m_height);
+		ImVec2 reserved_size = image_size;
+		if (size.w > 0.0f && size.h > 0.0f) {
+			reserved_size = ImVec2(size.w, size.h);
+			const float scale_x = size.w / HJ_MAX(1.0f, image_size.x);
+			const float scale_y = size.h / HJ_MAX(1.0f, image_size.y);
+			const float scale = HJ_MIN(scale_x, scale_y);
+			if (scale > 0.0f) {
+				image_size.x *= scale;
+				image_size.y *= scale;
+			}
+		}
+
+		const ImVec2 cursor_screen = ImGui::GetCursorScreenPos();
+		const ImVec2 draw_pos(cursor_screen.x + HJ_MAX(0.0f, (reserved_size.x - image_size.x) * 0.5f),
+							  cursor_screen.y + HJ_MAX(0.0f, (reserved_size.y - image_size.y) * 0.5f));
+		ImGui::Dummy(reserved_size);
+		ImDrawList* draw_list = ImGui::GetWindowDrawList();
+		draw_list->AddRectFilled(cursor_screen,
+								 ImVec2(cursor_screen.x + reserved_size.x, cursor_screen.y + reserved_size.y),
+								 IM_COL32(10, 12, 16, 255),
+								 6.0f);
+		draw_list->AddRect(cursor_screen,
+						   ImVec2(cursor_screen.x + reserved_size.x, cursor_screen.y + reserved_size.y),
+						   IM_COL32(48, 54, 66, 255),
+						   6.0f);
+		draw_list->AddImage(ImTextureID(texId),
+							draw_pos,
+							ImVec2(draw_pos.x + image_size.x, draw_pos.y + image_size.y));
 	} while (false);
 
 	return res;
@@ -764,12 +843,6 @@ uint64_t HJFrameView::bind(const HJMediaFrame::Ptr frame)
 	int res = HJ_OK;
 	do
 	{
-		if (m_texID  && (m_curFrameName == frame->getName())) {
-			glBindTexture(GL_TEXTURE_2D, (GLuint)m_texID);
-			return m_texID;
-		}
-		m_curFrameName = frame->getName();
-		//
 		if (!m_texID) 
 		{
 			GLuint tex = 0;
@@ -799,7 +872,13 @@ uint64_t HJFrameView::bind(const HJMediaFrame::Ptr frame)
 		int stride = avf->linesize[0] * 8 / HJ_MAX(8, hj_get_bits_per_pixel(avf->format));
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, (GLint)stride);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)m_texID);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, avf->width, avf->height, 0, (fmt == 0) ? GL_BGRA : GL_RGBA, GL_UNSIGNED_BYTE, avf->data[0]);
+		if (m_tex_width != avf->width || m_tex_height != avf->height) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, avf->width, avf->height, 0, (fmt == 0) ? GL_BGRA : GL_RGBA, GL_UNSIGNED_BYTE, avf->data[0]);
+			m_tex_width = avf->width;
+			m_tex_height = avf->height;
+		} else {
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, avf->width, avf->height, (fmt == 0) ? GL_BGRA : GL_RGBA, GL_UNSIGNED_BYTE, avf->data[0]);
+		}
 		//glGenerateMipmap(GL_TEXTURE_2D);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		glBindTexture(GL_TEXTURE_2D, 0);
@@ -812,8 +891,10 @@ void HJFrameView::unbind()
 	GLuint texID = (GLuint)(m_texID);
 	if (0 != texID) {
 		glDeleteTextures(1, &texID);
-		texID = 0;
 	}
+    m_texID = 0;
+    m_tex_width = 0;
+    m_tex_height = 0;
 }
 
 //***********************************************************************************//
@@ -985,25 +1066,20 @@ bool HJProgressView::draw(int64_t* value, int64_t min, int64_t max)
 //***********************************************************************************//
 HJCombo::HJCombo()
 {
-	m_name = HJMakeGlobalName("progressview");
+	m_name = HJMakeGlobalName("combo");
 }
 
 HJCombo::~HJCombo()
 {
-	if (m_comboItems) {
-		delete m_comboItems;
-		m_comboItems = NULL;
-	}
 }
 
 int HJCombo::init(const std::vector<std::string> items, int currentIdx, HJComboCallback onClick)
 {
+    if (items.empty()) {
+        return HJErrInvalidParams;
+    }
 	m_items = items;
-	m_itemCurrentIdex = currentIdx;
-	m_comboItems = new char* [m_items.size()];
-	for (size_t i = 0; i < m_items.size(); i++) {
-		m_comboItems[i] = (char *)m_items[i].c_str();
-	}
+	m_itemCurrentIdex = HJ_MAX(0, HJ_MIN(currentIdx, (int)m_items.size() - 1));
 	m_onClick = onClick;
 	return HJ_OK;
 }
@@ -1013,15 +1089,18 @@ int HJCombo::draw()
 	int res = HJ_OK;
 	do
 	{
+        if (m_items.empty()) {
+            return HJErrInvalidData;
+        }
 		static ImGuiComboFlags combo_flags = ImGuiComboFlags_NoArrowButton | ImGuiComboFlags_WidthFitPreview;
-		const char* combo_preview_value = m_comboItems[m_itemCurrentIdex];  // Pass in the preview value visible before opening the combo (it could be anything)
-		if (ImGui::BeginCombo("speed", combo_preview_value, combo_flags))
+		const char* combo_preview_value = m_items[m_itemCurrentIdex].c_str();
+		if (ImGui::BeginCombo(m_name.c_str(), combo_preview_value, combo_flags))
 		{
-			for (int n = 0; n < m_items.size(); n++)
+			for (size_t n = 0; n < m_items.size(); n++)
 			{
-				const bool is_selected = (m_itemCurrentIdex == n);
-				if (ImGui::Selectable(m_comboItems[n], is_selected)) {
-					m_itemCurrentIdex = n;
+				const bool is_selected = (m_itemCurrentIdex == (int)n);
+				if (ImGui::Selectable(m_items[n].c_str(), is_selected)) {
+					m_itemCurrentIdex = (int)n;
 					if (m_onClick) {
 						m_onClick(m_itemCurrentIdex);
 					}
@@ -1065,7 +1144,7 @@ int HJSlider::init(const std::string& tags, const float vmin, const float vmax, 
 int HJSlider::draw()
 {
 	static ImGuiSliderFlags flags = ImGuiSliderFlags_None;
-	if (ImGui::SliderFloat(m_tags.c_str(), &m_val, 0.0f, 1.0f, "%.3f", flags)) {
+	if (ImGui::SliderFloat(m_tags.c_str(), &m_val, m_vmin, m_vmax, "%.3f", flags)) {
 		if (m_onClick) {
 			m_onClick(m_val);
 		}

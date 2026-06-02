@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".FaceuActivity">
+
+    <!-- SurfaceView fills the entire screen as the background layer -->
+    <SurfaceView
+        android:id="@+id/faceuView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- This container holds all your controls and is placed at the bottom, overlaying the SurfaceView -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="#80000000"
+        android:padding="8dp">
+
+        <!-- First file path group -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/etFileName1"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp"
+                android:hint="File name 1"
+                android:text="XianWeng"
+                android:textColor="@android:color/white"
+                android:textColorHint="@android:color/darker_gray"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnAdd1"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="2dp"
+                android:text="add"
+                android:textAllCaps="false"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnRemove1"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="remove"
+                android:textAllCaps="false"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Second file path group -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/etFileName2"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp"
+                android:hint="File name 2"
+                android:text="60031_10"
+                android:textColor="@android:color/white"
+                android:textColorHint="@android:color/darker_gray"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnAdd2"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="2dp"
+                android:text="add"
+                android:textAllCaps="false"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnRemove2"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="remove"
+                android:textAllCaps="false"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Third file path group -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/etFileName3"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp"
+                android:hint="File name 3"
+                android:text="90237_1"
+                android:textColor="@android:color/white"
+                android:textColorHint="@android:color/darker_gray"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnAdd3"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="2dp"
+                android:text="add"
+                android:textAllCaps="false"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnRemove3"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="remove"
+                android:textAllCaps="false"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Button row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/btnOpen"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginEnd="8dp"
+                android:text="open"
+                android:textAllCaps="false"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/btnRemoveAll"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="removeAll"
+                android:textAllCaps="false"
+                android:textSize="14sp" />
+
+            <CheckBox
+                android:id="@+id/chkToggleImgSeq"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="is open imgseq"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Checkbox for toggling imgseq -->
+
+    </LinearLayout>
+
+</FrameLayout>

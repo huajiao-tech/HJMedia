@@ -32,6 +32,27 @@ std::string HJJsonBase::priSerialToStr()
     } while (false);
     return result;
 }
+int HJJsonBase::priSerialToFile(const std::string& i_filePath)
+{
+    int i_err = HJ_OK;
+    do
+    {
+        if (m_obj)
+        {
+            int i_err = serialInfo();
+            if (i_err < 0)
+            {
+                break;
+            }
+            HJYJsonDocument::Ptr doc = std::dynamic_pointer_cast<HJYJsonDocument>(m_obj);
+            if (doc)
+            {
+                i_err = doc->writeFile(i_filePath);
+            }
+        }
+    } while (false);
+    return i_err;
+}
 // int HJJsonBase::serialUrl(const std::string &i_url)
 //{
 //
@@ -52,6 +73,22 @@ std::string HJJsonBase::initSerial()
         result = priSerialToStr();
     } while (false);
     return result;
+}
+int HJJsonBase::initSerialToFile(const std::string& i_filePath)
+{
+    int i_err = HJ_OK;
+    do
+    {
+        HJYJsonDocument::Ptr doc = std::make_shared<HJYJsonDocument>();
+        int i_err = doc->init();
+        if (i_err < 0)
+        {
+            break;
+        }
+        HJInterpreter::setJObj(doc);
+        i_err = priSerialToFile(i_filePath);
+    } while (false);
+    return i_err;
 }
 int HJJsonBase::init(const std::string &info)
 {

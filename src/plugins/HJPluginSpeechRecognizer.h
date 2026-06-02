@@ -1,7 +1,7 @@
 #pragma once
 
 #include "HJPlugin.h"
-#include "HJMediaFrameDeque.h"
+//#include "HJMediaFrameDeque.h"
 
 NS_HJ_BEGIN
 
@@ -12,11 +12,9 @@ public:
 
     HJ_DEFINE_CREATE(HJPluginSpeechRecognizer);
 
-    HJPluginSpeechRecognizer(const std::string& i_name = "HJPluginSpeechRecognizer", HJKeyStorage::Ptr i_graphInfo = nullptr)
-        : HJPlugin(i_name, i_graphInfo) { }
-    virtual ~HJPluginSpeechRecognizer() {
-        HJPluginSpeechRecognizer::done();
-    }
+    HJPluginSpeechRecognizer(const std::string& i_name = "HJPluginSpeechRecognizer", size_t i_identify = 0, HJKeyStorage::Ptr i_graphInfo = nullptr)
+        : HJPlugin(i_name, i_identify, i_graphInfo) {}
+    virtual ~HJPluginSpeechRecognizer() { done(); }
 
     virtual void onOutputUpdated() override {}
 
@@ -33,7 +31,7 @@ protected:
 
     int runTask(int64_t* o_delay = nullptr) override;
 
-    void deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame) override;
+//    void deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame) override;
 
     std::atomic<size_t> m_inputKeyHash{};
     HJAudioInfo::Ptr m_audioInfo{};

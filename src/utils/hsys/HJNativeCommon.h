@@ -92,10 +92,15 @@
     napi_value classfuncName(napi_env env, napi_callback_info info)
 
 
-#define NAPI_INT_RET \    
+#define NAPI_INT_RET \
     napi_value napiRet; \
     napi_create_int32(env, (int)i_err, &napiRet); \
-    return napiRet;    
+    return napiRet;
+
+#define NAPI_STR_RET(str) \
+    napi_value napiRet; \
+    napi_create_string_utf8(env, str.c_str(), NAPI_AUTO_LENGTH, &napiRet); \
+    return napiRet;
 
 #define NAPI_PARSE_ARGS(argCount) \   
     size_t argc = argCount; \

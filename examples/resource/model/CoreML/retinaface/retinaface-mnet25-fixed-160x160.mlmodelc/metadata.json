@@ -1,0 +1,151 @@
+[
+  {
+    "metadataOutputVersion" : "3.0",
+    "storagePrecision" : "Float16",
+    "outputSchema" : [
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 4 × 20 × 20)",
+        "shortDescription" : "",
+        "shape" : "[1, 4, 20, 20]",
+        "name" : "score_stride8",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 8 × 20 × 20)",
+        "shortDescription" : "",
+        "shape" : "[1, 8, 20, 20]",
+        "name" : "bbox_stride8",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 20 × 20 × 20)",
+        "shortDescription" : "",
+        "shape" : "[1, 20, 20, 20]",
+        "name" : "landmark_stride8",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 4 × 10 × 10)",
+        "shortDescription" : "",
+        "shape" : "[1, 4, 10, 10]",
+        "name" : "score_stride16",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 8 × 10 × 10)",
+        "shortDescription" : "",
+        "shape" : "[1, 8, 10, 10]",
+        "name" : "bbox_stride16",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 20 × 10 × 10)",
+        "shortDescription" : "",
+        "shape" : "[1, 20, 10, 10]",
+        "name" : "landmark_stride16",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 4 × 5 × 5)",
+        "shortDescription" : "",
+        "shape" : "[1, 4, 5, 5]",
+        "name" : "score_stride32",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 8 × 5 × 5)",
+        "shortDescription" : "",
+        "shape" : "[1, 8, 5, 5]",
+        "name" : "bbox_stride32",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float16",
+        "formattedType" : "MultiArray (Float16 1 × 20 × 5 × 5)",
+        "shortDescription" : "",
+        "shape" : "[1, 20, 5, 5]",
+        "name" : "landmark_stride32",
+        "type" : "MultiArray"
+      }
+    ],
+    "modelParameters" : [
+
+    ],
+    "specificationVersion" : 7,
+    "mlProgramOperationTypeHistogram" : {
+      "Concat" : 3,
+      "Ios16.add" : 3,
+      "Ios16.leakyRelu" : 38,
+      "Ios16.cast" : 1,
+      "Ios16.relu" : 3,
+      "Ios16.reshape" : 6,
+      "Ios16.softmax" : 3,
+      "UpsampleNearestNeighbor" : 2,
+      "Ios16.conv" : 56
+    },
+    "computePrecision" : "Mixed (Float16, Float32, Int32)",
+    "isUpdatable" : "0",
+    "stateSchema" : [
+
+    ],
+    "availability" : {
+      "macOS" : "13.0",
+      "tvOS" : "16.0",
+      "visionOS" : "1.0",
+      "watchOS" : "9.0",
+      "iOS" : "16.0",
+      "macCatalyst" : "16.0"
+    },
+    "modelType" : {
+      "name" : "MLModelType_mlProgram"
+    },
+    "userDefinedMetadata" : {
+      "com.github.apple.coremltools.conversion_date" : "2026-04-21",
+      "com.github.apple.coremltools.source" : "torch==2.10.0",
+      "com.github.apple.coremltools.version" : "9.0",
+      "com.github.apple.coremltools.source_dialect" : "TorchScript"
+    },
+    "inputSchema" : [
+      {
+        "height" : "160",
+        "colorspace" : "BGR",
+        "isOptional" : "0",
+        "width" : "160",
+        "isColor" : "1",
+        "formattedType" : "Image (Color 160 × 160)",
+        "hasSizeFlexibility" : "0",
+        "type" : "Image",
+        "shortDescription" : "",
+        "name" : "input"
+      }
+    ],
+    "generatedClassName" : "retinaface_mnet25_fixed_160x160",
+    "method" : "predict"
+  }
+]

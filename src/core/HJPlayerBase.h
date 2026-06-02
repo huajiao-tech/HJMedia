@@ -34,8 +34,10 @@ public:
     virtual int setWindow(const std::any& window);
     virtual int seek(int64_t pos);
     virtual int seek(float progress);
+    virtual int switchAudioTrack(int trackID);
     virtual int speed(float speed);
     virtual int64_t getCurrentPos();
+    virtual int64_t getDuration();
     virtual float getProgress();
     virtual void setVolume(const float volume);
 public:

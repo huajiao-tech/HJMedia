@@ -15,9 +15,11 @@ NS_HJ_BEGIN
 enum class HJFileStatus
 {
     NONE,       //文件不存在
-    PENDING,    //文件存在，但不完整
+    NEW,        //新建文件
+    PENDING,    //不完整, 进行中
+    STOPED,     //不完整, 停止
     COMPLETED,  //文件完整
-    ERROR,
+    FAILED,     //文件错误
 };
 
 class HJFileUtil {
@@ -29,6 +31,7 @@ public:
      * @return 是否创建成功
      */
     static bool create_path(const std::string& file, unsigned int mod = 0777);
+    static bool rename(const std::string& old_name, const std::string& new_name);
 
     /**
      * 创建目录（调用create_path，适配平台权限）
@@ -57,12 +60,12 @@ public:
      * 删除文件或目录（递归删除）
      * @return 成功删除的条目数（-1表示失败）
      */
-    static int delete_file(const std::string& path);
+    static int removeFile(const std::string& path);
 
     /**
      * 判断文件是否存在（常规文件）
      */
-    static bool fileExist(const std::string& path);
+    static bool isFileExist(const std::string& path);
 
     static bool isDirExist(const std::string& dir);
 
@@ -119,6 +122,9 @@ public:
      * 获取文件大小（通过路径）
      */
     static uint64_t fileSize(const std::string& path);
+
+    static bool compareFile(const std::string& path0, const std::string& path1);
+    static bool compareFile(FILE* fp0, FILE* fp1);
 };
 
 //***********************************************************************************//

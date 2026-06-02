@@ -58,6 +58,7 @@ private:
 	int onPusher2(const HJMediaFrame::Ptr& frame);
 	void onClickMute(const std::string& tips);
 	void onClickVolume(const float volume);
+	int onSwitchAudioTrack(const int trackID);
 	void onTest();
 	void onTest1();
 	void onTestHLS();
@@ -99,7 +100,7 @@ protected:
 	HJImageButton::Ptr		m_btnPush = nullptr;
 	bool					m_isAsyncUrl = false;
 	bool					m_showMuxer = false;
-	bool					m_showPusher = true;
+	bool					m_showPusher = false;
 	bool					m_showMInfoWindow = false;
 	bool					m_thumbnail = false;
 	//HJImageView::Ptr		m_imgView = nullptr;
@@ -117,8 +118,10 @@ protected:
 	//
 	std::string				m_mediaUrl = "";
 	std::string				m_muxerUrl = "E:/movies/outs/";
-	std::string				m_pushUrl = "rtmp://live-push-0.test.huajiao.com/main/test1?auth_key=1764587013-0-0-23436a0e1cb2e7f580edb300ea056292";
+	//std::string				m_pushUrl = "rtmp://live-push-0.test.huajiao.com/main/1?auth_key=1765878565-0-0-b59a496638ac656b3673d6d51230e178";
 	//std::string				m_pushUrl = "rtmp://localhost/live/livestream";
+	//std::string				m_pushUrl = "rtmp://127.0.0.1:1935/live/test";
+	std::string				m_pushUrl = "rtmp://live-push-0.test.huajiao.com/main/test?auth_key=1776066290-0-0-80a33aad12de9a86898d0ce0d84d54e9";
 	std::string				m_thumbUrl = "";
 	HJMediaPlayer::Ptr		m_player = nullptr;
 	HJMediaInfo::Ptr		m_minfo = nullptr;
@@ -128,6 +131,7 @@ protected:
 	HJProgressInfo::Ptr		m_progInfo = nullptr;
 	HJStreamInfoList		m_minfos;
 	std::recursive_mutex    m_mutex;
+	int						m_selectedAudioTrackID = -1;
 	int64_t					m_curPos = 0;
 	//HJImageWriter::Ptr     m_imageWriter = nullptr;
 	int64_t					m_timeout = 3000 * 1000;	//us

@@ -3,15 +3,15 @@
 #include "HJPrerequisites.h"
 #include "HJComUtils.h"
 #include "HJPluginSpeechRecognizer.h"
-#include "HJPrioGraphProc.h"
 #include "HJPusherInterface.h"
 #include "HJAsyncCache.h"
 #include "HJFacePointMgr.h"
+#include "HJEntryBaseRender.h"
+#include <native_window/external_window.h>
 
 NS_HJ_BEGIN
 
 class HJOGRenderWindowBridge;
-class HJPrioGraphProc;
 class HJGraphPusher;
 class HJStatContext;
 class HJBaseGPUToRAM;
@@ -33,7 +33,7 @@ class HJFacePointsReal;
 //    HJAsyncCache<std::shared_ptr<HJFacePointsReal>> m_cache;
 //};
 
-class HJNAPILiveStream
+class HJNAPILiveStream : public HJEntryBaseRender
 {
 public:
     using HJNAPILiveStreamCb = std::function<void(int i_type, int i_ret, const std::string& i_msgInfo)>;
@@ -45,7 +45,8 @@ public:
     static int contextInit(const HJEntryContextInfo& i_contextInfo);
     
     int openPreview(const HJPusherPreviewInfo &i_previewInfo, HJNAPIEntryNotify i_notify, const HJEntryStatInfo& i_statInfo, uint64_t &o_surfaceId);
-    int setNativeWindow(void* window, int i_width, int i_height, int i_state);
+    int setNativeWindow(const std::string &i_classStyle, const std::string &i_insName, void* window, int i_width, int i_height, int i_state);
+    int setNativeWindow(const std::string &i_classStyle, const std::string &i_insName, int64_t i_surfaceId, int i_width, int i_height, int i_state);
     void closePreview();
     
     int openPusher(const HJPusherVideoInfo& i_videoInfo, const HJPusherAudioInfo& i_audioInfo, const HJPusherRTMPInfo &i_rtmpInfo, const HJEntryStatInfo& i_statInfo);
@@ -57,6 +58,7 @@ public:
     void closeRecorder();
     
     void setMute(bool i_mute);
+    void setPreviewRotation(int i_rotation);
 
     void setDoubleScreen(bool i_bDoubleScreen);
     void setGiftPusher(bool i_bGiftPusher);
@@ -64,28 +66,35 @@ public:
     int openSpeechRecognizer(HJPluginSpeechRecognizer::Call i_call);
     void closeSpeechRecognizer();
 
-    void openEffect(int i_effectType);
-    void closeEffect(int i_effectType);
+    // void openEffect(int i_effectType);
+    // void closeEffect(int i_effectType);
     
-    int openNativeSource(bool i_bUsePBO = true);
-    void closeNativeSource();
+    // int openNativeSource(bool i_bUsePBO = true);
+    // void closeNativeSource();
     
-    int openFaceu(const std::string &i_faceuUrl, bool i_bDebugPoint = false);
-    void closeFaceu();
+    // int openFaceu(const std::string &i_faceuUrl, bool i_bDebugPoint = false);
+    // void closeFaceu();
     
-    std::shared_ptr<HJRGBAMediaData> acquireNativeSource();
-    void setFaceInfo(HJFacePointsWrapper::Ptr faceInfo);
+    // std::shared_ptr<HJRGBAMediaData> acquireNativeSource();
+    // void setFaceInfo(HJFacePointsWrapper::Ptr faceInfo);
 
-    void setVideoEncQuantOffset(int i_quantOffset);
-    void setFaceProtected(bool i_bProtect);
+    // void setVideoEncQuantOffset(int i_quantOffset);
+    //void setFaceProtected(bool i_bProtect);
 private:
-    int priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps);
-    void priROIPrepare(const HJKeyStorage::Ptr& i_param, int i_width, int i_height);    
+    struct PriSurfaceBindInfo {
+        NativeWindow *nativeWindow;
+        std::string classStyle;
+        std::string insName;
+    };
+    //int priSetWindow(void *i_window, int i_width, int i_height, int i_state, int i_type, int i_fps);
+
+    //void priROIPrepare(const HJKeyStorage::Ptr& i_param, int i_width, int i_height);    
     std::shared_ptr<HJOGRenderWindowBridge> m_bridge = nullptr;
-    std::shared_ptr<HJPrioGraphProc> m_prioGraphProc = nullptr;
+    //std::shared_ptr<HJPrioGraphProc> m_graphProc = nullptr;
     std::shared_ptr<HJGraphPusher> m_graphPusher = nullptr;
-    HJNAPIEntryNotify m_notify = nullptr;
+    //HJNAPIEntryNotify m_notify = nullptr;
     std::shared_ptr<HJStatContext> m_statCtx = nullptr;
+    std::map<int64_t, PriSurfaceBindInfo> m_nativeWindowMap;
         
     //HJRoiCom::Ptr m_roiCom = nullptr;
     int m_previewFps = 30;
@@ -94,14 +103,14 @@ private:
     int m_previewWidth = 0;
     int m_previewHeight = 0;
         
-    std::shared_ptr<HJBaseGPUToRAM> m_gpuToRamPtr = nullptr;
+    //std::shared_ptr<HJBaseGPUToRAM> m_gpuToRamPtr = nullptr;
 
-    std::mutex m_nativeSourceLock;
-    bool m_bNativeSourceOpen = false;
-    HJFaceSubscribeFuncPtr m_pointSubscriberPtr = nullptr;
-    HJAsyncCache<std::shared_ptr<HJFacePointsReal>> m_cache;
+    // std::mutex m_nativeSourceLock;
+    // bool m_bNativeSourceOpen = false;
+    // HJFaceSubscribeFuncPtr m_pointSubscriberPtr = nullptr;
+    // HJAsyncCache<std::shared_ptr<HJFacePointsReal>> m_cache;
 
-    std::atomic<int> m_quantOffset{-3};
+    // std::atomic<int> m_quantOffset{-3};
 };
 
 NS_HJ_END

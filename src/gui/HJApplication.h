@@ -4,6 +4,7 @@
 //CREATE TIME:
 //***********************************************************************************//
 #pragma once
+#include <mutex>
 #include "HJUtils.h"
 #include "HJLog.h"
 #include "HJNotify.h"
@@ -32,22 +33,32 @@ public:
 	//
 	void addTask(HJRunnable run) {
 		auto task = std::make_shared<HJTask>(std::move(run));
+        std::lock_guard<std::mutex> lock(m_task_mutex);
 		m_tasks.push_back(task);
 	}
 protected:
 	static void glfw_error_callback(int error, const char* description);
 	//
 	void executeTasks() {
-		for (auto tsk : m_tasks) {
+        HJList<HJTask::Ptr> pending_tasks;
+        {
+            std::lock_guard<std::mutex> lock(m_task_mutex);
+            pending_tasks.swap(m_tasks);
+        }
+		for (const auto& tsk : pending_tasks) {
 			(*tsk)();
 		}
-		m_tasks.clear();
 	}
 	
 protected:
 	HJRunState             m_runState = HJRun_NONE;
 	HJWindow::Ptr			m_mainWindow = nullptr;
 	HJList<HJTask::Ptr>	m_tasks;
+    std::mutex              m_task_mutex;
+    bool                    m_imgui_ready = false;
+    bool                    m_implot_ready = false;
+    bool                    m_glfw_backend_ready = false;
+    bool                    m_opengl_backend_ready = false;
 };
 
 NS_HJ_END

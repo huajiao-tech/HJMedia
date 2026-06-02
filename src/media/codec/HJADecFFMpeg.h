@@ -32,6 +32,8 @@ protected:
     HJAudioAdopter::Ptr     m_adopter = nullptr;
     HJAudioFifo::Ptr        m_fifo = nullptr;
     HJMediaFrame::Ptr       m_storeFrame = nullptr;
+    bool                    m_forceFlush = false;
+    int                     m_pendingFrameFlag = 0;
 };
 
 NS_HJ_END

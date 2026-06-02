@@ -64,11 +64,13 @@ int HJFFMuxer::gatherMediaInfo(const HJMediaFrame::Ptr& frame)
         auto mediaInfo = m_mediaInfo->getStreamInfo(mtype);
         if (!mediaInfo) {
             m_mediaInfo->addStreamInfo(frame->getInfo());
-            HJFNLogi("add stream info:{}, key frame info:{}", mtype, frame->formatInfo());
+            HJFNLogi("add stream info:{}, key frame info:{}",
+                     HJMediaType2String(mtype),
+                     frame->formatInfo());
         }
     }
     else {
-        HJFNLoge("deliver not support media type:{}", mtype);
+        HJFNLoge("deliver not support media type:{}", HJMediaType2String(mtype));
         return HJErrNotSupport;
     }
     return HJ_OK;
@@ -164,7 +166,8 @@ int HJFFMuxer::createAVIO()
             }
             const AVCodec* codec = avcodec_find_encoder(codecParam->codec_id);
             if (!codec) {
-                HJFNLogw("warning, can't find codec id:{}", codecParam->codec_id);
+                HJFNLogw("warning, can't find codec id:{}",
+                         AVCodecIDToString(codecParam->codec_id));
 //                return HJErrNotSupport;
             }
             outStream = avformat_new_stream(ic, codec);
@@ -246,10 +249,14 @@ void HJFFMuxer::destroyAVIO()
 {
     setQuit(true);
     if (m_ic) {
+        HJFNLogi("destroyAVIO enter");
         if (!(m_ic->oformat->flags & AVFMT_NOFILE)) {
+            HJFNLogi("destroyAVIO avio_close enter");
             avio_close(m_ic->pb);
         }
+        HJFNLogi("destroyAVIO avformat_free_context enter");
         avformat_free_context(m_ic);
+        HJFNLogi("destroyAVIO m_ic set null");
         m_ic = nullptr;
     }
 }
@@ -272,6 +279,7 @@ int HJFFMuxer::writeFrame(const HJMediaFrame::Ptr& frame)
 void HJFFMuxer::done()
 {
     if (m_ic) {
+        HJFNLogi("done av_write_trailer enter");
         av_write_trailer(m_ic);
     }
     HJFNLogi("done frame cnt video:{}, , audio:{}, , total:{}", m_videoFrameCnt, m_audioFrameCnt, m_totalFrameCnt);

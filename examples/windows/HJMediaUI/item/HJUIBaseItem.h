@@ -12,6 +12,10 @@ typedef enum HJUIItemType
 	HJUIItemType_PlayerPlugin,
 	HJUIItemType_YuvRender,
 	HJUIItemType_SharedMemory,
+    HJUIItemType_FaceuTool,
+	HJUIItemType_NodeEditor, 
+	HJUIItemType_RendGraphWrapper,
+	HJUIItemType_SR,
 	HJUIItemType_Test,
 	
 } HJUIItemType;
@@ -32,14 +36,31 @@ public:
 	HJUIBaseItem();
 	virtual ~HJUIBaseItem();
 
-	static HJUIBaseItem::Ptr createItem(HJUIItemType type);
+	static HJUIBaseItem::Ptr createItem(HJUIItemType type, void *i_window);
 
 
 	virtual int run();
+	virtual int renderEveryStart();
+	virtual int renderEveryEnd();
+	virtual bool updateTitle()
+	{
+		return false;
+	}
+
+	void setWindow(void *i_window)
+	{
+		m_window = i_window;
+	}
+	void *getWindow()
+	{
+		return m_window;
+	}
+
 protected:
 	HJUIItemState m_state = HJUIItemState_idle;
+	bool m_vqRun = false;
 private:
-    
+    void *m_window = nullptr;
 };
 
 NS_HJ_END

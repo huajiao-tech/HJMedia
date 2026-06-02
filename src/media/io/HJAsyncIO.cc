@@ -6,9 +6,11 @@
 #include "HJRingBuffer.h"
 #include "HJAsyncIO.h"
 #include "HJFLog.h"
-#include "HJXIOBlob.h"
+#include "HJXIOBlobFile.h"
+#include "HJDataSourceKit.h"
+#include "HJLocalFileManager.h"
 
-#define HJ_HAVE_EXASYNC      1
+#define HJ_HAVE_EXASYNC      0
 /**
 * AVFifo
 * RingBuffer
@@ -27,6 +29,8 @@ public:
 	int close();
 	int read(unsigned char* buf, int size);
 	int64_t seek(int64_t pos, int whence);
+
+	int64_t size() const { return logical_size; }
 private:
 	static int exasync_check_interrupt(void* arg);
 	static void* async_buffer_task(void* arg);
@@ -387,22 +391,26 @@ int exasync_open(URLContext* h, const char* arg, int flags, AVDictionary** optio
 	av_strstart(arg, "exasync:", &arg);
 
 	int res = HJ_OK;
+	std::string blob_url = "";
+	std::string url_rid = "";
+	int64_t timeout = 0;
 	if (*options) {
 		const AVDictionaryEntry* e = NULL;
 		e = av_dict_get(*options, "opaque", NULL, 0);
 		if (e) {
 			c->m_opaque = HJSTR2PTR(std::string(e->value));
 		}
-		e = av_dict_get(*options, "bloburl", NULL, 0);
+		e = av_dict_get(*options, "blob_url", NULL, 0);
 		if (e) {
-			std::string blobUrl = std::string(e->value);
-			HJXIOBlob* blob = HJCreator::createp<HJXIOBlob>();
-			res = blob->open(std::make_shared<HJUrl>(blobUrl, HJ_XIO_WRITE));
-			if (HJ_OK != res) {
-				HJFLoge("error, blob open failed:{}", res);
-				return res;
-			}
-			c->m_blob = (void*)blob;
+			blob_url = std::string(e->value);
+		}
+		e = av_dict_get(*options, "url_rid", NULL, 0);
+		if (e) {
+			url_rid = std::string(e->value);
+		}
+		e = av_dict_get(*options, "timeout", NULL, 0);
+		if (e) {
+			timeout = atoll(e->value);
 		}
 	}
 	c->m_url = (char *)malloc(strlen(arg) + 1);
@@ -419,6 +427,66 @@ int exasync_open(URLContext* h, const char* arg, int flags, AVDictionary** optio
 		return res;
 	}
 	c->m_asyncIO = (void *)asyncIO;
+	if(!blob_url.empty())
+	{
+		std::string remote_url = std::string(c->m_url);
+		auto hjtd_url = HJMediaUtils::makeHJTDFile(blob_url);
+		auto murl = std::make_shared<HJUrl>(hjtd_url, HJ_XIO_WRITE);
+		auto aio_size = asyncIO->size();
+		if (aio_size > 0) {
+			(*murl)["size"] = asyncIO->size();
+		}
+		if (url_rid.empty()) {
+			url_rid = HJMediaUtils::makeUrlRid(remote_url);
+		}
+		std::shared_ptr<HJDBFileInfo> dbFileInfo = std::make_shared<HJDBFileInfo>(url_rid, remote_url, blob_url, aio_size, (int)HJXIOBlobFile::getBlockSize());
+		// HJDBFileInfo dbFileInfo(url_rid, remote_url, blob_url, aio_size, HJXIOBlobFile::getBlockSize());
+		// fileInfo.rid = url_rid;
+		// fileInfo.url = std::string(c->m_url);
+		// fileInfo.local_url = blob_url;
+		// fileInfo.status = (int)HJFileStatus::NEW;
+		// fileInfo.size = 0;
+		// fileInfo.total_length = aio_size;
+		// fileInfo.category = HJDBCategoryInfo::makeCategoryName(HJFileUtil::parentDir(blob_url));
+		// fileInfo.create_time = HJCurrentSteadyMS();
+		// fileInfo.modify_time = HJCurrentSteadyMS();
+		// fileInfo.use_count = 1;
+		// fileInfo.level = 0;
+		// fileInfo.block_size = HJXIOBlobFile::getBlockSize();
+		// fileInfo.ensureBitmap(fileInfo.total_length);
+		//
+		HJXIOBlobFile* blob = HJCreator::createp<HJXIOBlobFile>(nullptr, [dbFileInfo, hjtd_url](const HJNotification::Ptr ntf) -> int {
+			// HJFLogi("blob notify, id:{}, value:{}", ntf->getID(), ntf->getVal());
+			auto filemanager = HJDataSourceKit::getInstance()->getFileManager();
+			switch ((HJFileStatus)ntf->getID())
+			{
+			case HJFileStatus::NEW: {
+				filemanager->updateFileInfo(*dbFileInfo);
+				break;
+			}
+			case HJFileStatus::PENDING: {
+				
+				break;
+			}
+			case HJFileStatus::COMPLETED: {
+				// filemanager->completedFile(hjtd_url, *dbFileInfo);
+				HJFLogi("blob completed, hjtd_url:{}", hjtd_url);
+				break;
+			}
+			default:
+				break;
+			}
+			return HJ_OK;
+		});
+		blob->setName(url_rid);
+		//
+		res = blob->open(murl);
+		if (HJ_OK != res) {
+			HJFLoge("error, blob open failed:{}", res);
+			return res;
+		}
+		c->m_blob = (void*)blob;
+	}
 
 	return res;
 }
@@ -433,9 +501,28 @@ int exasync_read(URLContext* h, unsigned char* buf, int size)
 	HJAsyncIO* asyncIO = (HJAsyncIO *)c->m_asyncIO;
 	int ret = asyncIO->read(buf, size);
 	//
-	HJXIOBlob* blob = (HJXIOBlob*)c->m_blob;
+	HJXIOBlobFile* blob = (HJXIOBlobFile*)c->m_blob;
 	if (blob) {
-		blob->write(buf, ret);
+		int wsize = blob->write(buf, ret);
+		if (wsize != ret) {
+			HJFLoge("error, blob write {}:{}", ret, wsize);
+		}
+		auto isCompleted = blob->isComplete();
+		if (isCompleted) 
+		{
+			HJFLogi("blob completed");
+			auto hjtd_url = blob->getUrl();
+			auto url_rid = blob->getName();
+			HJCreator::freep<HJXIOBlobFile>(c->m_blob);
+			//
+			auto filemanager = HJDataSourceKit::getInstance()->getFileManager();
+			if(filemanager) {
+				int res = filemanager->completedFile(hjtd_url, url_rid);
+				if(HJ_OK != res) {
+					HJFLoge("error, filemanager completedFile failed:{}", res);
+				}
+			}
+		}
 	}
 	HJFLogi("exasync read, size:{}, ret:{}", size, ret);
 
@@ -452,7 +539,7 @@ int64_t exasync_seek(URLContext* h, int64_t pos, int whence)
 	HJAsyncIO* asyncIO = (HJAsyncIO*)c->m_asyncIO;
 	int64_t ret = asyncIO->seek(pos, whence);
 	//
-	HJXIOBlob* blob = (HJXIOBlob*)c->m_blob;
+	HJXIOBlobFile* blob = (HJXIOBlobFile*)c->m_blob;
 	if (blob) { 
 		switch (whence)
 		{
@@ -492,7 +579,7 @@ int exasync_close(URLContext* h)
 		free(c->m_url);
 		c->m_url = NULL;
 	}
-	HJCreator::freep<HJXIOBlob>(c->m_blob);
+	HJCreator::freep<HJXIOBlobFile>(c->m_blob);
 
 	return ret;
 }

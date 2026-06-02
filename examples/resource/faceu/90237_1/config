@@ -1,0 +1,35 @@
+{
+  "Name": "，猫耳朵",
+  "ID": "90237_1",
+  "Type": 1,
+  "loop": 1,
+  "music": "aaa.mp3",
+  "texture": [
+    {
+      "mframeCount": 51,
+      "radius_Type": 0,
+      "mradius": 0,
+      "mid_Type": 0,
+      "scale_ratio": 90,
+      "anchor_offset_x": -145,
+      "anchor_offset_y": -265,
+      "asize_offset_x": 300,
+      "asize_offset_y": 300,
+      "mfaceCount": 1,
+      "imageName": "MED_"
+    },
+   {
+      "mframeCount": 51,
+      "radius_Type": 0,
+      "mradius": 0,
+      "mid_Type": 0,
+      "scale_ratio": 90,
+      "anchor_offset_x": -145,
+      "anchor_offset_y": -100,
+      "asize_offset_x": 300,
+      "asize_offset_y": 300,
+      "mfaceCount": 1,
+      "imageName": "TX_"
+    },
+  ]
+}

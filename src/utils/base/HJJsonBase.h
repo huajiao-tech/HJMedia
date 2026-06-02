@@ -154,6 +154,18 @@ NS_HJ_BEGIN
             }\
         } \
 
+#define HJ_JSON_BASE_SERIAL_CONDITIONAL_NOTEQUAL(value, justVal, realVal) \
+        if (value != justVal) \
+        { \
+            HJ_JSON_BASE_SERIAL(m_obj, i_obj, realVal); \
+        } \
+
+#define HJ_JSON_BASE_SERIAL_CONDITIONAL_EQUAL(value, justVal, realVal) \
+        if (value == justVal) \
+        { \
+            HJ_JSON_BASE_SERIAL(m_obj, i_obj, realVal); \
+        } \
+
 class HJJsonBase : public HJInterpreter
 {
 public:
@@ -162,6 +174,7 @@ public:
     virtual ~HJJsonBase();
     
     std::string initSerial();
+    int initSerialToFile(const std::string &i_filePath);
     //virtual int serialUrl(const std::string &i_url);
     //virtual int init();
     virtual int init(const std::string &info);
@@ -288,6 +301,7 @@ public:
     }
 private:
     std::string priSerialToStr();
+    int priSerialToFile(const std::string &i_filePath);
 };
 
 class HJJsonTestSub : public HJJsonBase

@@ -9,7 +9,7 @@ NS_HJ_BEGIN
 //***********************************************************************************//
 HJBuffer::HJBuffer(const HJBuffer::Ptr& other)
 {
-    if (other->size() > 0) {
+    if (other && other->size() > 0) {
         write(other->data(), other->size());
     }
 }
@@ -35,6 +35,9 @@ HJBuffer::~HJBuffer()
 
 void HJBuffer::setData(const uint8_t* data, size_t size)
 {
+    if (!data || size == 0) {
+        return;
+    }
     if (m_capacity < size) {
         realloc(size);
     }
@@ -44,6 +47,9 @@ void HJBuffer::setData(const uint8_t* data, size_t size)
 
 void HJBuffer::appendData(const uint8_t* data, size_t size)
 {
+    if (!data || size == 0) {
+        return;
+    }
     size_t totalSize = m_size + size;
     if (m_capacity < totalSize) {
         realloc(totalSize, true);

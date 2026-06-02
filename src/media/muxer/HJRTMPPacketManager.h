@@ -205,7 +205,7 @@ class HJRTMPPacketManager : public HJObject
 {
 public:
     HJ_DECLARE_PUWTR(HJRTMPPacketManager);
-    HJRTMPPacketManager(HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts = nullptr, HJListener listener = nullptr);
+    HJRTMPPacketManager(HJMediaInfo::Ptr& mediaInfo, int mediaTypes = HJMEDIA_TYPE_NONE, HJOptions::Ptr opts = nullptr, HJListener listener = nullptr);
     virtual ~HJRTMPPacketManager();
     
     int push(HJFLVPacket::Ptr packet);
@@ -238,6 +238,7 @@ public:
         m_wrapperGoing = going;
     }
 private:
+    int getExpectedMediaTypes() const;
     int drop(bool dropAudio = true);
     int dropFrames(bool lastgop, int64_t threshold, int priority, bool dropAudio, bool isStat = true);
     auto getDropGuard(bool lastgop = true, int64_t threshold = 0);
@@ -282,6 +283,7 @@ private:
     HJListener              m_listener{ nullptr };
     //int                     m_mediaTypes{ HJMEDIA_TYPE_NONE };
     HJMediaInfo::Ptr        m_mediaInfo = nullptr;
+    int                     m_expectedMediaTypes{ HJMEDIA_TYPE_NONE };
     HJOptions::Ptr          m_opts{ nullptr };
     HJFLVPacketList         m_packets;
     int                     m_sentStatus = HJ_RTMP_SENT_NONE;

@@ -7,6 +7,7 @@ include_directories(${HJ_EXTERNALS_PATH}/generic/ffmpeg)
 
 if (HarmonyOS)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/hsys/bridge)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../hsys)
 endif()
 
 set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
@@ -23,6 +24,13 @@ file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.cc" "${CMAKE_CURRENT_SOURC
 list(APPEND HEADER_FILES ${SUBPROJ_HEADER_FILES})
 list(APPEND SOURCE_FILES ${SUBPROJ_SOURCE_FILES})
 
+if (HarmonyOS)
+    file(GLOB HEADER_FILES_HSYS "${CMAKE_CURRENT_SOURCE_DIR}/../hsys*.h")
+    file(GLOB SOURCE_FILES_HSYS "${CMAKE_CURRENT_SOURCE_DIR}/../hsys/*.cpp")
+    list(APPEND HEADER_FILES ${HEADER_FILES_HSYS})
+    list(APPEND SOURCE_FILES ${SOURCE_FILES_HSYS})
+endif()
+
 # list(APPEND SOURCE_FILES ${CMAKE_SOURCE_DIR}/Dependencies/generic/spdlog/details/registry-inl.cc)
 
 MAKE_COMMON_CONFIG()
@@ -37,12 +45,12 @@ if (HarmonyOS)
     libohaudio.so libnative_image.so libnative_buffer.so libimage_source.so libpixelmap.so libimage_receiver.so libohimage.so)
     target_link_libraries(${PROJ_NAME} PRIVATE ${Harmony_Native_LIBRARY})
 
-    target_link_libraries(${PROJ_NAME} PRIVATE LIBX264)
+    #target_link_libraries(${PROJ_NAME} PRIVATE LIBX264)
     target_link_libraries(${PROJ_NAME} PRIVATE zlib)   # ffmpeg png encoder need zlib
     target_link_options(${PROJ_NAME} PRIVATE "-Wl,-Bsymbolic")  #ld.lld: error: relocation R_AARCH64_ADR_PREL_PG_HI21 cannot be used against symbol 'ff_tx_tab_2048_float'; recompile with -fPIC
 endif()
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJLinks HJGraphs HJPlugins HJComp HJMedia yyjson libfdkaac HJStat LIBFFMPEG LIBSTB LIBSPDLOG LIBMINICORO HJUtils)
+target_link_libraries(${PROJ_NAME} PRIVATE HJDataFuse HJMediaDBKit HJConvert HJLinks HJGraphs HJPlugins HJComp HJMedia yyjson libfdkaac HJStat LIBFFMPEG LIBSTB LIBSPDLOG LIBMINICORO HJUtils LIBREFLCPP)
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

@@ -65,7 +65,8 @@ int HJM3U8Parser::init(const HJMediaUrl::Ptr& mediaUrl)
         
         // 创建IO上下文并打开URL
         HJUrl::Ptr murl = std::make_shared<HJUrl>(url, HJ_XIO_READ);
-        (*murl)["multiple_requests"] = static_cast<int>(1);
+        //(*murl)["multiple_requests"] = static_cast<int>(1);
+        (*murl)["timeout"] = mediaUrl->getTimeout();
         
         m_xio = std::make_shared<HJXIOContext>();
         res = m_xio->open(murl);

@@ -2,6 +2,7 @@
 
 #include "HJPlugin.h"
 #include "HJTimeline.h"
+#include <mutex>
 #if defined (HarmonyOS)
 #include "HJOGRenderWindowBridge.h"
 #elif defined (WINDOWS)
@@ -13,26 +14,18 @@ NS_HJ_BEGIN
 class HJOGRenderWindowBridge;
 class HJStatContext;
 
+// See doc/HJPluginVideoRender.md for usage and lifecycle details.
+
 class HJPluginVideoRender : public HJPlugin
 {
 public:
 	HJ_DEFINE_CREATE(HJPluginVideoRender);
 
-	HJPluginVideoRender(const std::string& i_name = "HJPluginVideoRender", HJKeyStorage::Ptr i_graphInfo = nullptr)
-		: HJPlugin(i_name, i_graphInfo) { }
-	virtual ~HJPluginVideoRender() {
-		HJPluginVideoRender::done();
-	}
-	virtual int deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame, size_t* o_size = nullptr, int64_t* o_audioDuration = nullptr, int64_t* o_videoKeyFrames = nullptr, int64_t* o_audioSamples = nullptr) override;
+	HJPluginVideoRender(const std::string& i_name = "HJPluginVideoRender", size_t i_identify = 0, HJKeyStorage::Ptr i_graphInfo = nullptr)
+		: HJPlugin(i_name, i_identify, i_graphInfo) {}
+	virtual ~HJPluginVideoRender() { done(); }
 
-	virtual void onTimelineUpdated() {
-		postTask();
-	}
-/*
-	virtual int start();
-	virtual void stop();
-	virtual void pause();
-*/
+	void setEnableSEIUUids(const std::string& i_uuid, bool bKeyMustCb);
 protected:
 	// HJTimeline::Ptr timeline
 	// HJLooperThread::Ptr thread = nullptr
@@ -43,14 +36,13 @@ protected:
 	virtual int internalInit(HJKeyStorage::Ptr i_param) override;
 	virtual void internalRelease() override;
 	virtual int runTask(int64_t* o_delay = nullptr) override;
+	virtual int runFlush() override;
 	virtual void onInputAdded(size_t i_srcKeyHash, HJMediaType i_type) override;
-
-	virtual void setInfoFrameSize(size_t i_size);
 
 	std::atomic<size_t> m_inputKeyHash{};
 	HJTimeline::Ptr m_timeline{};
 	bool m_firstFrame{ true };
-	HJMediaFrame::Ptr m_currentFrame{};
+//	HJMediaFrame::Ptr m_currentFrame{};
 #if defined (HarmonyOS)
 	HJOGRenderWindowBridge::Ptr m_bridge{};
 #elif defined (WINDOWS)
@@ -61,11 +53,17 @@ protected:
 
 	std::weak_ptr<HJStatContext> m_statCtx;
 
+	std::mutex m_seiMutex;
+	std::map<std::string, bool> m_enableSEIUUids;
 private:
 	void priStatCodecType();
 	void priStatDelay(const std::shared_ptr<HJMediaFrame> &i_frame);
 	int m_cacheCodecType{ -1 };
-	bool m_bFirstFrame = true;
+	void procSEI(const HJMediaFrame::Ptr& mvf);
+
+private:
+	virtual std::tuple<int, int64_t> syncVideoFrame(std::string& route, HJMediaFrame::Ptr& currentFrame);
+	virtual int postprocessVideoFrame(std::string& route, HJMediaFrame::Ptr& currentFrame);
 };
 
 NS_HJ_END

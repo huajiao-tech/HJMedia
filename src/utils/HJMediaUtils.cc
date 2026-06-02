@@ -8,6 +8,7 @@
 #include "HJFileUtil.h"
 #include "HJFLog.h"
 #include <unordered_set>
+#include <regex>
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -211,18 +212,17 @@ HJBuffer::Ptr HJMediaUtils::makeAACExtraData(int samplerate, int channels, HJAAC
     return extraBuffer;
 }
 
-std::string HJMediaUtils::makeLocalUrl(const std::string& localDir, const std::string& url)
+std::string HJMediaUtils::makeUrlRid(const std::string& url)
 {
 	auto coreUrl = HJUtilitys::getCoreUrl(url);
-	auto suffix = checkMediaSuffix(HJUtilitys::getSuffix(coreUrl));
-	auto localUrl = HJUtilitys::concatenatePath(localDir, HJFMT("{}{}", HJUtilitys::hash(url), suffix));
-	return localUrl;
+	return HJUtilitys::hashString(coreUrl);
 }
 
-std::string HJMediaUtils::getLocalUrl(const std::string& localDir, const std::string& remoteUrl, const std::string& rid)
+std::string HJMediaUtils::makeLocalUrl(const std::string& localDir, const std::string& remoteUrl, const std::string& rid)
 {
-    auto suffix = HJMediaUtils::checkMediaSuffix(HJUtilitys::getSuffix(remoteUrl));
-    std::string name = rid.empty() ? HJ2STR(HJUtilitys::hash(remoteUrl)) : rid;
+	auto coreUrl = HJUtilitys::getCoreUrl(remoteUrl);
+    auto suffix = HJMediaUtils::checkMediaSuffix(HJUtilitys::getSuffix(coreUrl));
+    std::string name = rid.empty() ? HJMediaUtils::makeUrlRid(coreUrl) : rid;
 	auto localUrl = HJUtilitys::concatenatePath(localDir, HJFMT("{}{}", name, suffix));
     return localUrl;
 }
@@ -256,6 +256,54 @@ std::vector<std::string> HJMediaUtils::enumMediaFiles(const std::string& dir)
 		}
 	}
 	return mediaFiles;
+}
+
+std::string HJMediaUtils::makeHJTDFile(const std::string& mediaFile, size_t index) {
+	if(HJ_UINT64_MAX != index) {
+		auto filename = HJUtilitys::removeSuffix(mediaFile);
+		auto identifier = HJUtilitys::hash32(HJFMT("{}{}", HJCurrentSteadyUS(), index));
+		return HJFMT("{}.{}.hjtd", filename, identifier);
+	}
+	return mediaFile + ".hjtd";
+}
+
+/**
+ * format vector to string
+ * [{1, 2}, {3, 4}, {5, 6}]
+ */
+std::string HJMediaUtils::formatVector(const std::vector<HJRange64i>& ranges)
+{
+	if (ranges.empty()) {
+		return "[]";
+	}
+	std::string content = "[";
+	for (const auto& range : ranges) {
+		content += HJFMT("{{{}, {}}}, ", range.begin, range.end);
+	}
+	// Use regex to remove the last ", "
+	// Pattern to match: ", " at the end of the string (before we append ']')
+	// However, we append ']', so we look for ", ]" or just construct string then replace.
+	// Simpler: append all, then close with ']', then replace ", ]".
+	content += "]";
+	static const std::regex re(R"(, \])");
+	return std::regex_replace(content, re, "]");
+}
+/**
+ * format vector to string
+ * [1, 2, 3, 4, 5]
+ */
+std::string HJMediaUtils::formatVector(const std::vector<size_t>& values)
+{
+	if (values.empty()) {
+		return "[]";
+	}
+	std::string content = "[";
+	for (const auto& val : values) {
+		content += HJFMT("{}, ", val);
+	}
+	content += "]";
+	static const std::regex re(R"(, \])");
+	return std::regex_replace(content, re, "]");
 }
 
 NS_HJ_END

@@ -1,0 +1,89 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..77f324e
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,38 @@
++set(PROJ_NAME imguiNodeEditor)
++
++include_directories(${CMAKE_CURRENT_SOURCE_DIR})
++include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
++
++set(${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
++# message (STATUS "retrieve_files entry")
++#HJ_SUBDIR_LIST(subdir_names ${CMAKE_CURRENT_SOURCE_DIR})
++# message (STATUS "core sub dir names:${subdir_names}")
++
++#list(FILTER subdir_names EXCLUDE REGEX "^examples$")
++
++
++#HJ_RETRIEVE_XFILES(SUBPROJ_SOURCE_FILES ${subdir_names})
++#HJ_RETRIEVE_HFILES(SUBPROJ_HEADER_FILES ${subdir_names})
++
++file(GLOB HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
++file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
++#list(APPEND HEADER_FILES ${SUBPROJ_HEADER_FILES})
++#list(APPEND SOURCE_FILES ${SUBPROJ_SOURCE_FILES})
++
++# list(APPEND SOURCE_FILES ${CMAKE_SOURCE_DIR}/Dependencies/generic/spdlog/details/registry-inl.cc)
++
++MAKE_COMMON_CONFIG()
++
++add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
++
++target_link_libraries(${PROJ_NAME} PRIVATE imgui)
++target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
++
++HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
++
++set_target_properties(${PROJ_NAME} PROPERTIES
++    ARCHIVE_OUTPUT_DIRECTORY ${ARCHIVE_output}
++    LIBRARY_OUTPUT_DIRECTORY ${library_output}
++    RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
++	
++ProjFolder(${PROJ_NAME} "third_party")
+\ No newline at end of file
+diff --git a/imgui_node_editor.cpp b/imgui_node_editor.cpp
+index 1d2bb06..0d6badb 100644
+--- a/imgui_node_editor.cpp
++++ b/imgui_node_editor.cpp
+@@ -4391,6 +4391,19 @@ ed::EditorAction::AcceptResult ed::ShortcutAction::Accept(const Control& control
+     Action candidateAction = None;
+ 
+     auto& io = ImGui::GetIO();
++
++#if 1
++	if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_X))
++		candidateAction = Cut;
++	if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_C))
++		candidateAction = Copy;
++	if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_V))
++		candidateAction = Paste;
++	if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(GetKeyIndexForD()))
++		candidateAction = Duplicate;
++	if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space))
++		candidateAction = CreateNode;
++#else
+     if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_X)))
+         candidateAction = Cut;
+     if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C)))
+@@ -4401,6 +4414,7 @@ ed::EditorAction::AcceptResult ed::ShortcutAction::Accept(const Control& control
+         candidateAction = Duplicate;
+     if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space)))
+         candidateAction = CreateNode;
++#endif
+ 
+     if (candidateAction != None)
+     {
+@@ -4953,7 +4967,11 @@ ed::EditorAction::AcceptResult ed::DeleteItemsAction::Accept(const Control& cont
+         return False;
+ 
+     auto& io = ImGui::GetIO();
++#if 1
++    if (Editor->CanAcceptUserInput() && ImGui::IsKeyPressed(ImGuiKey_Delete) && Editor->AreShortcutsEnabled())
++#else
+     if (Editor->CanAcceptUserInput() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete)) && Editor->AreShortcutsEnabled())
++#endif
+     {
+         auto& selection = Editor->GetSelectedObjects();
+         if (!selection.empty())

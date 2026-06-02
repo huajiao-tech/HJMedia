@@ -21,6 +21,7 @@ public:
 	HJRTMPMuxer();
 	HJRTMPMuxer(HJListener listener);
 	virtual ~HJRTMPMuxer();
+    void setListener(HJListener listener);
 
 	virtual int init(const HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts = nullptr) override;
 	virtual int init(const std::string url, int mediaTypes = HJMEDIA_TYPE_AV, HJOptions::Ptr opts = nullptr) override;
@@ -81,5 +82,6 @@ private:
 	std::weak_ptr<HJStatContext>	m_statCtx;
 	HJPeriodicRunner				m_periodicRunner;
 	//int64_t							m_lastStatTime = HJ_NOTS_VALUE;
+	int64_t 						m_inFrameCount = 0;
 };
 NS_HJ_END

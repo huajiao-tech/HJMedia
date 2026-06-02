@@ -1,22 +1,35 @@
 #pragma once
 
 #include "HJSyncObject.h"
+#include "HJNotify.h"
 
 NS_HJ_BEGIN
+
+// Timeline controller for A/V synchronization. See doc/HJTimeline.md for details.
+
+typedef enum HJTimelineNofityType
+{
+    HJ_TIMELINE_NOTIFY_NONE = 0,
+ 
+	HJ_TIMELINE_NOTIFY_UPDATED = 1,
+    HJ_TIMELINE_NOTIFY_PLAY = 2,
+    HJ_TIMELINE_NOTIFY_PAUSE = 3
+
+} HJTimelineNofityType;
 
 class HJTimeline : public HJSyncObject
 {
 public:
 	HJ_DEFINE_CREATE(HJTimeline);
-	using Listener = std::function<void()>;
+//	using Listener = std::function<void()>;
 
-	HJTimeline(const std::string& i_name = "HJTimeline", size_t i_identify = -1)
+	HJTimeline(const std::string& i_name = "HJTimeline", size_t i_identify = 0)
 		: HJSyncObject(i_name, i_identify) { }
 	virtual ~HJTimeline() {
-		HJTimeline::done();
+		done();
 	};
 
-	void addListener(const std::string& i_name, Listener i_listener);
+	void addListener(const std::string& i_name, HJListener i_listener);
 	void removeListener(const std::string& i_name);
 	bool setTimestamp(int64_t i_streamIndex, int64_t i_timestamp, double i_speed);
 	bool getTimestamp(int64_t& o_streamIndex, int64_t& o_timestamp, double& o_speed);
@@ -27,9 +40,9 @@ public:
 protected:
 	void internalRelease() override;
 
-	void notifyUpdated();
+	void notify(HJNotification::Ptr i_ntf);
 
-	using ListenerMap = std::unordered_map<std::string, Listener>;
+	using ListenerMap = std::unordered_map<std::string, HJListener>;
 	using ListenerMapIt = ListenerMap::iterator;
 
 	ListenerMap m_listeners;

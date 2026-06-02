@@ -5,9 +5,11 @@
 //***********************************************************************************//
 #pragma once
 #include "HJChore.h"
+#include "HJLog.h"
 #include <queue>
 #include <thread>
 #include <future>
+#include <stdexcept>
 
 NS_HJ_BEGIN
 //***********************************************************************************//
@@ -65,7 +67,7 @@ private:
 class HJExecutor : public HJExecutorLoadCounter, public HJKeyStorage, public HJObject
 {
 public:
-    using Ptr = std::shared_ptr<HJExecutor>;
+    HJ_DECLARE_PUWTR(HJExecutor);
     HJExecutor(HJPriority priority = HJ_PRIORITY_NORMAL, bool autoRun = false);
     virtual ~HJExecutor();
     
@@ -111,7 +113,7 @@ private:
     bool setPriority(HJPriority priority = HJ_PRIORITY_NORMAL, std::thread::native_handle_type threadId = 0);
     void runLoop(bool regSelf = true);
 private:
-    bool                           m_isExitFlag = false;
+    std::atomic<bool>              m_isExitFlag{false};
     HJPriority                     m_priority = HJ_PRIORITY_NORMAL;
     HJCondition                    m_runStarted;
     HJThreadID                     m_loopThreadID;
@@ -131,8 +133,7 @@ using HJExecutorMap = std::map<std::string, HJExecutor::Ptr>;
 class HJScheduler : public HJObject
 {
 public:
-    using Ptr = std::shared_ptr<HJScheduler>;
-    
+    HJ_DECLARE_PUWTR(HJScheduler);
     HJScheduler(const HJExecutor::Ptr executor = nullptr, const bool randExecutor = true);
     virtual ~HJScheduler();
     
@@ -195,7 +196,7 @@ private:
 class HJExecutorManager : public HJObject
 {
 public:
-    using Ptr = std::shared_ptr<HJExecutorManager>;
+    HJ_DECLARE_PUWTR(HJExecutorManager);
     HJExecutorManager();
     virtual ~HJExecutorManager() = default;
 
@@ -268,18 +269,27 @@ protected:
 
 //***********************************************************************************//
 //#define HJTPOOL_AUTO_GROW 1
+class HJExecutorPoolDelegate : public virtual HJObject
+{
+public:
+    HJ_DECLARE_PUWTR(HJExecutorPoolDelegate)
+    //
+    virtual HJTask::Ptr onAcquireTask() = 0;
+    virtual void onStop() {}
+};
+
 class HJExecutorPool : public HJObject
 {
 public:
     HJ_DECLARE_PUWTR(HJExecutorPool);
     
-    HJExecutorPool(size_t initSize = HJExecutorPool::K_THREAD_MAX_NUM);
+    HJExecutorPool(size_t initSize = HJExecutorPool::K_THREAD_MAX_NUM, const HJExecutorPoolDelegate::Wtr& delegate = HJExecutorPoolDelegate::Wtr());
     virtual ~HJExecutorPool();
 
     template<class F, class... Args>
     auto commit(const int priority, const std::string& rid, F&& f, Args&&... args) -> std::future<decltype(f(args...))>
     {
-        if (!m_run) {
+        if (!m_running) {
             throw std::runtime_error("commit on ThreadPool is stopped.");
         }
 
@@ -287,13 +297,10 @@ public:
         auto task = std::make_shared<std::packaged_task<RetType()>>(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
         std::future<RetType> future = task->get_future();
 
-        addTask([task]() {(*task)(); }, priority, rid);
-
-#if defined(HJTPOOL_AUTO_GROW)
-        if (m_idlThrNum < 1 && m_pool.size() < K_THREAD_MAX_NUM) {
-            addThread(1);
+        if (!addTask([task]() {(*task)(); }, priority, rid)) {
+            throw std::runtime_error("commit on ThreadPool is stopped.");
         }
-#endif
+        maybeGrow();
         m_task_cv.notify_one();
 
         return future;
@@ -302,16 +309,30 @@ public:
     template <class F>
     void commitTask(F&& task)
     {
-        if (!m_run) return;
+        if (!m_running) return;
 
-        addTask(task);
-
-#if defined(HJTPOOL_AUTO_GROW)
-        if (m_idlThrNum < 1 && m_pool.size() < K_THREAD_MAX_NUM) {
-            addThread(1);
+        if (!addTask(task)) {
+            return;
         }
-#endif
+        maybeGrow();
         m_task_cv.notify_one();
+    }
+
+    void stop()
+    {
+        HJExecutorPoolDelegate::Ptr delegate = nullptr;
+        {
+            HJ_AUTOU_LOCK(m_lock);
+            if (!m_running) {
+                return;
+            }
+            m_running = false;
+            delegate = HJLockWtr<HJExecutorPoolDelegate>(m_delegate);
+        }
+        if (delegate) {
+            delegate->onStop();
+        }
+        m_task_cv.notify_all();
     }
 
     bool cancelTask(const std::string& rid)
@@ -333,12 +354,21 @@ public:
     }
 
     int getIdlCount() const { return m_idlThrNum; }
-    int getThreadCount() const { return m_pool.size(); }
+    int getThreadCount() const { return static_cast<int>(m_pool_size.load()); }
 private:
+    void maybeGrow()
+    {
+#if defined(HJTPOOL_AUTO_GROW)
+        if (m_idlThrNum < 1) {
+            addThread(1);
+        }
+#endif
+    }
+
     void addThread(unsigned short size)
     {
 #if defined(HJTPOOL_AUTO_GROW)
-        if (!m_run) {
+        if (!m_running) {
             throw std::runtime_error("stopped.");
         }
 		HJ_AUTOU_LOCK(m_lockGrow);
@@ -349,18 +379,44 @@ private:
                 while (true)
                 {
                     HJTask::Ptr task{};
-                    {
-                        HJ_AUTOU_LOCK(m_lock);
-                        m_task_cv.wait(lock, [this] {return !m_run || !isTaskEmpty();});
-                        if (!m_run && isTaskEmpty()) {
+                    auto delegate = HJLockWtr<HJExecutorPoolDelegate>(m_delegate);
+                    if (delegate) {
+                        if (!m_running) {
                             return;
                         }
-                        m_idlThrNum--;
-                        task = getTask();
+                        task = delegate->onAcquireTask();
+                        if (!task) {
+                            if (!m_running) {
+                                return;
+                            }
+                            continue;
+                        }
+                        {
+                            HJ_AUTOU_LOCK(m_lock);
+                            m_idlThrNum--;
+                        }
+                    } else {
+                        {
+                            HJ_AUTOU_LOCK(m_lock);
+                            m_task_cv.wait(lock, [this] {return !m_running || !isTaskEmpty();});
+                            if (!m_running /*&& isTaskEmpty()*/) {
+                                return;
+                            }
+                            m_idlThrNum--;
+                            task = getTask();
+                        }
                     }
-                    task->run();
+                    if (task) {
+                        try {
+                            task->run();
+                        } catch (const std::exception& ex) {
+                            HJLoge("HJExecutorPool task exception:" + std::string(ex.what()));
+                        } catch (...) {
+                            HJLoge("HJExecutorPool task exception:unknown");
+                        }
+                    }
 #if defined(HJTPOOL_AUTO_GROW)
-                    if (m_idlThrNum > 0 && m_pool.size() > m_initSize)
+                    if (m_idlThrNum > 0 && m_pool_size.load() > m_initSize)
                         return;
 #endif 
                     {
@@ -369,6 +425,7 @@ private:
                     }
                 }
                 });
+            m_pool_size.fetch_add(1, std::memory_order_relaxed);
             {
                 HJ_AUTOU_LOCK(m_lock);
                 m_idlThrNum++;
@@ -401,9 +458,12 @@ private:
         return task;
     }
 
-    void addTask(HJRunnable run, int priority = 0, const std::string& name = HJMakeGlobalName("task")) 
+    bool addTask(HJRunnable run, int priority = 0, const std::string& name = HJMakeGlobalName("task")) 
     {
         HJ_AUTOU_LOCK(m_lock);
+        if (!m_running) {
+            return false;
+        }
         auto task = HJCreates<HJTask>(std::move(run));
         task->setName(name);
         task->setClsID(priority);
@@ -416,21 +476,23 @@ private:
             queue.emplace_back(task);
             m_tasks.emplace(priority, queue);
         }
-        return;
+        return true;
     }
 private:
     static const int K_THREAD_MAX_NUM;
 private:
     size_t                      m_initSize{0};
     std::vector<std::thread>    m_pool;
+    std::atomic<size_t>         m_pool_size{0};
     //std::queue<HJRunnable>      m_tasks;
-    std::map<int, std::deque<HJTask::Ptr>> m_tasks;
+    std::map<int, std::deque<HJTask::Ptr>, std::greater<int>> m_tasks;
     std::mutex                  m_lock;  
 #if defined(HJTPOOL_AUTO_GROW)
     std::mutex                  m_lockGrow;
 #endif
     std::condition_variable     m_task_cv;
-    std::atomic<bool>           m_run{ true };
+    std::atomic<bool>           m_running{ true };
     std::atomic<int>            m_idlThrNum{ 0 };
+    HJExecutorPoolDelegate::Wtr m_delegate;
 };
 NS_HJ_END

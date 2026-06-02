@@ -1,6 +1,9 @@
 import { HJPusher } from 'hjpusher';
 import { SetWindowState } from 'hjpusher';
+import { HJRteGraphConfig } from 'hjpusher/src/main/ets/native/HJRteGraphSetupInfo';
+import { cameraService } from '../../camera/service/CameraService';
 import { PusherXComponentState, PusherXComponentStore } from '../store/PusherXComponentStore';
+import { window } from '@kit.ArkUI';
 
 class PusherXComponentController extends XComponentController {
   private hjPusher: HJPusher
@@ -12,6 +15,8 @@ class PusherXComponentController extends XComponentController {
 
   onSurfaceCreated(surfaceId: string): void {
     this.hjPusher.setWindow({
+      classStyle:HJRteGraphConfig.HJNodeClass_TargetUI_0, //HJNodeClass_TargetUI_1
+      insName: HJRteGraphConfig.HJNodeClass_TargetUI_0,   //HJNodeClass_TargetUI_1
       surfaceId: surfaceId,
       width: 1,
       height: 1,
@@ -21,6 +26,8 @@ class PusherXComponentController extends XComponentController {
 
   onSurfaceChanged(surfaceId: string, rect: SurfaceRect): void {
     this.hjPusher.setWindow({
+      classStyle:HJRteGraphConfig.HJNodeClass_TargetUI_0, //HJNodeClass_TargetUI_1
+      insName: HJRteGraphConfig.HJNodeClass_TargetUI_0,   //HJNodeClass_TargetUI_1
       surfaceId: surfaceId,
       width: rect.surfaceWidth,
       height: rect.surfaceHeight,
@@ -39,6 +46,37 @@ export struct PusherXComponent{
   pusherXComponentStore: PusherXComponentStore = new PusherXComponentStore()
   state: PusherXComponentState = this.pusherXComponentStore.getState()
   pusherXComponentController: PusherXComponentController = new PusherXComponentController(this.hjPusher);
+  context: Context | undefined = this.getUIContext().getHostContext()
+  windowClass: window.Window | undefined = undefined
+
+  async aboutToAppear() {
+    try {
+      const windowClass = await window.getLastWindow(this.context as Context)
+      this.windowClass = windowClass
+      windowClass.on('windowSizeChange', this.onWindowSizeChange)
+    } catch (error) {
+      console.error(`Failed to getLastWindow. error: ${JSON.stringify(error)}`)
+    }
+  }
+
+  aboutToDisappear() {
+    try {
+      this.windowClass?.off('windowSizeChange', this.onWindowSizeChange)
+    } catch (error) {
+      console.error(`Failed to getLastWindow. error: ${JSON.stringify(error)}`)
+    }
+  }
+
+  private onWindowSizeChange = (size: window.Size) => {
+    this.updateCameraPreviewRotation()
+  }
+
+  private updateCameraPreviewRotation() {
+    const initPreviewRotation = cameraService.updatePreviewRotation();
+    if (initPreviewRotation !== undefined) {
+      this.hjPusher.setPreviewRotation(initPreviewRotation)
+    }
+  }
 
   build() {
     XComponent({

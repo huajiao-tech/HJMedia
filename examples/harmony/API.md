@@ -212,7 +212,7 @@ public setWindow(setWindowInfo: SetWindowInfo): void
 
 **openPlayer**
 
-public openPlayer(openPlayerInfo: OpenPlayerInfo, stateCall: (str: string) => void, stateInfo: MediaStateInfo, statCall: (str: string) => void): void
+public openPlayer(openPlayerInfo: OpenPlayerInfo, stateCall: (str: string) => void, stateInfo: MediaStateInfo, statCall: (str: string) => void, seiCall?: (seiInfo: HJPlayerSeiInfo) => void): void
 
 启动播放
 
@@ -224,6 +224,7 @@ public openPlayer(openPlayerInfo: OpenPlayerInfo, stateCall: (str: string) => vo
 | stateCall | (str: string) => void | 是   | 播放器状态回调 |
 | stateInfo | MediaStateInfo | 是   | 媒体状态信息 |
 | statCall | (str: string) => void | 是   | 统计信息回调 |
+| seiCall | (seiInfo: HJPlayerSeiInfo) => void | 否   | SEI ArrayBuffer 回调 |
 
 **closePlayer**
 

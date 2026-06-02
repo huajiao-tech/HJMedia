@@ -9,12 +9,55 @@
 #include "HJFFUtils.h"
 #include "HJGlobalSettings.h"
 #include "HJDataFuse.h"
+#include "HJGraphLivePlayer.h"
+#include "HJGraphVodPlayer.h"
 #include "HJUUIDTools.h"
 #include "HJPackerManager.h"
+#include <cstdio>
 //#include "HJByteBuffer.h"
 //#include "IconFontCppHeaders/IconsFontAwesome5.h"
 
 NS_HJ_BEGIN
+namespace {
+constexpr int kPlayerTypeItemCount = 3;
+const char* kPlayerTypeItems[kPlayerTypeItemCount] = { "auto", "vod", "live" };
+
+const char* graphTypeToString(HJGraphType graph_type)
+{
+    switch (graph_type) {
+    case HJGraphType_VOD:
+        return "vod";
+    case HJGraphType_LIVESTREAM:
+        return "live";
+    case HJGraphType_MUSIC:
+        return "music";
+    default:
+        return "unknown";
+    }
+}
+
+std::string formatAudioTrackLabel(const HJAudioInfo::Ptr& audioInfo)
+{
+    if (!audioInfo) {
+        return "unknown";
+    }
+    return HJFMT(
+        "track:{} {} {}ch {}Hz",
+        audioInfo->m_trackID,
+        AVCodecIDToString((AVCodecID)audioInfo->m_codecID),
+        audioInfo->m_channels,
+        audioInfo->m_samplesRate);
+}
+
+template <size_t N>
+void copyToInputBuffer(char (&buffer)[N], const std::string& value)
+{
+    if (N == 0) {
+        return;
+    }
+    std::snprintf(buffer, N, "%s", HJAnsiToUtf8(value).c_str());
+}
+}
 //***********************************************************************************//
 HJGraphPlayerView::HJGraphPlayerView()
 {
@@ -46,6 +89,7 @@ int HJGraphPlayerView::init(const std::string info)
         //m_mediaUrl = "E:/js/1718781990_2.ts";
 #if defined(HJ_OS_WIN32)
         //m_mediaUrl = "E:/movies/720x1280.mp4";
+        //m_mediaUrl = "E:/movies/dfjy.webm";
         //m_mediaUrl = "https://wlive.6rooms.com/httpflv/v101369809-220734480.flv";
         //m_mediaUrl = "E:/movies/h265_548637.flv";
         //m_mediaUrl = "https://live-replay-5.test.huajiao.com/psegments/z1.huajiao-live.HJ_0_qiniu_5_huajiao-live__h265_45752749_1730776617184_3550_T/1730776662-1730776884.m3u8";
@@ -56,8 +100,16 @@ int HJGraphPlayerView::init(const std::string info)
         //m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main_a_h264_270100274_1732602713389_8267_O.flv?auth_key=1732694308-0-0-d6f19de17979da5df6536153270dc20f";
         //m_mediaUrl = "https://al2-flv.live.huajiao.com/live_huajiao_h265/_LC_AL2_non_h265_SD_26624183417212690010010622_OX.flv";//"E:/js/820827.crdownload.flv";
         //m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_273615742_1764557847442_7625_O.flv?auth_key=1764645940-0-0-e4652093cc6e880e24853c24771f6e2a";
-        m_mediaUrl = "https://live-pull-0.test.huajiao.com/main/HJ_0_ali_0_main_a_h264_45868601_1764742614311_9962_T.flv?auth_key=1764829014-0-0-b8c1cfaa0c276db18e57e2d6dbd072bc";
+        //m_mediaUrl = "https://live-pull-3.huajiao.com/main/HJ_0_tc_3_main__h265_271995344_1765875730679_2529_O.flv?txSecret=790ebbf30b787e26ea6f4ec02f16b560&txTime=694271DC";
+        //m_mediaUrl = "https://file-22.huajiao.com/record/main/HJ_0_ali_1_main__h265_271393148_1764735837857_3557_O/replay.m3u8";
+        //m_mediaUrl = "https://file-22.huajiao.com/record/main/HJ_0_ali_1_main__h265_271393148_1765772819219_8223_O/replay.m3u8";
+        //m_mediaUrl = "E:/movies/replaym3u8/index_lightlight.m3u8";
         //m_mediaUrl = "http://localhost:8080/live/livestream.flv";
+        //m_mediaUrl = "rtmp://localhost/live/livestream";
+        //m_mediaUrl = "https://static.s3.huajiao.com/Object.access/hj-video/MDhmMmQwMGYyNWI5NTY0YmJkNTMzMGZiNmQwNDM1Y2VjODUxZTQzMy5tcDQ=";
+        //m_mediaUrl = "https://live-pull-0.test.huajiao.com/main/HJ_0_ali_0_main__h265_45866698_1773107592290_2937_T.flv?auth_key=1773194600-0-0-0c4c73d6c9e4f1dba59458b6e3d08c5f";
+        //m_mediaUrl = "E:/movies/audio/c58733ac51124fe38cdc6540a7b8fa46.mkv";
+        m_mediaUrl = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_219823730_1774349534107_7807_O.flv?auth_key=1774436352-0-0-5251568a403b4f1801453fb6244f0704";
 #elif defined(HJ_OS_MACOS)
         m_mediaUrl = "/Users/zhiyongleng/works/movies/720x1280.mp4";
 #endif
@@ -71,29 +123,45 @@ int HJGraphPlayerView::init(const std::string info)
 
 void HJGraphPlayerView::done()
 {
-    HJ_AUTO_LOCK(m_mutex);
-    m_progInfo = nullptr;
-    m_minfo = nullptr;
-    m_minfos.clear();
-    m_mvf = nullptr;
-    m_player = nullptr;
-    m_curPos = 0;
+    HJGraphLivePlayer::Ptr player = nullptr;
+    HJGraphVodPlayer::Ptr vod_player = nullptr;
+    HJFFMuxer::Ptr muxer = nullptr;
+    HJRTMPMuxer::Ptr rtmp_muxer = nullptr;
+    {
+        HJ_AUTO_LOCK(m_mutex);
+        m_progInfo = nullptr;
+        m_minfo = nullptr;
+        m_minfos.clear();
+        m_mvf = nullptr;
+        player = m_player;
+        m_player = nullptr;
+        vod_player = m_vodPlayer;
+        m_vodPlayer = nullptr;
+        m_curPos = 0;
+        m_selectedAudioTrackID = -1;
 
-    //m_imageWriter = nullptr;
-    m_imageIdx = 0;
+        //m_imageWriter = nullptr;
+        m_imageIdx = 0;
 
-    if (m_muxer) {
-        m_muxer->done();
+        muxer = m_muxer;
         m_muxer = nullptr;
-    }
-    //m_pusher = nullptr;
-    if (m_rtmpMuxer) {
-		m_rtmpMuxer->setQuit();
-        m_rtmpMuxer->done();
+        rtmp_muxer = m_rtmpMuxer;
         m_rtmpMuxer = nullptr;
     }
-    //
-//    m_mvfView = nullptr;
+    if (player) {
+        player->done();
+    }
+    if (vod_player) {
+        vod_player->done();
+    }
+    if (muxer) {
+        muxer->done();
+    }
+    if (rtmp_muxer) {
+        rtmp_muxer->setListener(nullptr);
+		rtmp_muxer->setQuit();
+        rtmp_muxer->done();
+    }
 }
 
 int HJGraphPlayerView::drawMuxerStat(const HJRectf& rect)
@@ -501,9 +569,13 @@ int HJGraphPlayerView::drawFrame(const HJRectf& rect)
                 m_mvfView = std::make_shared<HJFrameView>();
                 res = m_mvfView->init();
             }
-            HJ_AUTO_LOCK(m_mutex);
-            if (m_mvf) {
-                m_mvfView->draw(m_mvf);
+            HJMediaFrame::Ptr frame = nullptr;
+            {
+                HJ_AUTO_LOCK(m_mutex);
+                frame = m_mvf;
+            }
+            if (frame) {
+                m_mvfView->draw(frame);
             }
 
             //
@@ -535,10 +607,13 @@ int HJGraphPlayerView::drawStatusBar(const HJRectf& rect)
         {
             //ImGui::Text(ICON_FA_PAINT_BRUSH"Input Url : "); ImGui::SameLine();
             char filename[1024];
-            strcpy(filename, HJAnsiToUtf8(m_mediaUrl).c_str());
+            copyToInputBuffer(filename, m_mediaUrl);
             if (ImGui::InputText(u8"Input Url ", filename, HJ_ARRAY_ELEMS(filename))) {
                 m_mediaUrl = HJ2SSTR(filename);
             }
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(100.0f);
+            ImGui::Combo("Type", &m_playerTypeHint, kPlayerTypeItems, kPlayerTypeItemCount);
             ImGui::SameLine();
             if (!m_btnFileDialog) {
                 std::string iconName = "icon_open_file.png";
@@ -551,11 +626,13 @@ int HJGraphPlayerView::drawStatusBar(const HJRectf& rect)
                 }
                 m_btnFileDialog->onBtnClick = [&]() {
                     if (!m_viewFileDialog) {
-                        m_viewFileDialog = std::make_shared<HJFileDialogView>();
-                        res = m_viewFileDialog->init("Open a media file", HJFileDialogView::KEY_MEDIA_FILTER, true, HJContext::Instance().getMediaDir());
-                        if (HJ_OK != res) {
+                        HJFileDialogView::Ptr dialog = std::make_shared<HJFileDialogView>();
+                        int init_res = dialog->init("Open a media file", HJFileDialogView::KEY_MEDIA_FILTER, true, HJContext::Instance().getMediaDir());
+                        if (HJ_OK != init_res) {
                             HJLoge("error, init file dialog view failed");
+                            return;
                         }
+                        m_viewFileDialog = dialog;
                     }
                 };
             }
@@ -566,7 +643,7 @@ int HJGraphPlayerView::drawStatusBar(const HJRectf& rect)
                 res = m_viewFileDialog->draw([&](const std::vector<std::filesystem::path>& files) {
                     if (files.size() > 0) {
                         m_mediaUrl = files[0].generic_string();
-                        strcpy(filename, HJAnsiToUtf8(m_mediaUrl).c_str());
+                        copyToInputBuffer(filename, m_mediaUrl);
                     }
                     });
                 if (HJ_OK != res) {
@@ -589,7 +666,7 @@ int HJGraphPlayerView::drawStatusBar(const HJRectf& rect)
                 //ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10 * style.ItemSpacing.x);
                 //ImGui::Text("Push  Url : "); ImGui::SameLine();
                 char pushUrl[1024];
-                strcpy(pushUrl, HJAnsiToUtf8(m_pushUrl).c_str());
+                copyToInputBuffer(pushUrl, m_pushUrl);
                 if (ImGui::InputText(u8"Push Url ", pushUrl, HJ_ARRAY_ELEMS(pushUrl))) {
                     m_pushUrl = HJ2SSTR(pushUrl);
                 }
@@ -619,7 +696,7 @@ int HJGraphPlayerView::drawStatusBar(const HJRectf& rect)
             if (m_thumbnail) {
                 ImGui::SameLine();
                 char thumbUrl[1024];
-                strcpy(thumbUrl, HJAnsiToUtf8(m_thumbUrl).c_str());
+                copyToInputBuffer(thumbUrl, m_thumbUrl);
                 if (ImGui::InputText(u8"Thumb Url", thumbUrl, HJ_ARRAY_ELEMS(thumbUrl))) {
                     m_thumbUrl = HJ2SSTR(thumbUrl);
                 }
@@ -847,6 +924,45 @@ int HJGraphPlayerView::drawPlayerBar(const HJRectf& rect)
                 if (m_volumeView) {
                     m_volumeView->draw();
                 }
+
+                if (minfo && minfo->getAudioInfos().size() > 1)
+                {
+                    int selectedAudioTrackID = minfo->getSelectedAudioTrackID();
+                    {
+                        HJ_AUTO_LOCK(m_mutex);
+                        if (m_selectedAudioTrackID >= 0) {
+                            selectedAudioTrackID = m_selectedAudioTrackID;
+                        }
+                    }
+                    auto selectedAudioInfo = minfo->findAudioInfoByTrackID(selectedAudioTrackID);
+                    std::string preview = selectedAudioInfo ? formatAudioTrackLabel(selectedAudioInfo) : HJFMT("track:{}", selectedAudioTrackID);
+                    std::string comboId = HJFMT("##{}_audio_track", m_name);
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(220.0f);
+                    if (ImGui::BeginCombo(comboId.c_str(), preview.c_str()))
+                    {
+                        for (const auto& audioInfo : minfo->getAudioInfos())
+                        {
+                            if (!audioInfo) {
+                                continue;
+                            }
+                            const bool isSelected = (audioInfo->m_trackID == selectedAudioTrackID);
+                            std::string label = formatAudioTrackLabel(audioInfo);
+                            if (ImGui::Selectable(label.c_str(), isSelected) && !isSelected) {
+                                HJMainExecutorAsync([=]() {
+                                    int switchRes = onSwitchAudioTrack(audioInfo->m_trackID);
+                                    if (HJ_OK != switchRes) {
+                                        HJFLoge("switch audio track:{} error:{}", audioInfo->m_trackID, switchRes);
+                                    }
+                                });
+                            }
+                            if (isSelected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
             }
             catch (const HJException& e)
             {
@@ -914,6 +1030,32 @@ int HJGraphPlayerView::drawMediaInfo(const HJRectf& rect)
                 std::string infos = HJFMT("[Audio:{} channels:{}, sample rate:{}, byte per sample:{}] ", AVCodecIDToString((AVCodecID)ainfo->m_codecID), ainfo->m_channels, ainfo->m_samplesRate, ainfo->m_bytesPerSample);
                 ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
             }
+            int selectedAudioTrackID = minfo->getSelectedAudioTrackID();
+            {
+                HJ_AUTO_LOCK(m_mutex);
+                if (m_selectedAudioTrackID >= 0) {
+                    selectedAudioTrackID = m_selectedAudioTrackID;
+                }
+            }
+            ImGui::Separator();
+            std::string audioTrackInfos = HJFMT("Audio tracks:{} selected:{}", minfo->getAudioInfos().size(), selectedAudioTrackID);
+            ImGui::TextColored(ImVec4(0.6f, 0.9f, 0.95f, 1.0f), audioTrackInfos.c_str());
+            for (const auto& audioInfo : minfo->getAudioInfos())
+            {
+                if (!audioInfo) {
+                    continue;
+                }
+                const bool isSelected = (audioInfo->m_trackID == selectedAudioTrackID);
+                std::string infos = HJFMT(
+                    "[{}Audio track:{} codec:{} channels:{} sample rate:{} byte per sample:{}]",
+                    isSelected ? "*" : " ",
+                    audioInfo->m_trackID,
+                    AVCodecIDToString((AVCodecID)audioInfo->m_codecID),
+                    audioInfo->m_channels,
+                    audioInfo->m_samplesRate,
+                    audioInfo->m_bytesPerSample);
+                ImGui::TextColored(isSelected ? ImVec4(0.4f, 0.95f, 0.4f, 1.0f) : ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
+            }
             std::string infos = HJFMT("Total: duration:{}", minfo->getDuration());
             ImGui::TextColored(ImVec4(0.9f, 0.1f, 0.92f, 1.0f), infos.c_str());
 
@@ -968,6 +1110,156 @@ int HJGraphPlayerView::draw(const HJRectf& rect)
     return res;
 }
 
+class HJJsonSeiData final : public HJInterpreter
+{
+public:
+    std::string uuid;
+    std::string data;
+
+    HJ_JSON_REFLECT_BEGIN(HJJsonSeiData)
+        HJ_JSON_REFLECT_MEMBER(uuid)
+        HJ_JSON_REFLECT_MEMBER(data)
+    HJ_JSON_REFLECT_END(HJJsonSeiData)
+};
+HJ_JSON_REFLECT_IMPLEMENT(HJJsonSeiData)
+
+class HJJsonSeiInfo final : public HJInterpreter
+{
+public:
+    std::vector<HJJsonSeiData> seiDatas;
+    bool isKeyFrame;
+
+    HJ_JSON_REFLECT_BEGIN(HJJsonSeiInfo)
+        HJ_JSON_REFLECT_MEMBER(seiDatas)
+        HJ_JSON_REFLECT_MEMBER(isKeyFrame)
+    HJ_JSON_REFLECT_END(HJJsonSeiInfo)
+};
+HJ_JSON_REFLECT_IMPLEMENT(HJJsonSeiInfo)
+
+void HJGraphPlayerView::registerHandlers(const std::shared_ptr<HJEventBus> i_bus)
+{
+    if (!i_bus) {
+        return;
+    }
+    std::weak_ptr<HJGraphPlayerView> wself = HJSharedFromThis();
+    i_bus->registerHandler(EVENT_GRAPH_VIDEO_FRAME_ID, [wself](const HJMediaFrame::Ptr& frame) {
+        auto self = wself.lock();
+        if (!self) {
+            return;
+        }
+        if (frame) {
+            HJ_AUTO_LOCK(self->m_mutex);
+            self->m_mvf = frame;
+        }
+    });
+
+    i_bus->registerHandler(EVENT_GRAPH_AUDIO_FRAME_ID, [wself](const HJMediaFrame::Ptr& frame) {
+        auto self = wself.lock();
+        if (!self) {
+            return;
+        }
+        (void)frame;
+        });
+
+    i_bus->registerHandler(EVENT_GRAPH_EOF_ID, [wself]() {
+        auto self = wself.lock();
+        if (!self) {
+            return;
+        }
+        int a = 0;
+        (void)a;
+        });
+
+    i_bus->registerHandler(EVENT_GRAPH_SEI_INFOS_ID, [wself](const std::vector<HJSEIData>& userSEIDatas, bool keyFrame) {
+        auto self = wself.lock();
+        if (!self) {
+            return;
+        }
+        for (auto& seiData : userSEIDatas) {
+            HJFLogi("sei infos: {}, size:{}, keyFrame:{}", seiData.uuid, seiData.data.size(), keyFrame);
+        }
+        //HJFLogi("sei infos: {}, keyFrame:{}", userSEIDatas.size(), keyFrame);
+        HJJsonSeiInfo jsonSeiInfos;
+        jsonSeiInfos.seiDatas.reserve(userSEIDatas.size());
+        for (const auto& sei : userSEIDatas) {
+            HJJsonSeiData data;
+            data.uuid = sei.uuid;
+            data.data = HJUtilitys::base64Encode(sei.data);
+            jsonSeiInfos.seiDatas.push_back(std::move(data));
+        }
+        jsonSeiInfos.isKeyFrame = keyFrame;
+
+        const std::string seiInfos = jsonSeiInfos.getSerialInfo();
+        HJFLogi("seiInfos:{}", seiInfos);
+    });
+
+    i_bus->registerHandler(EVENT_GRAPH_FIRST_FRAME_RENDERED_ID, [wself](const std::string& pluginName) {
+        auto self = wself.lock();
+        if (!self) {
+            return;
+        }
+        (void)pluginName;
+        });
+
+    i_bus->registerHandler(EVENT_GRAPH_AUTODELAY_PARAMS_ID, [wself](const std::shared_ptr<HJParams>& params) {
+        auto self = wself.lock();
+        if (!self) {
+            return;
+        }
+        //auto delayParams = ntf->getValue<std::shared_ptr<HJParams>>("auto_params");
+        auto delayParams = std::dynamic_pointer_cast<HJParams>(params);
+        if (delayParams) {
+            std::shared_ptr<HJPlayerDelayParams> params = std::make_shared<HJPlayerDelayParams>();
+            if (delayParams->find("stat") != delayParams->end()) {
+                params->stat = std::any_cast<std::string>(delayParams->at("stat"));
+                self->m_statName = params->stat;
+            }
+            if (delayParams->find("calc") != delayParams->end()) {
+                params->calc = std::any_cast<std::string>(delayParams->at("calc"));
+                self->m_calcName = params->calc;
+            }
+            if (delayParams->find("dura") != delayParams->end()) {
+                params->dura = std::any_cast<int64_t>(delayParams->at("dura"));
+            }
+            if (delayParams->find("max") != delayParams->end()) {
+                params->max = std::any_cast<int64_t>(delayParams->at("max"));
+            }
+            if (delayParams->find("min") != delayParams->end()) {
+                params->min = std::any_cast<int64_t>(delayParams->at("min"));
+            }
+            if (delayParams->find("avg") != delayParams->end()) {
+                params->avg = std::any_cast<int64_t>(delayParams->at("avg"));
+            }
+            if (delayParams->find("stut") != delayParams->end()) {
+                params->stut = std::any_cast<double>(delayParams->at("stut"));
+                self->m_stutterRatio = params->stut;
+            }
+            if (delayParams->find("slop") != delayParams->end()) {
+                params->slop = std::any_cast<double>(delayParams->at("slop"));
+            }
+            if (delayParams->find("speed") != delayParams->end()) {
+                params->speed = std::any_cast<double>(delayParams->at("speed"));
+            }
+            if (delayParams->find("edura") != delayParams->end()) {
+                params->edura = std::any_cast<int64_t>(delayParams->at("edura"));
+            }
+            if (delayParams->find("elimit") != delayParams->end()) {
+                params->elimit = std::any_cast<int64_t>(delayParams->at("elimit"));
+            }
+            if (delayParams->find("rdura") != delayParams->end()) {
+                params->rdura = std::any_cast<int64_t>(delayParams->at("rdura"));
+            }
+            if (delayParams->find("rlimit") != delayParams->end()) {
+                params->rlimit = std::any_cast<int64_t>(delayParams->at("rlimit"));
+            }
+            if (delayParams->find("watch") != delayParams->end()) {
+                params->watch = std::any_cast<int64_t>(delayParams->at("watch"));
+            }
+            self->addDelayParams(params);
+        }
+    });
+}
+
 void HJGraphPlayerView::onCreatePlayer()
 {
     if (m_player) {
@@ -978,7 +1270,13 @@ void HJGraphPlayerView::onCreatePlayer()
     m_player = std::make_shared<HJGraphLivePlayer>();
 
     auto param = std::make_shared<HJKeyStorage>();
-    HJListener playerListener = [&](const HJNotification::Ptr ntf) -> int {
+
+    std::weak_ptr<HJGraphPlayerView> wself = HJSharedFromThis();
+    HJListener playerListener = [wself](const HJNotification::Ptr ntf) -> int {
+        auto self = wself.lock();
+        if (!self) {
+            return HJErrAlreadyDone;
+        }
         if (ntf == nullptr) {
             return HJ_OK;
         }
@@ -989,8 +1287,8 @@ void HJGraphPlayerView::onCreatePlayer()
             {
                 auto frame = ntf->getValue<HJMediaFrame::Ptr>("frame");
                 if (frame) {
-                    HJ_AUTO_LOCK(m_mutex);
-                    m_mvf = frame;
+                    HJ_AUTO_LOCK(self->m_mutex);
+                    self->m_mvf = frame;
                 }
                 break;
             }
@@ -1001,11 +1299,11 @@ void HJGraphPlayerView::onCreatePlayer()
                     std::shared_ptr<HJPlayerDelayParams> params = std::make_shared<HJPlayerDelayParams>();
                     if (delayParams->find("stat") != delayParams->end()) {
                         params->stat = std::any_cast<std::string>(delayParams->at("stat"));
-                        m_statName = params->stat;
+                        self->m_statName = params->stat;
                     }
                     if (delayParams->find("calc") != delayParams->end()) {
                         params->calc = std::any_cast<std::string>(delayParams->at("calc"));
-                        m_calcName = params->calc;
+                        self->m_calcName = params->calc;
                     }
                     if (delayParams->find("dura") != delayParams->end()) {
                         params->dura = std::any_cast<int64_t>(delayParams->at("dura"));
@@ -1021,7 +1319,7 @@ void HJGraphPlayerView::onCreatePlayer()
                     }
                     if (delayParams->find("stut") != delayParams->end()) {
                         params->stut = std::any_cast<double>(delayParams->at("stut"));
-                        m_stutterRatio = params->stut;
+                        self->m_stutterRatio = params->stut;
                     }
                     if (delayParams->find("slop") != delayParams->end()) {
                         params->slop = std::any_cast<double>(delayParams->at("slop"));
@@ -1044,7 +1342,7 @@ void HJGraphPlayerView::onCreatePlayer()
                     if (delayParams->find("watch") != delayParams->end()) {
                         params->watch = std::any_cast<int64_t>(delayParams->at("watch"));
                     }
-                    addDelayParams(params);
+                    self->addDelayParams(params);
                 }
                 break;
             }
@@ -1061,7 +1359,7 @@ void HJGraphPlayerView::onCreatePlayer()
                 infos->video_soft_render = ntf->getInt64("videoSoftRender");
                 infos->time = HJCurrentSteadyMS();
                 HJFLogi("setInfo audio_dropping:{}, video_dropping:{}, audioRender:{}", infos->audio_dropping, infos->video_dropping, infos->audio_render);
-                addPluginInfos(infos);
+                self->addPluginInfos(infos);
                 break;
             }
             case HJ_PLUGIN_NOTIFY_PLUGIN_SEI_INFOS:
@@ -1109,6 +1407,201 @@ void HJGraphPlayerView::onCreatePlayer()
     };
     (*param)["playerListener"] = playerListener;
 
+    registerHandlers(m_player->eventBus());
+
+    auto audioInfo = std::make_shared<HJAudioInfo>();
+    audioInfo->m_samplesRate = 48000;
+    audioInfo->setChannels(2);
+    audioInfo->m_sampleFmt = 1;
+    audioInfo->m_bytesPerSample = 2;
+    (*param)["audioInfo"] = audioInfo;
+    (*param)["InsIdx"] = (int)HJMakeGlobalID();
+    std::map<std::string, bool> enableSEIUUids = {
+        //{"fa32543b356647b1b80227d28f5b8ca1", true},
+        {"db41f3f7dd6f4c92976448a6cec96e4d", false},
+    };
+    (*param)["enableSEIUUids"] = enableSEIUUids;
+
+    HJInstanceSettings settings;
+    //settings.pluginInfosEnable = true;
+    m_player->setSettings(settings);
+
+    int res = m_player->init(param);
+    if (res != HJ_OK) {
+        HJFLoge("player init failed, res:{}", res);
+		return;
+    }
+
+    //m_player->setEnableSEIUUids("db41f3f7dd6f4c92976448a6cec96e3d", true);
+ //   auto coreUrl = HJUtilitys::getCoreUrl(m_mediaUrl);
+	//auto suffix = HJUtilitys::getSuffix(coreUrl);
+    auto localUrl = "";//HJMediaUtils::makeLocalUrl("E:/movies/blob/", m_mediaUrl); //HJFMT("E:/movies/blob/{}{}", HJUtilitys::hash(m_mediaUrl), suffix);
+    HJMediaUrl::Ptr mediaUrl = nullptr;
+    if (HJFileUtil::isFileExist(localUrl)) {
+        mediaUrl = std::make_shared<HJMediaUrl>(localUrl);
+    } else {
+        mediaUrl = std::make_shared<HJMediaUrl>(m_mediaUrl);
+        (*mediaUrl)["local_url"] = localUrl;
+    }
+    //mediaUrl->setDisableMFlag(HJMEDIA_TYPE_VIDEO);
+    res = m_player->openURL(mediaUrl);
+    if (HJ_OK != res) {
+		HJFLoge("player openURL failed, res:{}, url:{}", res, m_mediaUrl);
+		return;
+    }
+
+    return;
+}
+
+void HJGraphPlayerView::onCreateVodPlayer()
+{ 
+    if (m_vodPlayer) {
+        return;
+    }
+    HJFLogi("onCreateVodPlayer entry, m_mediaUrl:{}, count:{}", m_mediaUrl, m_mediaRepeat++);
+
+    m_vodPlayer = std::make_shared<HJGraphVodPlayer>();
+
+    auto param = std::make_shared<HJKeyStorage>();
+    std::weak_ptr<HJGraphPlayerView> wself = HJSharedFromThis();
+    HJListener playerListener = [wself](const HJNotification::Ptr ntf) -> int {
+        auto self = wself.lock();
+        if (!self) {
+            return HJErrAlreadyDone;
+        }
+        if (ntf == nullptr) {
+            return HJ_OK;
+        }
+
+        switch (ntf->getID())
+        {
+        case HJ_PLUGIN_NOTIFY_VIDEORENDER_FRAME:
+        {
+            auto frame = ntf->getValue<HJMediaFrame::Ptr>("frame");
+            if (frame) {
+                HJ_AUTO_LOCK(self->m_mutex);
+                self->m_mvf = frame;
+            }
+            break;
+        }
+        case HJ_PLUGIN_NOTIFY_AUTODELAY_PARAMS:
+        {
+            auto delayParams = ntf->getValue<std::shared_ptr<HJParams>>("auto_params");
+            if (delayParams) {
+                std::shared_ptr<HJPlayerDelayParams> params = std::make_shared<HJPlayerDelayParams>();
+                if (delayParams->find("stat") != delayParams->end()) {
+                    params->stat = std::any_cast<std::string>(delayParams->at("stat"));
+                    self->m_statName = params->stat;
+                }
+                if (delayParams->find("calc") != delayParams->end()) {
+                    params->calc = std::any_cast<std::string>(delayParams->at("calc"));
+                    self->m_calcName = params->calc;
+                }
+                if (delayParams->find("dura") != delayParams->end()) {
+                    params->dura = std::any_cast<int64_t>(delayParams->at("dura"));
+                }
+                if (delayParams->find("max") != delayParams->end()) {
+                    params->max = std::any_cast<int64_t>(delayParams->at("max"));
+                }
+                if (delayParams->find("min") != delayParams->end()) {
+                    params->min = std::any_cast<int64_t>(delayParams->at("min"));
+                }
+                if (delayParams->find("avg") != delayParams->end()) {
+                    params->avg = std::any_cast<int64_t>(delayParams->at("avg"));
+                }
+                if (delayParams->find("stut") != delayParams->end()) {
+                    params->stut = std::any_cast<double>(delayParams->at("stut"));
+                    self->m_stutterRatio = params->stut;
+                }
+                if (delayParams->find("slop") != delayParams->end()) {
+                    params->slop = std::any_cast<double>(delayParams->at("slop"));
+                }
+                if (delayParams->find("speed") != delayParams->end()) {
+                    params->speed = std::any_cast<double>(delayParams->at("speed"));
+                }
+                if (delayParams->find("edura") != delayParams->end()) {
+                    params->edura = std::any_cast<int64_t>(delayParams->at("edura"));
+                }
+                if (delayParams->find("elimit") != delayParams->end()) {
+                    params->elimit = std::any_cast<int64_t>(delayParams->at("elimit"));
+                }
+                if (delayParams->find("rdura") != delayParams->end()) {
+                    params->rdura = std::any_cast<int64_t>(delayParams->at("rdura"));
+                }
+                if (delayParams->find("rlimit") != delayParams->end()) {
+                    params->rlimit = std::any_cast<int64_t>(delayParams->at("rlimit"));
+                }
+                if (delayParams->find("watch") != delayParams->end()) {
+                    params->watch = std::any_cast<int64_t>(delayParams->at("watch"));
+                }
+                self->addDelayParams(params);
+            }
+            break;
+        }
+        case HJ_PLUGIN_NOTIFY_PLUGIN_SETINFOS:
+        {
+            auto infos = std::make_shared<HJPlayerPluginInfos>();
+            infos->audio_dropping = ntf->getInt64("audio_dropping");
+            infos->video_dropping = ntf->getInt64("video_dropping");
+            infos->audio_decoder = ntf->getInt64("audioDecoder");
+            infos->audio_render = ntf->getInt64("audioRender");
+            infos->video_main_decoder = ntf->getInt64("videoMainDecoder");
+            infos->video_main_render = ntf->getInt64("videoMainRender");
+            infos->video_soft_decoder = ntf->getInt64("videoSoftDecoder");
+            infos->video_soft_render = ntf->getInt64("videoSoftRender");
+            infos->time = HJCurrentSteadyMS();
+            HJFLogi("setInfo audio_dropping:{}, video_dropping:{}, audioRender:{}", infos->audio_dropping, infos->video_dropping, infos->audio_render);
+            self->addPluginInfos(infos);
+            break;
+        }
+        case HJ_PLUGIN_NOTIFY_PLUGIN_SEI_INFOS:
+        {
+            const auto& user_sei_datas = ntf->getValue<std::vector<HJSEIData>>("user_sei_datas");
+            //for (const auto& userData : user_sei_datas) {
+            //    std::string userMsg = std::string(userData.data.begin(), userData.data.end());
+            //    HJFLogi("sei nal uuid:{}, msg:{}", userData.uuid, userMsg);
+            //}
+            std::vector<HJRawBuffer> hjsegs{};
+            std::vector<HJRawBuffer> hjnosegs{};
+            for (const auto& userData : user_sei_datas)
+            {
+                auto isXVib = HJVibeData::verifyXVibHeader(userData.data);
+                auto seq_id = HJVibeData::parseVibeSeqID(userData.data);
+                auto valid = HJUUIDTools::verify_uuid_from_main(userData.uuid, seq_id);
+                if (valid && isXVib) {
+                    hjsegs.push_back(userData.data);
+                }
+                else {
+                    hjnosegs.push_back(userData.data);
+                }
+            }
+            if (hjsegs.size() > 0)
+            {
+                HJDataFuse::Ptr fuse = HJCreates<HJDataFuse>();
+                auto raw = fuse->unpack(hjsegs);
+                std::string outmsg = std::string(raw.begin(), raw.end());
+
+                std::string msg = "TOOL CFG: width:720 height:1280 fps:25:1 timebase:1:25 vfr:0 vui:1:1:0:5:1:1:1:5:format:1 preset:7 tune:meetingCamera level:50 repeat-header:1 ref:3 long-term:0 open-gop:0 keyint:50:5 rc:1 cqp:32 cbr/abr:1548 crf:0:0:0 vbv-max-bitrate:2012:1 vbv-buf-size:2012:4 vbv-buf-init:0.9 max-frame-ratio:100 ip-factor:2 rc-peakratetol:5 qp:40:22:35:22 aq:5:1 wpp:1 pool-threads:2:64 svc:0 fine-tune:-1 roi:1:1 TOOL CFG: qpInitMin:22 qpInitMax:35 MaxRatePeriod:1 MaxBufPeriod:4 HAD:1 FDM:1 RQT:1 TransformSkip:0 SAO:1 TMVPMode:1 SignBitHidingFlag:1 MvStart:4 BiRefNum:0 FastSkipSub:1 EstimateCostSkipSub0:0 EstimateCostSkipSub1:0 EstimateCostSkipSub2:0 SkipCurFromSplit0:1 SkipCurFromSplit1:2 SkipCurFromSplit2:3 SubDiffThresh0:18 SubDiffThresh1:10 SubDiffThresh2:6 FastMergeSkip:1 SkipUV:1 RefineSkipUV:0 MergeSkipTh0:30000 MergeSkipTh1:30000 MergeSkipTh2:40 MergeSkipTh3:40 MergeSkipTh:0 MergeSkipDepth:0 MergeSkipEstopTh0:350 MergeSkipEstopTh1:250 MergeSkipEstopTh2:150 MergeSkipEstopTh3:100 CbfSkipIntra:1 neiIntraSkipIntra:6 SkipFatherIntra:0 SkipIntraFromRDCost:3 StopIntraFromDist0:11 StopIntraFromDist1:12 StopIntraFromDist2:14 StopIntraFromDist3:16 TopdownContentTh0:32 TopdownContentTh1:32 TopdownContentTh2:32 TopdownContentTh3:32 TopdownContentTh4:32 BottomUpContentTh0:0 BottomUpContentTh1:14 BottomUpContentTh2:12 BottomUpContentTh3:0 BottomUpContentTh4:0 BottomUpContentTh5:12 madth4merge:128 DepthSkipCur:0 CheckCurFromSubSkip:0 DepthSkipSub:3 StopCurFromNborCost:5 SkipFatherBySubmode:0 SkipL1ByNei:0 CheckCurFromNei:0 EarlySkipAfterSkipMerge:2 sccIntra8distTh:5000 sccIntraNxNdistTh:120 TuEarlyStopPu:18 FastSkipInterRdo:1 IntraCheckInInterFastSkipNxN0:17 IntraCheckInInterFastSkipNxN1:40 IntraCheckInIntraFastSkipNxN:0 IntraCheckInIntraSkipNxN:0 AmpSkipAmp:1 Skip2NAll:0 Skip2NFromSub0:600 Skip2NFromSub1:600 Skip2NFromSub2:650 Skip2NRatio0:450 Skip2NRatio1:450 Skip2NRatio2:450 SkipSubFromSkip2n:1 AdaptMergeNum:5 TuStopPu:18 qp2qstepbetter:610 qp2qstepfast:600 InterCheckMerge:1 skipIntraFromPreAnalysis0:18 skipIntraFromPreAnalysis1:18 skipIntraFromPreAnalysis2:18 DisNxNLevel:3 SubdiffSkipSub0:260 SubdiffSkipSub1:200 SubdiffSkipSub2:120 SubdiffSkipSub:0 SubdiffSkipSubRatio0:10 SubdiffSkipSubRatio1:10 SubdiffSkipSubRatio2:60 SubdiffSkipSubRatio:0 StopSubMaxCosth0:2048 StopSubMaxCosth1:0 StopSubMaxCosth2:0 StopSubMaxCosth3:0 CostSkipSub0:12 CostSkipSub1:6 CostSkipSub2:3 CostSkipSub:1 DistSkipSub0:12 DistSkipSub1:8 DistSkipSub2:4 DistSkipSub3:1 SkipSubNoCbf:1 SaoLambdaRatio0:7 SaoLambdaRatio1:8 SaoLambdaRatio2:8 SaoLambdaRatio3:9 AdaptiveSaoLambda[0]:60 AdaptiveSaoLambda[1]:90 AdaptiveSaoLambda[2]:120 AdaptiveSaoLambda[3]:150 SecModeInInter0:6 SecModeInInter1:0 SecModeInInter2:0 SecModeInInter3:4 SecModeInInter4:1 SecModeInIntra0:6 SecModeInIntra1:0 SecModeInIntra2:0 SecModeInIntra3:3 SecModeInIntra4:1 ChromaModeOptInInter0:0 ChromaModeOptInInter1:0 ChromaModeOptInInter2:0 IntraCheckInInterFastSkipUseNborCu:1 disframesao:1 skipTuSplit:16 FastQuantInter0:95 FastQuantInter1:95 FastQuantInterChroma:20 MeInterpMethod:0 MultiRef:1 BiMultiRef:0 BiMultiRefThr:0 MultiRefTh:0 MultiRefFast2nx2nTh:0 MvStart:4 StopSubFromNborCost:0 StopSubFromNborCost2:80 StopSubFromNborCount:0 imecorrect:1 fmecorrect:1 qmeguidefast:1 unifmeskip:3 fasthme:1 FasterFME:1 AdaptHmeRatio0:0 AdaptHmeRatio1:0 AdaptHmeRatio2:0 skipqme0:0 skipqme1:0 skipqme2:0 skipqme3:23 fastqmenumbaseframetype0:3 fastqmenumbaseframetype1:2 fastqmenumbaseframetype2:2 FastSubQme:12 adaptiveFmeAlg0:0 adaptiveFmeAlg1:0 adaptiveFmeAlg2:0 adaptiveFmeAlg3:0 GpbSkipL1Me:0 BackLongTermReference:1 InterSatd2Sad:2 qCompress:0.6 qCompressFirst: 0.5 CutreeLambdaPos: 2 CutreeLambdaNeg: 100 CutreeLambdaFactor: 0 AdaptPSNRSSIM:40 LHSatdscale:0 PMESearchRange:1 LookAheadHMVP:0 hmvp-thres0 LookAheadNoEarlySkip:1 LHSatdScaleTh:80 LHSatdScaleTh2:180 FreqDomainCostIntra0:-1 FreqDomainCostIntra1:-1 FreqDomainCostIntra2:-1 deblock(tc:beta):0, 0 RCWaitRatio1: 0.5 RCWaitRatio2: 0.2 RCConsist:0 QPstep:4 RoundKeyint:0 VbvPredictorSimple:0.5 VbvPredictorSimpleMin:0.5 VbvPredictorNormal:1 VbvPredictorNormalMin:1 VbvPredictorComplex:1 VbvPredictorComplexMin:1 DpbErrorResilience: 0 aud:0 lookahead-use-sad:1 intra-sad0:1 intra-sad1:1 intra-sad2:0 intra-sad3:0 intra-sad4:0 skip-sao-freq:0 skip-sao-den:0 skip-sao-dist:0 adaptive-quant:0 wpp2CachedTuCoeffRows:0 disablemergemode:0 merge-mode-depth:0 skipCudepth0:0 faster-code-coeff:0 rqt-split-first0 intra-fine-search-opt:0 sao-use-merge-mode0:0 sao-use-merge-mode1:0 sao-use-merge-mode2:0 enable-sameblock:0 sameblock-dqp:255 scclock-th:0 skip-child-by-sameblock:0 skip-no-zero-mv-by-sameblock:0 sameblock-disable-merge:0 tzsearchscc-adaptive-stepsize:0 skip-intra-fine-search-rd-thr2:0 skip-sub-from-father-skip:0 prune-split-from-rdcost:0 check-cur-from-subcost:0 skip-dct:0 list1-fast-ref-cost-thr:0 list1-fast-ref-cost-thr2:0 char-aq-cost-min:0 char-target-qp:0 content-early-stop-thresh0:0 content-early-stop-thresh1:0 content-early-stop-thresh2:0 content-early-stop-thresh3:0 sub-diff-skip-sub-chroma-weight:-1 skip-inter-by-intra:0 enable-contrast-enhancement:0 lowdelay-skip-ref:0 enable-adaptive-me:0 search-thresh:0 search-offset:0 skip-l1-by-sub:0 skip-dct-inter4x4:0 same-ctu-skip-sao:0 skip-l1-by-skip-dir:0 skip-bi-by-father:0 skip-l1-by-father:0 skip-l1-by-nei:0 enable-hmvp:0 check-cur-from-nei:0 skip-sub-from-skip-2n-cudepth:5 lp-single-ref-list-cudepth:-1 ime-round:16 camera-subjective-opt:1 enable-chroma-weight:0 disable-tu-early-stop-for-subjective:0 enable-subjective-loss:0 enable-contrast-enhancement:0 go-down-qp-for-subjective:51 skip-2n-from-sub-qp-for-subjective:51 skip-2n-from-sub-chroma-weight-for-subjective:0 skip-2n-from-sub-chroma-weight4-for-subjective:0 complex-block-thr-factor1-for-subjective:3 complex-block-thr-factor2-for-subjective:0 opt-try-go-up-for-subjective:0 large-qp-large-size-intra-use-4-angle:0 aq-adjust-for-subjective:0 enable-subjective-char-qp:0 hyperfast-tune-subjective:0 hyperfast-tune-detail:0 scenecut-dqp:0 skip-dct-offset0:0 skip-dct-offset1:0 skip-dct-offset2:0 skip-lowres-inter:0 lp-single-ref-list-cu-depth:-1 lp-single-ref-frame-cu-depth:-1 slice-depth0-fast-ref:0 fast-bi-pattern-search:0 skip-intranxn-in-bslice:0 intra-stride-inter-frame:0 topdown-father-skip:0 skip-father-by-submode:0 skip-coarse-intra-pred-mode-by-cost:0 skip-inter64x64:0 skip-sub-from-skip-2n-cudepth:5 inter-search-lowres-mv:0 skip-dct:0 stop-split-by-neibor-skip:0 intra-non-std-dct:0 pool-mask:0 max-merge:3 tu-inter-depth:1 tu-intra-depth:1 sr:256 me:1 pme:0 max-dqp-depth:1 cb-qp-offset:4 cr-qp-offset:4 lookahead-threads:1 vbv-adapt:0 vbv-control:0 roi2-strength:0 roi2-uv-delta:0 roi2-height-up-scale:0.25 roi2-height-down-scale:0.25 roi2-margin-left-scale:0 roi2-margin-right-scale:0";
+
+                if (msg == outmsg) {
+                    HJFLogi("outmsg:{} check ok", outmsg);
+                }
+            }
+            for (auto& it : hjnosegs) {
+                std::string outmsg = std::string(it.begin(), it.end());
+                HJFLogi("outmsg:{} check ok", outmsg);
+            }
+
+
+            break;
+        }
+        }
+        return HJ_OK;
+        };
+    (*param)["playerListener"] = playerListener;
+
+    registerHandlers(m_vodPlayer->eventBus());
+
     auto audioInfo = std::make_shared<HJAudioInfo>();
     audioInfo->m_samplesRate = 48000;
     audioInfo->setChannels(2);
@@ -1119,21 +1612,37 @@ void HJGraphPlayerView::onCreatePlayer()
 
     HJInstanceSettings settings;
     //settings.pluginInfosEnable = true;
-    m_player->setSettings(settings);
+    m_vodPlayer->setSettings(settings);
 
-    m_player->init(param);
- //   auto coreUrl = HJUtilitys::getCoreUrl(m_mediaUrl);
-	//auto suffix = HJUtilitys::getSuffix(coreUrl);
-    auto localUrl = HJMediaUtils::makeLocalUrl("E:/movies/blob/", m_mediaUrl); //HJFMT("E:/movies/blob/{}{}", HJUtilitys::hash(m_mediaUrl), suffix);
-    HJMediaUrl::Ptr mediaUrl = nullptr;
-    if (HJFileUtil::fileExist(localUrl)) {
-        mediaUrl = std::make_shared<HJMediaUrl>(localUrl);
-    } else {
-        mediaUrl = std::make_shared<HJMediaUrl>(m_mediaUrl);
-        (*mediaUrl)["local_url"] = localUrl;
+    int res = m_vodPlayer->init(param);
+    if (res != HJ_OK) {
+        HJFLoge("vod player init failed, res:{}", res);
+        return;
     }
-    mediaUrl->setDisableMFlag(HJMEDIA_TYPE_VIDEO);
-    m_player->openURL(mediaUrl);
+    //   auto coreUrl = HJUtilitys::getCoreUrl(m_mediaUrl);
+       //auto suffix = HJUtilitys::getSuffix(coreUrl);
+    //auto localUrl = HJMediaUtils::makeLocalUrl("E:/movies/blob/", m_mediaUrl); //HJFMT("E:/movies/blob/{}{}", HJUtilitys::hash(m_mediaUrl), suffix);
+
+    std::string url = m_mediaUrl;
+    std::string localUrl = "";
+    url = "hjds:" + url;
+    localUrl = "E:/movies/localio/medias";
+
+    HJMediaUrl::Ptr mediaUrl = std::make_shared<HJMediaUrl>(m_mediaUrl);
+    mediaUrl->setTimeout(m_timeout);
+    mediaUrl->setLoopCnt(2);
+
+    (*mediaUrl)["url_rid"] = HJMediaUtils::makeUrlRid(m_mediaUrl);
+    if (!localUrl.empty()) {
+        (*mediaUrl)["local_dir"] = localUrl;
+    }
+
+    //mediaUrl->setDisableMFlag(HJMEDIA_TYPE_VIDEO);
+    res = m_vodPlayer->openURL(mediaUrl);
+    if (res != HJ_OK) {
+        HJFLoge("vod player openURL failed, res:{}, url:{}", res, m_mediaUrl);
+        return;
+    }
 
     return;
 }
@@ -1144,7 +1653,10 @@ void HJGraphPlayerView::onClosePlayer()
         m_player->done();
         m_player = nullptr;
     }
-    //m_player = nullptr;
+    if (m_vodPlayer) {
+        m_vodPlayer->done();
+		m_vodPlayer = nullptr;
+    }
 }
 
 void HJGraphPlayerView::onClickPrepare()
@@ -1152,8 +1664,15 @@ void HJGraphPlayerView::onClickPrepare()
     if (m_mediaUrl.empty()) {
         return;
     }
+    const HJGraphType graph_type = resolveGraphTypeForUrl(m_mediaUrl, m_playerTypeHint);
+    HJFLogi("onClickPrepare url:{}, hint:{}, resolved:{}", m_mediaUrl, m_playerTypeHint, graphTypeToString(graph_type));
     onClosePlayer();
-    onCreatePlayer();
+    if (graph_type == HJGraphType_VOD) {
+        onCreateVodPlayer();
+    }
+    else {
+        onCreatePlayer();
+    }
 
     //HJMainExecutor()->async([&]() {
     //    onClickPrepare();
@@ -1287,28 +1806,24 @@ void HJGraphPlayerView::onClickPrepare()
 
 void HJGraphPlayerView::onClickPlay(const std::string& tips)
 {
-    if (!m_player /*|| !m_player->isReady()*/) {
+    if (m_vodPlayer) {
+        if ("play" == tips) {
+            m_vodPlayer->resume();
+        }
+        else {
+            m_vodPlayer->pause();
+        }
         return;
     }
-    //if ("play" == tips) {
-    //    m_player->play();
-    //}
-    //else {
-    //    m_player->pause();
-    //}
-    //HJMainExecutor()->async([&] {
-    //    onClickPrepare();
-    //}, HJUtilitys::random(2000, 5000));
 
     return;
 }
 
 void HJGraphPlayerView::onStart()
 {
-    if (!m_player) {
-        return;
+    if (m_vodPlayer) {
+        m_vodPlayer->resume();
     }
-    //m_player->start();
 
     return;
 }
@@ -1325,11 +1840,11 @@ void HJGraphPlayerView::onSetWindow()
 
 void HJGraphPlayerView::onSeek(const int64_t pos)
 {
-    if (!m_player) {
+    if (!m_vodPlayer) {
         return;
     }
     HJFLogi("entry, pos:{}", pos);
-    //m_player->seek(pos);
+    m_vodPlayer->seek(pos);
 
     return;
 }
@@ -1352,7 +1867,7 @@ void HJGraphPlayerView::onWriteThumb(const HJMediaFrame::Ptr& frame)
     //        HJFLoge("error, create image writer failed:{}", res);
     //        return;
     //    }
-    //    HJFileUtil::delete_file(m_thumbUrl);
+    //    HJFileUtil::removeFile(m_thumbUrl);
     //    if (!HJFileUtil::is_dir(m_thumbUrl)) {
     //        HJFileUtil::makeDir(m_thumbUrl);
     //    }
@@ -1451,7 +1966,12 @@ int HJGraphPlayerView::onPusher2(const HJMediaFrame::Ptr& frame)
         //HJFLogi("source frame:{}", frame->formatInfo());
         if (!m_rtmpMuxer)
         {
-            m_rtmpMuxer = HJCreates<HJRTMPMuxer>([&](const HJNotification::Ptr ntfy) -> int {
+            std::weak_ptr<HJGraphPlayerView> wself = HJSharedFromThis();
+            m_rtmpMuxer = HJCreates<HJRTMPMuxer>([wself](const HJNotification::Ptr ntfy) -> int {
+                auto self = wself.lock();
+                if (!self) {
+                    return HJErrAlreadyDone;
+                }
                 if (!ntfy) {
                     return HJ_OK;
                 }
@@ -1493,24 +2013,43 @@ int HJGraphPlayerView::onPusher2(const HJMediaFrame::Ptr& frame)
 
 void HJGraphPlayerView::onClickMute(const std::string& tips)
 {
-    if (!m_player /*|| !m_player->isReady()*/) {
+    const bool mute = ("speaker" == tips);
+    if (m_vodPlayer) {
+        m_vodPlayer->setMute(mute);
         return;
     }
-    if ("speaker" == tips) {
-        //m_player->setVolume(0.0f);
-    }
-    else {
-        //m_player->setVolume(1.0f);
+    if (m_player) {
+        m_player->setMute(mute);
     }
 }
 
 void HJGraphPlayerView::onClickVolume(const float volume)
 {
-    if (!m_player /*|| !m_player->isReady()*/) {
+    if (m_vodPlayer) {
+        HJFLogi("set vod volume:{}", volume);
+        m_vodPlayer->setVolume(volume);
         return;
     }
-    HJFLogi("set volume:{}", volume);
-    //m_player->setVolume(volume);
+    if (m_player) {
+        HJFLogi("set live volume:{}", volume);
+        m_player->setVolume(volume);
+    }
+}
+
+int HJGraphPlayerView::onSwitchAudioTrack(const int trackID)
+{
+    int res = HJErrNotAlready;
+    if (m_vodPlayer) {
+        res = m_vodPlayer->switchAudioTrack(trackID);
+    }
+    else if (m_player) {
+        res = m_player->switchAudioTrack(trackID);
+    }
+    if (HJ_OK == res) {
+        HJ_AUTO_LOCK(m_mutex);
+        m_selectedAudioTrackID = trackID;
+    }
+    return res;
 }
 
 void HJGraphPlayerView::onTest()

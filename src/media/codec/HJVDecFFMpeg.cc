@@ -86,7 +86,8 @@ int HJVDecFFMpeg::init(const HJStreamInfo::Ptr& info)
         codec = avcodec_find_decoder((AVCodecID)m_codecID);
     }
     if (!codec) {
-        HJFNLoge("can't find property codec error, codec id:{}", codecParam->codec_id);
+        HJFNLoge("can't find property codec error, codec id:{}",
+                 AVCodecIDToString(codecParam->codec_id));
         return HJErrFFCodec;
     }
 
@@ -602,4 +603,3 @@ int HJVDecFFMpegPlus::run(const HJMediaFrame::Ptr frame)
 }
 
 NS_HJ_END
-

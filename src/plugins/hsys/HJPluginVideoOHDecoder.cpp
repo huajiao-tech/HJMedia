@@ -18,55 +18,43 @@ int HJPluginVideoOHDecoder::internalInit(HJKeyStorage::Ptr i_param)
 		(*param)["streamInfo"] = std::static_pointer_cast<HJStreamInfo>(videoInfo);
 	}
 	(*param)["createThread"] = (thread == nullptr);
+    m_bridge = bridge;
     int ret = HJPluginCodec::internalInit(param);
     if (ret < 0) {
         return ret;
     }
 
-	m_bridge = bridge;
 	return HJ_OK;
 }
 
 void HJPluginVideoOHDecoder::internalRelease()
 {
-	HJFLogi("{}, internalRelease() begin", getName());
+    HJPluginCodec::internalRelease();
 
-	HJPluginCodec::internalRelease();
-
-	HJFLogi("{}, internalRelease() end", getName());
+    m_bridge = nullptr;
 }
 
-int HJPluginVideoOHDecoder::deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame, size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames, int64_t* o_audioSamples)
+void HJPluginVideoOHDecoder::onInputAdded(size_t i_srcKeyHash, HJMediaType i_type)
 {
-	size_t size = 0;
-	if (!o_size) {
-		o_size = &size;
-	}
-	auto ret = HJPluginCodec::deliver(i_srcKeyHash, i_mediaFrame, o_size, o_audioDuration, o_videoKeyFrames, o_audioSamples);
-	if (ret == HJ_OK) {
-		setInfoFrameSize(*o_size);
-	}
+	HJPluginCodec::onInputAdded(i_srcKeyHash, i_type);
 
-	return ret;
+	auto input = m_inputs[i_srcKeyHash];
+	input->eventFlags = EVENT_FLAG_VIDEO_FRAMES;
 }
 
 int HJPluginVideoOHDecoder::runTask(int64_t* o_delay)
 {
-    addInIdx();
-	int64_t enter = HJCurrentSteadyMS();
-    bool log = false;
-    if (m_lastEnterTimestamp < 0 || enter >= m_lastEnterTimestamp + LOG_INTERNAL) {
-        m_lastEnterTimestamp = enter;
-        log = true;
-    }
+//    addInIdx();
+    auto log = logRunTask();
     if (log) {
         RUNTASKLog("{}, enter", getName());
     }
     
     std::string route{};
-	size_t size = -1;
-	int ret = HJ_WOULD_BLOCK;
+    int64_t size{ -1 };
+    int ret{ HJ_OK };
 	do {
+#if 0
         HJMediaFrame::Ptr inFrame;
         auto err = SYNC_CONS_LOCK([&route, &inFrame, this] {
             if (m_status == HJSTATUS_Done) {
@@ -93,7 +81,7 @@ int HJPluginVideoOHDecoder::runTask(int64_t* o_delay)
             inFrame = receive(m_inputKeyHash.load(), &size);
             if (inFrame) {
                 route += "_3";
-                setInfoFrameSize(size);
+//                setInfoFrameSize(size);
                 
                 if (inFrame->isFlushFrame()) {
                     route += "_4";
@@ -141,10 +129,11 @@ int HJPluginVideoOHDecoder::runTask(int64_t* o_delay)
                             ret = HJErrAlreadyDone;
                         }
                         else if (err == HJErrFatal) {
-                            if (m_pluginListener) {
-                                route += "_11";
-                                m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_INIT)));
-                            }
+                            //if (m_pluginListener) {
+                            //    route += "_11";
+                            //    m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_INIT)));
+                            //}
+                            report(EVENT_PLUGIN_NOTIFY_ID, HJ_PLUGIN_NOTIFY_ERROR_CODEC_INIT, getID());
                         }
                         break;
                     }
@@ -197,10 +186,11 @@ int HJPluginVideoOHDecoder::runTask(int64_t* o_delay)
                 }
                 else if (err == HJErrFatal) {
                     IF_FALSE_BREAK(setStatus(HJSTATUS_Inited), HJErrAlreadyDone);
-                    if (m_pluginListener) {
-                        route += "_19";
-                        m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_RUN)));
-                    }
+                    //if (m_pluginListener) {
+                    //    route += "_19";
+                    //    m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_RUN)));
+                    //}
+                    report(EVENT_PLUGIN_NOTIFY_ID, HJ_PLUGIN_NOTIFY_ERROR_CODEC_RUN, getID());
                 }
                 break;
             }
@@ -215,7 +205,7 @@ int HJPluginVideoOHDecoder::runTask(int64_t* o_delay)
         for (;;) {
             route += "_21";
             HJMediaFrame::Ptr outFrame{};
-            err = SYNC_CONS_LOCK([&route, &outFrame, inFrame, this] {
+            err = SYNC_CONS_LOCK([&route, &outFrame, this] {
                 if (m_status == HJSTATUS_Done) {
                     route += "_21";
                     return HJErrAlreadyDone;
@@ -245,10 +235,11 @@ int HJPluginVideoOHDecoder::runTask(int64_t* o_delay)
                 else if (err == HJErrFatal) {
                     route += "_26";
                     IF_FALSE_BREAK(setStatus(HJSTATUS_Inited), HJErrAlreadyDone);
-                    if (m_pluginListener) {
-                        route += "_27";
-                        m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME)));
-                    }
+                    //if (m_pluginListener) {
+                    //    route += "_27";
+                    //    m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME)));
+                    //}
+                    report(EVENT_PLUGIN_NOTIFY_ID, HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME, getID());
                 }
                 break;
             }
@@ -270,11 +261,126 @@ int HJPluginVideoOHDecoder::runTask(int64_t* o_delay)
                 break;
             }
         }
+#else
+        auto inputKeyHash = m_inputKeyHash.load();
+        auto [err, inFrame] = receiveInputFrame(route, inputKeyHash, size);
+        if (err != HJ_OK) {
+            route += "_0";
+            ret = err;
+            break;
+        }
+
+        if (inFrame == nullptr) {
+            route += "_1";
+            ret = HJ_WOULD_BLOCK;
+        }
+        else {
+            route += "_2";
+            ret = HJ_OK;
+
+            if (inFrame->isClearFrame()) {
+                route += "_3";
+                m_firstFrameCount = 0;
+
+                err = runFlush();
+                if (err < 0) {
+                    route += "_4";
+                    ret = err;
+                }
+                break;
+            }
+
+            if (inFrame->isFlushFrame()) {
+                route += "_5";
+                err = processFlushFrame(route, inFrame);
+                if (err != HJ_OK) {
+                    route += "_6";
+                    ret = err;
+                    break;
+                }
+                inFrame->reomveFlush();
+            }
+
+            if (inFrame->isEofFrame()) {
+                route += "_7";
+                ret = processEofFrame(route, inFrame);
+                if (ret != HJ_OK) {
+                    route += "_8";
+                    break;
+                }
+            }
+
+            err = processMediaFrame(route, inFrame);
+            if (err == HJErrInvalidData) {
+                route += "_9";
+                ret = HJ_WOULD_BLOCK;
+            }
+            else if (err < 0) {
+                route += "_A";
+                ret = err;
+                break;
+            }
+            else if (err == HJ_WOULD_BLOCK) {
+                route += "_B";
+                store(inputKeyHash, inFrame);
+                ret = HJ_WOULD_BLOCK;
+            }
+            else if (err == HJ_OK) {
+                route += "_C";
+                if (m_firstFrameCount > 0) {
+                    route += "_D";
+                    store(inputKeyHash, inFrame);
+                    m_firstFrameCount--;
+                }
+            }
+            else {
+                route += "_E";
+                ret = HJ_WOULD_BLOCK;
+            }
+        }
+#if 0
+        err = canDeliverToOutputs();
+        if (err != HJ_OK) {
+            route += "_D";
+            break;
+        }
+#else
+        auto res = query(QUERY_CAN_DELIVER_TO_OUTPUTS_ID, getID(), nullptr);
+        if (!res.isOk()) {
+            route += "_F";
+            break;
+        }
+#endif
+        for (;;) {
+            route += "_G";
+            auto [err, outFrame] = getOutputFrame(route);
+            if (err < 0) {
+                route += "_H";
+                ret = err;
+                break;
+            }
+            if (outFrame == nullptr) {
+                route += "_I";
+                break;
+            }
+
+            deliverToOutputs(outFrame);
+            m_firstFrameCount = 0;
+
+            if (outFrame->isEofFrame()) {
+                route += "_J";
+                HJFLogi("{}, (outFrame->isEofFrame())", getName());
+                IF_FALSE_BREAK(setStatus(HJSTATUS_EOF), HJErrAlreadyDone);
+                break;
+            }
+        }
+#endif
+        route += "_K";
 	} while (false);
 
-    addOutIdx();
+//    addOutIdx();
     if (log) {
-    	RUNTASKLog("{}, leave, route({}), size({}), task duration({}), ret({})", getName(), route, size, (HJCurrentSteadyMS() - enter), ret);
+    	RUNTASKLog("{}, leave, route({}), size({}), task duration({}), ret({})", getName(), route, size, (HJCurrentSteadyMS() - m_enterTimestamp), ret);
     }
 	return ret;
 }
@@ -291,34 +397,28 @@ HJBaseCodec::Ptr HJPluginVideoOHDecoder::createCodec()
 
 int HJPluginVideoOHDecoder::initCodec(const HJStreamInfo::Ptr& i_streamInfo)
 {
+    if (!i_streamInfo) {
+        return HJErrInvalidParams;
+    }
+
+    auto streamInfo = i_streamInfo->dup();
+    (*streamInfo)["HJOGRenderWindowBridge::Ptr"] = m_bridge;
     Wtr wDecoder = SHARED_FROM_THIS;
-   	(*i_streamInfo)["onNeedInputBuffer"] = (HJRunnable)[wDecoder] {
+   	(*streamInfo)["onNeedInputBuffer"] = (HJRunnable)[wDecoder] {
         auto decoder = wDecoder.lock();
         if (decoder) {
 		    decoder->postTask();
         }
 	};
-    (*i_streamInfo)["onNewOutputBuffer"] = (HJRunnable)[wDecoder] {
+    (*streamInfo)["onNewOutputBuffer"] = (HJRunnable)[wDecoder] {
         auto decoder = wDecoder.lock();
         if (decoder) {
-            decoder->m_firstFrame.store(0);
 		    decoder->postTask();
         }
 	};
-    
-    return HJPluginCodec::initCodec(i_streamInfo);
+    return HJPluginCodec::initCodec(streamInfo);
 }
-
-void HJPluginVideoOHDecoder::setInfoFrameSize(size_t i_size)
-{
-	auto graph = m_graph.lock();
-	if (graph) {
-		HJGraph::Information info = HJMakeNotification(HJ_PLUGIN_SETINFO_VIDEODECODER_frameSize, i_size);
-		info->setName(HJSyncObject::getName());
-		graph->setInfo(std::move(info));
-	}
-}
-
+/*
 int HJPluginVideoOHDecoder::canDeliverToOutputs()
 {
     auto graph = m_graph.lock();
@@ -330,5 +430,5 @@ int HJPluginVideoOHDecoder::canDeliverToOutputs()
     auto param = HJMakeNotification(HJ_PLUGIN_GETINFO_VIDEODECODER_canDeliverToOutputs);
     return graph->getInfo(param);
 }
-
+*/
 NS_HJ_END

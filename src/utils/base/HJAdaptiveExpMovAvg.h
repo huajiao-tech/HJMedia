@@ -68,7 +68,11 @@ public:
 
       // 2. 根据距离自适应计算alpha值
       // 使用min函数确保比例不超过1.0，从而将alpha限制在[min_alpha, max_alpha]区间内
+#if defined(WIN32_LIB)
+      float ratio = (std::min)(distance / movement_threshold_, 1.0f);
+#else
       float ratio = std::min(distance / movement_threshold_, 1.0f);
+#endif
       float alpha = min_alpha_ + ratio * (max_alpha_ - min_alpha_);
 
       // 3. 应用指数移动平均公式

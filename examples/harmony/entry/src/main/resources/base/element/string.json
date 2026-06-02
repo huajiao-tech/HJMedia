@@ -29,6 +29,18 @@
       "value": "player"
     },
     {
+      "name": "playerDemo",
+      "value": "HJPlayer"
+    },
+    {
+      "name": "pusherDemo",
+      "value": "HJPusher"
+    },
+    {
+      "name": "sr",
+      "value": "sr"
+    },
+    {
       "name": "yuv_draw",
       "value": "YUV rendering"
     },
@@ -54,7 +66,7 @@
     },
     {
       "name": "tryRecordOpen",
-      "value": "rco"
+      "value": "rc"
     },
     {
       "name": "tryRecordClose",
@@ -123,6 +135,10 @@
     {
       "name": "tryPlayerClose",
       "value": "close"
+    },
+    {
+      "name": "tryPlayerRandom",
+      "value": "random"
     }
   ]
 }

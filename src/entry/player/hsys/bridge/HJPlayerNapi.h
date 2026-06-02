@@ -17,13 +17,19 @@ public:
     static napi_value exitPlayer(napi_env env, napi_callback_info info);
     static napi_value setMute(napi_env env, napi_callback_info info);
     static napi_value preloadUrl(napi_env env, napi_callback_info info);
-    
-    static napi_value setFaceInfo(napi_env env, napi_callback_info info);
-    static napi_value nativeSourceOpen(napi_env env, napi_callback_info info);
-    static napi_value nativeSourceClose(napi_env env, napi_callback_info info);
-    static napi_value nativeSourceAcquire(napi_env env, napi_callback_info info);
-    static napi_value openFaceu(napi_env env, napi_callback_info info);
-    static napi_value closeFaceu(napi_env env, napi_callback_info info);
+    static napi_value download(napi_env env, napi_callback_info info);
+    static napi_value cancelDownload(napi_env env, napi_callback_info info);
+    static napi_value setPause(napi_env env, napi_callback_info info);
+    static napi_value getDuration(napi_env env, napi_callback_info info);
+    static napi_value getCurrentTimestamp(napi_env env, napi_callback_info info);
+    static napi_value setEnableSEIUUids(napi_env env, napi_callback_info info);
+
+    // static napi_value setFaceInfo(napi_env env, napi_callback_info info);
+    // static napi_value nativeSourceOpen(napi_env env, napi_callback_info info);
+    // static napi_value nativeSourceClose(napi_env env, napi_callback_info info);
+    // static napi_value nativeSourceAcquire(napi_env env, napi_callback_info info);
+    // static napi_value openFaceu(napi_env env, napi_callback_info info);
+    // static napi_value closeFaceu(napi_env env, napi_callback_info info);
 };
 
 NS_HJ_END

@@ -1,0 +1,1 @@
+mindspore-lite-2.9.0-ohos-aarch64

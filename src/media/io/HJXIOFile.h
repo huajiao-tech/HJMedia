@@ -15,10 +15,11 @@ using HJFStream = std::fstream;
 
 typedef enum HJXFMode
 {
-	HJXF_MODE_CREATE = std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc, // | std::ios::_Noreplace,
+	HJXF_MODE_CREATE = std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc,
 	HJXF_MODE_RONLY = std::ios::binary | std::ios::in,
-	HJXF_MODE_WONLY = std::ios::binary | std::ios::out,						// | std::ios::trunc, // | std::ios::_Noreplace,
-	HJXF_MODE_RW = std::ios::binary | std::ios::in | std::ios::out			// | std::ios::app,
+	HJXF_MODE_WONLY = std::ios::binary | std::ios::out | std::ios::trunc,
+	HJXF_MODE_RW = std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc,
+	HJXF_MODE_RWONLY = std::ios::binary | std::ios::in | std::ios::out,
 } HJXFMode;
 
 class HJXIOFile : public HJXIOBase
@@ -42,8 +43,14 @@ public:
 	static const std::map<int, int> XIO_FILE_MODE_MAPS;
 	static int xioToFMode(int mode);
 private:
-	std::unique_ptr<HJFStream> m_file = nullptr;
-	size_t						m_size = 0;
+    enum class LastIOType {
+        NONE,
+        READ,
+        WRITE
+    };
+
+    std::unique_ptr<HJFStream> m_file = nullptr;
+    LastIOType                 m_last_io_type = LastIOType::NONE;
 };
 
 NS_HJ_END

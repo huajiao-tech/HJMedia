@@ -39,7 +39,9 @@ int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
             return HJErrInvalidUrl;
         }
         HJUrl::Ptr murl = std::make_shared<HJUrl>(url, HJ_XIO_READ);
-        (*murl)["multiple_requests"] = (int)1;
+        //(*murl)["http_persistent"] = (int)1;
+        (*murl)["timeout"] = mediaUrl->getTimeout();
+
         m_xio = std::make_shared<HJXIOContext>();
         res = m_xio->open(murl);
         if (HJ_OK != res) {
@@ -75,7 +77,9 @@ int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
                     //
                     // writeHLSMediaUrls(m_hlsMediaUrls.size(), urlBuffer);
                     //
-                    m_hlsMediaUrls.emplace_back(std::move(hlsMediaUrl));
+                    if (hlsMediaUrl) {
+                        m_hlsMediaUrls.emplace_back(std::move(hlsMediaUrl));
+                    }
                     segCnt = 0;
                 } else {
                     HJLogw("warning, invalid discontinuity");
@@ -106,7 +110,9 @@ int HJHLSParser::init(const HJMediaUrl::Ptr& mediaUrl)
                 //
                 // writeHLSMediaUrls(m_hlsMediaUrls.size(), urlBuffer);
                 //
-                m_hlsMediaUrls.emplace_back(std::move(hlsMediaUrl));
+                if (hlsMediaUrl) {
+                    m_hlsMediaUrls.emplace_back(std::move(hlsMediaUrl));
+                }
                 segCnt = 0;
             }
             else if (av_strstart(line, "#EXT-X-PLAYLIST-TYPE:", &ptr)) {

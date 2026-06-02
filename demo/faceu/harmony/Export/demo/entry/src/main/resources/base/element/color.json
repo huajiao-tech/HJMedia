@@ -1,0 +1,32 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "font_color",
+      "value": "#99182431"
+    },
+    {
+      "name": "selected_font_color",
+      "value": "#007DFF"
+    },
+    {
+      "name": "tab_bar_title_border_color",
+      "value": "#007DFF"
+    },
+    {
+      "name": "status_font_color",
+      "value": "#182431"
+    },
+    {
+      "name": "button_clickable",
+      "value": "#007DFF"
+    },
+    {
+      "name": "button_unclickable",
+      "value": "#90c3f9"
+    }
+  ]
+}

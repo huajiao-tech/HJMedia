@@ -2,7 +2,7 @@
 #include "HJGraph.h"
 #include "HJFLog.h"
 
-HJEnumToStringFuncImplBegin(HJPluginNofityType)
+HJEnumToStringFuncImplBegin(HJPluginNotifyType)
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_NONE),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_EOF),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_MUXER_INIT),
@@ -10,11 +10,13 @@ HJEnumToStringFuncImplBegin(HJPluginNofityType)
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_CODEC_INIT),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_CODEC_RUN),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME),
+	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_AUDIOCONVERTER_CONVERT),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_AUDIOFIFO_ADDFRAME),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_CAPTURER_GETFRAME),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_DEMUXER_INIT),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_ERROR_DEMUXER_GETFRAME),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_DEMUXER_EOF),
+	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_DEMUXER_DURATION),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_VIDEORENDER_FRAME),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_VIDEORENDER_FIRST_FRAME),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_VIDEORENDER_EOF),
@@ -29,122 +31,128 @@ HJEnumToStringFuncImplBegin(HJPluginNofityType)
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_AUDIOCACHE_DURATION),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_AUTODELAY_PARAMS),
 	HJEnumToStringItem(HJ_PLUGIN_NOTIFY_PLUGIN_SETINFOS),
-HJEnumToStringFuncImplEnd(HJPluginNofityType);
+HJEnumToStringFuncImplEnd(HJPluginNotifyType);
 
 NS_HJ_BEGIN
 
-HJPlugin::HJPlugin(const std::string& i_name, HJKeyStorage::Ptr i_graphInfo)
-	: HJSyncObject(i_name, -1)
+static size_t getKeyHash(const std::string& i_name, HJMediaType i_type, int i_trackId)
+{
+	size_t h1 = std::hash<std::string>{}(i_name);
+	size_t h2 = std::hash<int>{}(static_cast<int>(i_type));
+	size_t h3 = std::hash<int>{}(i_trackId);
+	// Improved combine to reduce trivial shifts/collisions (Boost-style hash_combine).
+	size_t seed = h1;
+	seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	return seed;
+}
+
+static uint64_t getHash64(const char* str) {
+	uint64_t hash = 14695981039346656037ULL; // FNV offset basis for 64-bit
+	while (*str) {
+		hash ^= static_cast<uint8_t>(*str++);
+		hash *= 1099511628211ULL; // FNV prime for 64-bit
+	}
+	return hash;
+}
+
+HJPlugin::HJPlugin(const std::string& i_name, size_t i_identify, HJKeyStorage::Ptr i_graphInfo)
+	: HJSyncObject(i_name, i_identify)
 {
 	m_insName = m_name;
 	if (i_graphInfo) {
 		const std::any* anyObj = i_graphInfo->getStorage("insIdx");
 		if (anyObj) {
-			m_insIdx = std::any_cast<int>(*anyObj);
-			m_insName += HJFMT("_{}", m_insIdx);
+			auto insIdx = std::any_cast<int>(*anyObj);
+			m_insName += HJFMT("_{}", insIdx);
 		}
 
 		auto graph = i_graphInfo->getValue<HJGraph::Ptr>("graph");
 		if (graph) {
-			m_graph = graph;
+//			m_graph = graph;
+			m_graphQueryBus = graph->queryBus();
+			m_graphEventBus = graph->eventBus();
 		}
+	}
+
+	if (m_id == 0) {
+		m_id = getHash64(m_name.c_str());
 	}
 }
 
 HJPlugin::~HJPlugin()
 {
-	HJPlugin::done();
+	done();
+	clearInputsAndOutputs();
+//	m_graph.reset();
+	m_graphQueryBus.reset();
+	m_graphEventBus.reset();
 }
 
 const std::string& HJPlugin::getName() const {
 	return m_insName;
 }
 
+int HJPlugin::init(HJKeyStorage::Ptr i_param)
+{
+	auto ret = HJSyncObject::init(i_param);
+	if (ret == HJ_OK) {
+		report(EVENT_STATUS_UPDATED_ID, getID());
+	}
+
+	return ret;
+}
+
 int HJPlugin::done()
 {
-	m_quitting.store(true);
-	return HJSyncObject::done();
+	auto ret = HJSyncObject::done();
+	if (ret == HJ_OK) {
+		report(EVENT_STATUS_UPDATED_ID, getID());
+	}
+
+	return ret;
 }
 
 int HJPlugin::internalInit(HJKeyStorage::Ptr i_param)
 {
 	int ret = HJSyncObject::internalInit(i_param);
-	if (ret < 0) {
+	if (ret != HJ_OK) {
 		return ret;
 	}
 
-	do {
-		if (i_param) {
-			GET_PARAMETER(HJLooperThread::Ptr, thread);
-			GET_PARAMETER(bool, createThread);
-			GET_PARAMETER(HJListener, pluginListener);
-
-			if (thread != nullptr) {
+	if (i_param) {
+		GET_PARAMETER(HJLooperThread::Ptr, thread);
+		GET_PARAMETER(bool, createThread);
+//		GET_PARAMETER(HJListener, pluginListener);
+		if (thread == nullptr && createThread) {
+			m_thread = HJLooperThread::quickStart(getName());
+			if (m_thread == nullptr) {
+				return HJErrFatal;
+			}
+			thread = m_thread;
+		}
+		if (thread != nullptr) {
+			auto ok = m_handlerSync.prodLock([this, thread] {
 				m_handler = thread->createHandler();
 				if (m_handler == nullptr) {
-					ret = HJErrFatal;
-					break;
+					return false;
 				}
+				m_runTaskId = m_handler->genMsgId();
+				return true;
+			});
+			if (!ok) {
+				return HJErrFatal;
 			}
-			else if (createThread) {
-				m_thread = HJLooperThread::quickStart(getName());
-				if (m_thread == nullptr) {
-					ret = HJErrFatal;
-					break;
-				}
-
-				m_handler = m_thread->createHandler();
-				if (m_handler == nullptr) {
-					ret = HJErrFatal;
-					break;
-				}
-			}
-
-			if (m_handler) {
-                m_runTaskId = m_handler->genMsgId();
-            }
-			m_pluginListener = pluginListener;
 		}
+//		m_pluginListener = pluginListener;
+	}
 
-		return HJ_OK;
-	} while (false);
-
-	HJPlugin::internalRelease();
-	return ret;
+	return HJ_OK;
 }
 
 void HJPlugin::internalRelease()
 {
-	{
-		InputMap inputs;
-		m_inputSync.prodLock([&inputs, this] {
-			inputs = m_inputs;
-			m_inputs.clear();
-		});
-		for (auto it : inputs) {
-			auto input = it.second;
-			input->mediaFrames.done();
-			auto plugin = (input->plugin).lock();
-			if (plugin != nullptr) {
-				plugin->onOutputDisconnected(input->myKeyHash);
-			}
-		}
-	}
-
-	{
-		OutputMap outputs;
-		m_outputSync.prodLock([&outputs, this] {
-			outputs = m_outputs;
-			m_outputs.clear();
-		});
-		for (auto it : outputs) {
-			auto output = it.second;
-			auto plugin = (output->plugin).lock();
-			if (plugin != nullptr) {
-				plugin->onInputDisconnected(output->myKeyHash);
-			}
-		}
-	}
+	HJFLogi("{}, internalRelease() begin", getName());
 
 	if (m_thread) {
 		m_thread->done();
@@ -153,21 +161,22 @@ void HJPlugin::internalRelease()
 	m_handlerSync.prodLock([this] {
 		m_handler = nullptr;
 	});
-//	m_runTaskId = -1;
-
-//	m_pluginListener = nullptr;		// 外部应该设置​Lambda表达式和弱指针参数，此处不需要置空，调用应该在锁外
-//	m_graph.reset();				// 不需要reset()，调用应该在锁外
-
+	//	m_pluginListener = nullptr;		// External side should keep lambda/weak args; no need to clear here.
 	HJSyncObject::internalRelease();
 
-	setInfoStatus(m_status);
+	HJFLogi("{}, internalRelease() end", getName());
+}
+
+int HJPlugin::beforeDone()
+{
+	m_quitting.store(true);
+	return HJSyncObject::beforeDone();
 }
 
 void HJPlugin::afterInit()
 {
-	setInfoStatus(m_status);
-
 	postTask();
+	HJSyncObject::afterInit();
 }
 
 int HJPlugin::addInputPlugin(Ptr i_plugin, HJMediaType i_type, int i_trackId)
@@ -176,7 +185,7 @@ int HJPlugin::addInputPlugin(Ptr i_plugin, HJMediaType i_type, int i_trackId)
 		return HJErrInvalidParams;
 	}
 
-	return m_inputSync.prodLock([=] {
+	return m_inputSync.prodLock([this, i_plugin, i_type, i_trackId] {
 		if (m_quitting.load()) {
 			return HJErrAlreadyDone;
 		}
@@ -205,7 +214,7 @@ int HJPlugin::addOutputPlugin(Ptr i_plugin, HJMediaType i_type, int i_trackId)
 		return HJErrInvalidParams;
 	}
 
-	return m_outputSync.prodLock([=] {
+	return m_outputSync.prodLock([this, i_plugin, i_type, i_trackId] {
 		if (m_quitting.load()) {
 			return HJErrAlreadyDone;
 		}
@@ -230,36 +239,56 @@ int HJPlugin::addOutputPlugin(Ptr i_plugin, HJMediaType i_type, int i_trackId)
 
 void HJPlugin::onInputDisconnected(size_t i_srcKeyHash)
 {
-	m_inputSync.prodLock([=] {
+	m_inputSync.prodLock([this, i_srcKeyHash] {
 		m_inputs.erase(i_srcKeyHash);
 	});
 }
 
 void HJPlugin::onOutputDisconnected(size_t i_dstKeyHash)
 {
-	m_outputSync.prodLock([=] {
+	m_outputSync.prodLock([this, i_dstKeyHash] {
 		m_outputs.erase(i_dstKeyHash);
 	});
 }
 
-int HJPlugin::deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame, size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames, int64_t* o_audioSamples)
+int HJPlugin::deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame)
 {
 	auto input = getInput(i_srcKeyHash);
 	if (input == nullptr) {
 		return HJErrNotFind;
 	}
 
-	if (!input->mediaFrames.deliver(i_mediaFrame, o_size, o_audioDuration, o_videoKeyFrames, o_audioSamples)) {
+	HJMediaFrameDeque::FrameDequeInfo info;
+	if (!input->mediaFrames.deliver(i_mediaFrame, &info)) {
 		return HJErrFatal;
 	}
 
+	int16_t mask = 0;// = EVENT_FLAG_DEQUE_SIZE;
+	if (i_mediaFrame->isAudio()) {
+		mask |= EVENT_FLAG_MASK_AUDIO;
+	}
+	else if (i_mediaFrame->isVideo()) {
+		mask |= EVENT_FLAG_MASK_VIDEO;
+	}
+	reportFrameDequeInfo(input->eventFlags & mask, info, false);
 	onInputUpdated();
 	return HJ_OK;
 }
 
-void HJPlugin::onInputUpdated()
+int HJPlugin::flush(size_t i_srcKeyHash)
 {
-	postTask();
+	HJFLogi("{}, flush()", getName());
+	auto input = getInput(i_srcKeyHash);
+	if (input == nullptr) {
+		return HJErrNotFind;
+	}
+
+	input->mediaFrames.flush(true);
+	HJMediaFrameDeque::FrameDequeInfo info;
+	reportFrameDequeInfo(input->eventFlags, info);
+	onInputUpdated();
+
+	return HJ_OK;
 }
 
 void HJPlugin::onOutputUpdated()
@@ -267,31 +296,44 @@ void HJPlugin::onOutputUpdated()
 	postTask();
 }
 
-bool HJPlugin::setStatus(HJStatus i_status, bool i_underLock)
+void HJPlugin::setPause(bool i_pause)
 {
-	if (i_underLock) {
-		if (!SYNC_PROD_LOCK([i_status, this] {
-			CHECK_DONE_STATUS(false);
-			m_status = i_status;
-			return true;
-		})) {
-			return false;
+	bool changed = false;
+	SYNC_PROD_LOCK([this, i_pause, &changed] {
+		CHECK_DONE_STATUS();
+		if (m_paused != i_pause) {
+			m_paused = i_pause;
+			changed = true;
 		}
+	});
+	if (changed) {
+		onPauseStateChanged(i_pause);
 	}
-	else {
-		if (m_status == HJSTATUS_Done) {
-			return false;
-		}
+}
+
+void HJPlugin::onInputUpdated()
+{
+	postTask();
+}
+
+bool HJPlugin::setStatus(HJStatus i_status)
+{
+	if (!SYNC_PROD_LOCK([this, i_status] {
+		CHECK_DONE_STATUS(false);
 		m_status = i_status;
+		return true;
+	})) {
+		return false;
 	}
 
-	setInfoStatus(i_status);
+	report(EVENT_STATUS_UPDATED_ID, getID());
+//	setInfoStatus(i_status);
 	return true;
 }
 
 HJPlugin::Input::Ptr HJPlugin::getInput(size_t i_srcKeyHash)
 {
-	return m_inputSync.consLock([=] {
+	return m_inputSync.consLock([this, i_srcKeyHash] {
 		if (m_quitting.load()) {
 			return static_cast<Input::Ptr>(nullptr);
 		}
@@ -306,7 +348,7 @@ HJPlugin::Input::Ptr HJPlugin::getInput(size_t i_srcKeyHash)
 
 HJPlugin::Output::Ptr HJPlugin::getOutput(size_t i_dstKeyHash)
 {
-	return m_outputSync.consLock([=] {
+	return m_outputSync.consLock([this, i_dstKeyHash] {
 		if (m_quitting.load()) {
 			return static_cast<Output::Ptr>(nullptr);
 		}
@@ -321,9 +363,8 @@ HJPlugin::Output::Ptr HJPlugin::getOutput(size_t i_dstKeyHash)
 
 void HJPlugin::postTask(int64_t i_delay)
 {
-	HJLooperThread::Handler::Ptr handler{};
-	m_handlerSync.consLock([&handler, this] {
-		handler = m_handler;
+	auto [handler, runTaskId] = m_handlerSync.consLock([this] {
+		return std::make_tuple(m_handler, m_runTaskId);
 	});
 
 	if (handler != nullptr) {
@@ -336,55 +377,75 @@ void HJPlugin::postTask(int64_t i_delay)
 					plugin->postTask(delay);
 				}
 			}
-		}, m_runTaskId, i_delay);
+		}, runTaskId, i_delay);
 	}
 }
 
-HJMediaFrame::Ptr HJPlugin::receive(size_t i_srcKeyHash, size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames, int64_t* o_audioSamples)
+int HJPlugin::runFlush()
+{
+	OutputMap outputs;
+	m_outputSync.consLock([&outputs, this] {
+		outputs = m_outputs;
+	});
+
+	for (auto it = outputs.begin(); it != outputs.end(); ++it) {
+		auto output = it->second;
+		auto plugin = output->plugin.lock();
+		if (plugin != nullptr) {
+			plugin->flush(output->myKeyHash);
+		}
+	}
+	return HJ_OK;
+}
+
+HJMediaFrame::Ptr HJPlugin::receive(size_t i_srcKeyHash, int64_t* o_size)
 {
 	auto input = getInput(i_srcKeyHash);
 	if (input == nullptr) {
 		return nullptr;
 	}
 
-	auto mediaFrame = input->mediaFrames.receive(o_size, o_audioDuration, o_videoKeyFrames, o_audioSamples);
-	auto plugin = input->plugin.lock();
-
-	if (mediaFrame && plugin) {
-		plugin->onOutputUpdated();
+	HJMediaFrameDeque::FrameDequeInfo info;
+	auto mediaFrame = input->mediaFrames.receive(&info);
+	if (mediaFrame) {
+		int16_t mask = 0;// SET_INFO_FLAG_DEQUE_SIZE;
+		if (mediaFrame->isAudio()) {
+			mask |= EVENT_FLAG_MASK_AUDIO;
+		}
+		else if (mediaFrame->isVideo()) {
+			mask |= EVENT_FLAG_MASK_VIDEO;
+		}
+		reportFrameDequeInfo(input->eventFlags & mask, info);
+		auto plugin = input->plugin.lock();
+		if (plugin) {
+			plugin->onOutputUpdated();
+		}
+		if (o_size) {
+            *o_size = info.dequeSize;
+		}
 	}
 
 	return mediaFrame;
 }
 
-HJMediaFrame::Ptr HJPlugin::preview(size_t i_srcKeyHash, size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames)
+HJMediaFrame::Ptr HJPlugin::preview(size_t i_srcKeyHash)
 {
 	auto input = getInput(i_srcKeyHash);
 	if (input == nullptr) {
 		return nullptr;
 	}
 
-	return input->mediaFrames.preview(o_size, o_audioDuration, o_videoKeyFrames);
+	return input->mediaFrames.preview();
 }
 
-int64_t HJPlugin::audioSamplesOfInput(size_t i_srcKeyHash)
-{
-    auto input = getInput(i_srcKeyHash);
-	if (input == nullptr) {
-		return 0;
-	}
-    
-    return input->mediaFrames.audioSamples();
-}
-
-int64_t HJPlugin::audioDurationOfInput(size_t i_srcKeyHash)
+bool HJPlugin::store(size_t i_srcKeyHash, HJMediaFrame::Ptr i_mediaFrame)
 {
 	auto input = getInput(i_srcKeyHash);
 	if (input == nullptr) {
-		return 0;
+		return false;
 	}
 
-	return input->mediaFrames.audioDuration();
+	return input->mediaFrames.store(i_mediaFrame);
 }
 
 void HJPlugin::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
@@ -405,6 +466,17 @@ void HJPlugin::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 	}
 }
 
+bool HJPlugin::logRunTask()
+{
+	m_enterTimestamp = HJCurrentSteadyMS();
+	if (m_lastLogTimestamp < 0 || m_enterTimestamp >= m_lastLogTimestamp + LOG_INTERNAL) {
+		m_lastLogTimestamp = m_enterTimestamp;
+		return true;
+	}
+
+	return false;
+}
+/*
 void HJPlugin::setInfoStatus(HJStatus i_status) {
 	auto graph = m_graph.lock();
 	if (graph) {
@@ -413,30 +485,115 @@ void HJPlugin::setInfoStatus(HJStatus i_status) {
 		graph->setInfo(std::move(info));
 	}
 }
-
-size_t HJPlugin::getKeyHash(const std::string& i_name, HJMediaType i_type, int i_trackId)
+*/
+void HJPlugin::reportFrameDequeInfo(const uint16_t i_flags, const HJMediaFrameDeque::FrameDequeInfo& i_info, bool reduce)
 {
-#if 0
-	// 联合哈希计算
-	size_t h1 = std::hash<std::string>()(i_name);
-	size_t h2 = std::hash<int>()(static_cast<int>(i_type));
-	size_t h3 = std::hash<int>()(i_trackId);
+	if (i_flags == 0) {
+		return;
+	}
+/*
+	auto graph = m_graph.lock();
+	if (graph) {
+		if (i_flags & EVENT_FLAG_VIDEO_FRAMES) {
+			HJGraph::Information info = HJMakeNotification(HJ_PLUGIN_SETINFO_PLUGIN_videoFrames, i_info.videoFrames);
+			info->setName(HJSyncObject::getName());
+			graph->setInfo(std::move(info));
+		}
+		if (i_flags & EVENT_FLAG_AUDIO_DURATION) {
+			int64_t audioDuration{};
+			if (i_info.audioSamples > 0 && i_info.sampleRate > 0) {
+				audioDuration = i_info.audioSamples * 1000 / i_info.sampleRate;
+			}
+			else if (i_info.audioDuration > 0) {
+				audioDuration = i_info.audioDuration;
+			}
+			HJGraph::Information info = HJMakeNotification(HJ_PLUGIN_SETINFO_PLUGIN_audioDuration, audioDuration);
+			info->setName(HJSyncObject::getName());
+			graph->setInfo(std::move(info));
+		}
+		if (i_flags & EVENT_FLAG_VIDEO_KEY_FRAMES) {
+			HJGraph::Information info = HJMakeNotification(HJ_PLUGIN_SETINFO_PLUGIN_videoKeyFrames, i_info.videoKeyFrames);
+			info->setName(HJSyncObject::getName());
+			graph->setInfo(std::move(info));
+		}
+	}
+*/
+	auto bus = m_graphEventBus.lock();
+	if (bus != nullptr) {
+		if (i_flags & EVENT_FLAG_AUDIO_DURATION) {
+			int64_t audioDuration{};
+			if (i_info.audioSamples > 0 && i_info.sampleRate > 0) {
+				audioDuration = i_info.audioSamples * 1000 / i_info.sampleRate;
+			}
+			else if (i_info.audioDuration > 0) {
+				audioDuration = i_info.audioDuration;
+			}
+			bus->report(EVENT_AUDIO_DURATION_ID, getID(), audioDuration, reduce);
+		}
+		if (i_flags & EVENT_FLAG_VIDEO_FRAMES) {
+			bus->report(EVENT_VIDEO_FRAMES_ID, getID(), i_info.videoFrames, reduce);
+		}
+		if (i_flags & EVENT_FLAG_VIDEO_KEY_FRAMES) {
+			bus->report(EVENT_VIDEO_KEY_FRAMES_ID, getID(), i_info.videoKeyFrames, reduce);
+		}
+	}
+}
 
-	// 哈希组合算法（参见Boost.hash_combine）
-	return h1 ^ (h2 << 1) ^ (h3 << 2);
-#else
-	size_t h1 = std::hash<std::string>{}(i_name);
-	size_t h2 = std::hash<int>{}(static_cast<int>(i_type));
-	size_t h3 = std::hash<int>{}(i_trackId);
+void HJPlugin::clearInputsAndOutputs()
+{
+	InputMap inputs;
+	m_inputSync.prodLock([this, &inputs] {
+		inputs = m_inputs;
+		m_inputs.clear();
+	});
 
-	// 改进的组合方式，避免简单的位移和异或
-	// 使用Boost风格的hash_combine
-	size_t seed = h1;
-	seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-	seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	for (auto it : inputs) {
+		auto input = it.second;
+		input->mediaFrames.done();
+		auto plugin = (input->plugin).lock();
+		if (plugin != nullptr) {
+			plugin->onOutputDisconnected(input->myKeyHash);
+		}
+	}
 
-	return seed;
-#endif
+	OutputMap outputs;
+	m_outputSync.prodLock([this, &outputs] {
+		outputs = m_outputs;
+		m_outputs.clear();
+	});
+
+	for (auto it : outputs) {
+		auto output = it.second;
+		auto plugin = (output->plugin).lock();
+		if (plugin != nullptr) {
+			plugin->onInputDisconnected(output->myKeyHash);
+		}
+	}
+}
+
+std::tuple<int, HJMediaFrame::Ptr> HJPlugin::receiveInputFrame(std::string& route, size_t inputKeyHash, int64_t& size)
+{
+	int ret{ HJ_OK };
+	HJMediaFrame::Ptr inFrame{};
+	do {
+		auto status = SYNC_CONS_LOCK([this] {
+			return m_status;
+		});
+		if (status == HJSTATUS_Done) {
+			route += "_00";
+			ret = HJErrAlreadyDone;
+			break;
+		}
+		if (status < HJSTATUS_Inited) {
+			route += "_01";
+			ret = HJ_WOULD_BLOCK;
+			break;
+		}
+		inFrame = receive(inputKeyHash, &size);
+		route += "_02";
+		ret = HJ_OK;
+	} while (false);
+	return std::make_tuple(ret, inFrame);
 }
 
 const std::string& HJPlugin::Output::name()

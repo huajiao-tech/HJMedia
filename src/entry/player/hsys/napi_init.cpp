@@ -3,6 +3,7 @@
 #include "verify/HJVerifyManager.h"
 #include "HJNativeCommon.h"
 #include "HJPlayerNapi.h"
+#include "HJNativeExportCommon.h"
 
 namespace NativeXComponentSample {
 EXTERN_C_START
@@ -43,13 +44,19 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(n_exitPlayer, HJPlayerNapi::exitPlayer),
         DECLARE_NAPI_FUNCTION_VAL(n_setMute, HJPlayerNapi::setMute),
         DECLARE_NAPI_FUNCTION_VAL(n_preloadUrl, HJPlayerNapi::preloadUrl),
-        
-        DECLARE_NAPI_FUNCTION_VAL(n_setFaceInfo, HJ::HJPlayerNapi::setFaceInfo),
-        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceOpen, HJ::HJPlayerNapi::nativeSourceOpen),
-        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceClose, HJ::HJPlayerNapi::nativeSourceClose),
-        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceAcquire, HJ::HJPlayerNapi::nativeSourceAcquire),
-        DECLARE_NAPI_FUNCTION_VAL(n_openFaceu, HJ::HJPlayerNapi::openFaceu),
-        DECLARE_NAPI_FUNCTION_VAL(n_closeFaceu, HJ::HJPlayerNapi::closeFaceu),
+        DECLARE_NAPI_FUNCTION_VAL(n_download, HJPlayerNapi::download),
+        DECLARE_NAPI_FUNCTION_VAL(n_cancelDownload, HJPlayerNapi::cancelDownload),
+        DECLARE_NAPI_FUNCTION_VAL(n_setPause, HJPlayerNapi::setPause),
+        DECLARE_NAPI_FUNCTION_VAL(n_getDuration, HJPlayerNapi::getDuration),
+        DECLARE_NAPI_FUNCTION_VAL(n_getCurrentTimestamp, HJPlayerNapi::getCurrentTimestamp),
+        DECLARE_NAPI_FUNCTION_VAL(n_setEnableSEIUUids, HJPlayerNapi::setEnableSEIUUids),
+
+        // DECLARE_NAPI_FUNCTION_VAL(n_setFaceInfo, HJ::HJPlayerNapi::setFaceInfo),
+        // DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceOpen, HJ::HJPlayerNapi::nativeSourceOpen),
+        // DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceClose, HJ::HJPlayerNapi::nativeSourceClose),
+        // DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceAcquire, HJ::HJPlayerNapi::nativeSourceAcquire),
+        // DECLARE_NAPI_FUNCTION_VAL(n_openFaceu, HJ::HJPlayerNapi::openFaceu),
+        // DECLARE_NAPI_FUNCTION_VAL(n_closeFaceu, HJ::HJPlayerNapi::closeFaceu),
     };
     
     
@@ -57,7 +64,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
         return nullptr;
     }
-    
+    HJ::HJNativeExportCommon::Instance().Export(env, exports);
     HJVerifyManager::GetInstance()->Export(env, exports);
     return exports;
 }

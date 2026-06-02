@@ -53,7 +53,7 @@ int HJPrioComFBOBridgeSrcEx::priRender()
     do 
     {
 #if defined(HarmonyOS)
-        i_err = m_draw->draw(HJPrioComSourceBridge::getTextureId(), "clip", m_fbo->width(), m_fbo->height(), m_fbo->width(), m_fbo->height(), HJPrioComSourceBridge::getTexMatrix());
+        i_err = m_draw->draw(HJPrioComSourceBridge::getTextureId(), HJWindowRenderMode_CLIP, m_fbo->width(), m_fbo->height(), m_fbo->width(), m_fbo->height(), HJPrioComSourceBridge::getTexMatrix());
 #endif    
     } while (false);
     return i_err; 

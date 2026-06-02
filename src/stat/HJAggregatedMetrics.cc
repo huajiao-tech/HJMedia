@@ -9,34 +9,27 @@ HJAggregatedMetrics::HJAggregatedMetrics(const std::string& i_name, size_t i_ide
 
 HJAggregatedMetrics::~HJAggregatedMetrics()
 {
-	HJAggregatedMetrics::done();
+	done();
 }
 
 int HJAggregatedMetrics::internalInit(HJKeyStorage::Ptr i_param)
 {
 	int ret = HJSyncObject::internalInit(i_param);
-	if (ret < 0) {
+	if (ret != HJ_OK) {
 		return ret;
 	}
 
-	do {
-		mThread = HJLooperThread::quickStart(getName());
-		if (!mThread) {
-			ret = HJErrFatal;
-			break;
-		}
+	mThread = HJLooperThread::quickStart(getName());
+	if (!mThread) {
+		return HJErrFatal;
+	}
 
-		mHandler = mThread->createHandler();
-		if (!mHandler) {
-			ret = HJErrFatal;
-			break;
-		}
+	mHandler = mThread->createHandler();
+	if (!mHandler) {
+		return HJErrFatal;
+	}
 
-		return HJ_OK;
-	} while (false);
-
-	HJAggregatedMetrics::internalRelease();
-	return ret;
+	return HJ_OK;
 }
 
 void HJAggregatedMetrics::internalRelease()

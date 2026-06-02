@@ -38,7 +38,7 @@ public:
 		}
 		return (int)m_fifo->canWriteSize();
 	}
-	int sizeOfReadBack() {
+	int sizeOfReadBack() const {
 		return m_readPos;
 	}
 

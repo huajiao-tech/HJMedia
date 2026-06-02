@@ -8,6 +8,7 @@
 #include "librtmp/rtmp.h"
 #include "librtmp/log.h"
 #include <cstdint>
+#include <vector>
 
 //#define HJ_HAVE_RTMPEX	1
 #if defined(HJ_HAVE_RTMPEX)
@@ -91,7 +92,9 @@ int HJRTMPWrapper::init(const std::string url, HJOptions::Ptr opts)
 //        }
 		//
 		RTMP* rtmp = m_rtmp;
-		if (!RTMP_SetupURL(rtmp, (char*)m_url.c_str())) {
+		std::vector<char> setup_url(m_url.begin(), m_url.end());
+		setup_url.push_back('\0');
+		if (!RTMP_SetupURL(rtmp, setup_url.data())) {
 			set_output_error();
 			HJLoge("error, rtmp setup url:" + m_url);
 			res = HJErrInvalidUrl;
@@ -156,8 +159,10 @@ int HJRTMPWrapper::init(const std::string url, HJOptions::Ptr opts)
 		netif_addr_to_str(&rtmp->m_sb.sb_addr, ip_address, INET6_ADDRSTRLEN);
 #else
 		if (!set_chunk_size()) {
+			set_output_error();
 			HJLoge("error, rtmp set_chunk_size fail");
-			return false;
+			res = HJErrNetInvalidStream;
+			break;
 		}
 #endif
 		HJLogi("rtmp connect stream ok");
@@ -189,7 +194,7 @@ int HJRTMPWrapper::init(const std::string url, HJOptions::Ptr opts)
 
 int HJRTMPWrapper::send(const uint8_t* data, size_t len, int idx)
 {
-	if (!m_rtmp || (idx > HJRTMP_MAX_STREAMS)) {
+	if (!m_rtmp || idx < 0 || idx >= HJRTMP_MAX_STREAMS) {
 		HJFLoge("invalid rtmp or stream index:{}", idx);
 		return HJErrNotAlready;
 	}
@@ -210,12 +215,16 @@ int HJRTMPWrapper::send(const uint8_t* data, size_t len, int idx)
 	if (delta > 100) {
 		HJFLogi("rtmp send data size:{}, out size:{}, time:{}ms", len, wlen, delta);
 	}
-	// HJFLogi("rtmp write tag data size:{}, out size:{}", len, wlen);
+	//HJFLogi("rtmp write tag data size:{}, out size:{}", len, wlen);
 	return HJ_OK;
 }
 
 int HJRTMPWrapper::recv()
 {
+	if (!m_rtmp || INVALID_SOCKET == m_rtmp->m_sb.sb_socket) {
+		HJFLoge("invalid rtmp or socket");
+		return HJErrNotAlready;
+	}
 	int ret = 0;
 	int recv_size = 0;
 	if (!m_newSocketLoop) {
@@ -239,6 +248,7 @@ int HJRTMPWrapper::recv()
 
 void HJRTMPWrapper::setQuit(const bool isQuit)
 {
+	(void)isQuit;
     HJLogi("entry");
 	//HJ_AUTOU_LOCK(m_mutex);
 	if (m_rtmp && (INVALID_SOCKET != m_rtmp->m_sb.sb_socket)) {
@@ -332,6 +342,10 @@ int HJRTMPWrapper::setNONBlocking()
 bool HJRTMPWrapper::processRecvData(size_t size)
 {
 	//UNUSED_PARAMETER(size);
+	if (!m_rtmp) {
+		HJFLoge("invalid rtmp");
+		return false;
+	}
 
 	RTMP* rtmp = m_rtmp;
 	RTMPPacket packet = { 0 };
@@ -527,6 +541,11 @@ bool HJRTMPWrapper::set_chunk_size()
 bool HJRTMPWrapper::sendFooter(int timestamp, bool isHevc)
 {
 	HJFLogi("entry, isHevc:{}", isHevc);
+	if (!m_rtmp || !m_connected) {
+		HJFLoge("invalid rtmp or not connected");
+		return false;
+	}
+
 	RTMPPacket* packet;
 	unsigned char* body;
 
@@ -543,6 +562,10 @@ bool HJRTMPWrapper::sendFooter(int timestamp, bool isHevc)
 	}
 
 	packet = (RTMPPacket*)malloc(HJRTMP_HEAD_SIZE + length + 5);
+	if (!packet) {
+		HJFLoge("alloc packet failed");
+		return false;
+	}
 	memset(packet, 0, HJRTMP_HEAD_SIZE);
 
 	packet->m_body = (char*)packet + HJRTMP_HEAD_SIZE;
@@ -571,10 +594,14 @@ bool HJRTMPWrapper::sendFooter(int timestamp, bool isHevc)
 	packet->m_hasAbsTimestamp = 0;
 	packet->m_headerType = RTMP_PACKET_SIZE_LARGE;
 	packet->m_nInfoField2 = m_rtmp->m_stream_id;
-	RTMP_SendPacket(m_rtmp, packet, FALSE);
+	bool ret = (0 != RTMP_SendPacket(m_rtmp, packet, FALSE));
+	if (!ret) {
+		set_output_error();
+		HJFLoge("send footer failed, last_error:{}", m_lastError);
+	}
 	free(packet);
-	HJFLogi("end");
-	return true;
+	HJFLogi("end, ret:{}", ret);
+	return ret;
 }
 
 

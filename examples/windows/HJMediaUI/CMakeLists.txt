@@ -14,6 +14,12 @@ include_directories(${HJ_EXTERNALS_PATH}/generic/ffmpeg)
 #    list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/hsys)
 #endif()
 
+if(WINDOWS)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/wsys)
+    list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/wsys)
+endif()
+
+
 # message (STATUS "retrieve_files entry")
 HJ_SUBDIR_LIST(subdir_names ${CMAKE_CURRENT_SOURCE_DIR})
 # message (STATUS "core sub dir names:${subdir_names}")
@@ -32,9 +38,19 @@ MAKE_COMMON_CONFIG()
 
 add_executable(${PROJ_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJGraphs HJPlugins HJStat HJComp HJMedia HJPlatform HJUtils LIBFFMPEG LIBSPDLOG LIBYUV implot imgui glfw)
+target_link_libraries(${PROJ_NAME} PRIVATE HJGraphs HJPlugins HJStat HJComp HJMedia HJConvert HJUtils LIBFFMPEG LIBSPDLOG LIBYUV LIBSTB imguiNodeEditor implot imgui glfw LIBREFLCPP yyjson)
 target_link_libraries(${PROJ_NAME} PRIVATE winmm.lib Crypt32.lib)
+
+if (WINDOWS)
+    target_link_libraries(${PROJ_NAME} PRIVATE HJRender HJInference HJOpencv LIBOPENCV HJDetect)
+endif()
+
 #target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
+
+
+if(WINDOWS)
+    target_link_libraries(${PROJ_NAME} PRIVATE HJPlatform)
+endif()
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})
 
@@ -44,3 +60,8 @@ set_target_properties(${PROJ_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${runtime_output})
 	
 ProjFolder(${PROJ_NAME} "MainUI")
+
+# Copy resource directory to output directory
+copy_directory_post_build(${PROJ_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/../../resource resource)
+copy_directory_post_build(${PROJ_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/data data)
+message (STATUS "PROJ_NAME: ${PROJ_NAME}")

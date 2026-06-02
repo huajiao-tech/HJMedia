@@ -16,53 +16,13 @@ int HJPluginAVDropping::internalInit(HJKeyStorage::Ptr i_param)
 	return HJPlugin::internalInit(param);
 }
 
-void HJPluginAVDropping::internalRelease()
-{
-	HJFLogi("{}, internalRelease() begin", getName());
-
-	HJPlugin::internalRelease();
-
-	HJFLogi("{}, internalRelease() end", getName());
-}
-
-int HJPluginAVDropping::deliver(size_t i_srcKeyHash, HJMediaFrame::Ptr& i_mediaFrame, size_t* o_size, int64_t* o_audioDuration, int64_t* o_videoKeyFrames, int64_t* o_audioSamples)
-{
-	size_t size = 0;
-	if (!o_size) {
-		o_size = &size;
-	}
-	int64_t audioDuration = 0;
-	if (!o_audioDuration) {
-		o_audioDuration = &audioDuration;
-	}
-	int64_t videoKeyFrames = 0;
-	if (!o_videoKeyFrames) {
-		o_videoKeyFrames = &videoKeyFrames;
-	}
-	int64_t audioSamples = 0;
-	if (!o_audioSamples) {
-		o_audioSamples = &audioSamples;
-	}
-	auto ret = HJPlugin::deliver(i_srcKeyHash, i_mediaFrame, o_size, o_audioDuration, o_videoKeyFrames, o_audioSamples);
-	if (ret == HJ_OK) {
-		if (i_mediaFrame->isAudio()) {
-			setInfoAudioDuration(*o_audioDuration);
-		}
-		else if (i_mediaFrame->isVideo()) {
-			setInfoVideoKeyFrames(*o_videoKeyFrames);
-		}
-	}
-
-	return ret;
-}
-
 int HJPluginAVDropping::setDropPerameter(int64_t i_maxAudioDuration, int64_t i_minAudioDuration)
 {
 	if (i_maxAudioDuration <= 0 || i_minAudioDuration <= 0 || i_maxAudioDuration <= i_minAudioDuration) {
 		return HJErrInvalidParams;
 	}
 
-	return m_inputSync.consLock([=] {
+	return m_inputSync.prodLock([this, i_maxAudioDuration, i_minAudioDuration] {
 		if (m_quitting.load()) {
 			return HJErrAlreadyDone;
 		}
@@ -76,7 +36,12 @@ int HJPluginAVDropping::setDropPerameter(int64_t i_maxAudioDuration, int64_t i_m
 
 void HJPluginAVDropping::onInputAdded(size_t i_srcKeyHash, HJMediaType i_type)
 {
+	HJPlugin::onInputAdded(i_srcKeyHash, i_type);
+
 	m_inputKeyHash.store(i_srcKeyHash);
+
+	auto input = m_inputs[i_srcKeyHash];
+	input->eventFlags |= (EVENT_FLAG_AUDIO_DURATION | EVENT_FLAG_VIDEO_KEY_FRAMES);
 }
 
 void HJPluginAVDropping::onOutputAdded(size_t i_dstKeyHash, HJMediaType i_type)
@@ -91,23 +56,17 @@ void HJPluginAVDropping::onOutputAdded(size_t i_dstKeyHash, HJMediaType i_type)
 
 int HJPluginAVDropping::runTask(int64_t* o_delay)
 {
-    addInIdx();
-	int64_t enter = HJCurrentSteadyMS();
-	bool log = false;
-	if (m_lastEnterTimestamp < 0 || enter >= m_lastEnterTimestamp + LOG_INTERNAL) {
-		m_lastEnterTimestamp = enter;
-		log = true;
-	}
+//    addInIdx();
+	auto log = logRunTask();
 	if (log) {
 		RUNTASKLog("{}, enter", getName());
 	}
 
 	std::string route{};
-	size_t size = -1;
-	int64_t audioDuration = 0;
-	int64_t videoKeyFrames = 0;
-	int ret = HJ_WOULD_BLOCK;
+	int64_t size{ -1 };
+	int ret{ HJ_OK };
 	do {
+#if 0
 		HJMediaFrame::Ptr currentFrame = nullptr;
 		auto err = SYNC_CONS_LOCK([&route, &currentFrame, this] {
 			if (m_status == HJSTATUS_Done) {
@@ -126,33 +85,24 @@ int HJPluginAVDropping::runTask(int64_t* o_delay)
 
 		if (!currentFrame) {
 			route += "_1";
-			currentFrame = receive(m_inputKeyHash.load(), &size, &audioDuration, &videoKeyFrames);
-			if (currentFrame) {
-				route += "_2";
-				if (currentFrame->isAudio()) {
-					route += "_3";
-					setInfoAudioDuration(audioDuration);
-				}
-				else if (currentFrame->isVideo()) {
-					route += "_4";
-					setInfoVideoKeyFrames(videoKeyFrames);
-				}
 
-				if (!currentFrame->isFlushFrame() && !currentFrame->isEofFrame() &&
-					audioDuration > m_maxAudioDuration) {
-					route += "_5";
-					dropFrames(m_minAudioDuration, &size, &audioDuration, nullptr, &videoKeyFrames);
-					setInfoAudioDuration(audioDuration);
-					setInfoVideoKeyFrames(videoKeyFrames);
-					ret = HJ_OK;
-					break;
-				}
+			auto srcKeyHash = m_inputKeyHash.load();
+			auto input = getInput(srcKeyHash);
+			if (input == nullptr) {
+				break;
 			}
+
+			if (input->mediaFrames.audioDuration() > m_maxAudioDuration) {
+				dropFrames(srcKeyHash, m_minAudioDuration, &size);
+			}
+
+
+			currentFrame = receive(m_inputKeyHash.load(), &size);
 		}
 
 		if (currentFrame) {
 			route += "_6";
-			err = canDeliverToOutputs(currentFrame, 0);
+			err = canDeliverToOutputs(currentFrame);
 			if (err != HJ_OK) {
 				route += "_7";
 				err = SYNC_CONS_LOCK([&route, currentFrame, this] {
@@ -175,10 +125,75 @@ int HJPluginAVDropping::runTask(int64_t* o_delay)
 			deliverToOutputs(currentFrame);
 			ret = HJ_OK;
 		}
+#else
+		auto inputKeyHash = m_inputKeyHash.load();
+		HJMediaFrame::Ptr inFrame{};
+		std::tie(ret, inFrame) = receiveInputFrame(route, inputKeyHash, size);
+		if (ret != HJ_OK) {
+			route += "_0";
+			break;
+		}
+		if (inFrame == nullptr) {
+			route += "_1";
+			ret = HJ_WOULD_BLOCK;
+			break;
+		}
+
+		if (inFrame->isClearFrame()) {
+			route += "_2";
+			auto err = runFlush();
+			if (err < 0) {
+				route += "_3";
+				ret = err;
+			}
+			break;
+		}
+
+		if (!inFrame->isEofFrame()) {
+			route += "_4";
+#if 0
+			ret = canDeliverToOutputs(inFrame);
+			if (ret != HJ_OK) {
+				route += "_5";
+				if (ret == HJ_WOULD_BLOCK) {
+					route += "_6";
+					store(inputKeyHash, inFrame);
+
+					if (tryDropFrames(route, inputKeyHash, size)) {
+						route += "_7";
+						HJFLogi("{}, tryDropFrames() ok, size{}", getName(), size);
+					}
+				}
+				break;
+			}
+#else
+			auto res = query(QUERY_CAN_DELIVER_TO_OUTPUTS_ID, getID(), inFrame);
+			if (!res.isOk()) {
+				route += "_5";
+				ret = res.code;
+				break;
+			}
+			if (!res.value) {
+				route += "_6";
+				store(inputKeyHash, inFrame);
+
+				if (tryDropFrames(route, inputKeyHash, size)) {
+					route += "_7";
+					HJFLogi("{}, tryDropFrames() ok, size{}", getName(), size);
+				}
+				ret = HJ_WOULD_BLOCK;
+				break;
+			}
+#endif
+		}
+
+		deliverToOutputs(inFrame);
+#endif
+		route += "_8";
 	} while (false);
-    addOutIdx();
+//    addOutIdx();
 	if (log) {
-		RUNTASKLog("{}, leave, route({}), task duration({}), ret({})", getName(), route, (HJCurrentSteadyMS() - enter), ret);
+		RUNTASKLog("{}, leave, route({}), task duration({}), ret({})", getName(), route, (HJCurrentSteadyMS() - m_enterTimestamp), ret);
 	}
 	return ret;
 }
@@ -192,7 +207,7 @@ void HJPluginAVDropping::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 //		HJFLogi("{}, audioFrame({})", getName(), i_mediaFrame->getPTS());
 	}
 	else if (i_mediaFrame->isEofFrame()) {
-		HJFLogi("{}, EOFFrame({})", getName(), i_mediaFrame->getPTS());
+		HJFLogi("{}, EofFrame({})", getName(), i_mediaFrame->getPTS());
 	}
 	else {
 		HJFLogi("{}, unknownFrame({})", getName(), i_mediaFrame->getPTS());
@@ -217,28 +232,8 @@ void HJPluginAVDropping::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 		}
 	}
 }
-
-void HJPluginAVDropping::setInfoAudioDuration(int64_t i_audioDuration)
-{
-	auto graph = m_graph.lock();
-	if (graph) {
-		HJGraph::Information info = HJMakeNotification(HJ_PLUGIN_SETINFO_DROPPING_audioDuration, i_audioDuration);
-		info->setName(HJSyncObject::getName());
-		graph->setInfo(std::move(info));
-	}
-}
-
-void HJPluginAVDropping::setInfoVideoKeyFrames(int64_t i_videoKeyFrames)
-{
-	auto graph = m_graph.lock();
-	if (graph) {
-		HJGraph::Information info = HJMakeNotification(HJ_PLUGIN_SETINFO_DROPPING_videoKeyFrames, i_videoKeyFrames);
-		info->setName(HJSyncObject::getName());
-		graph->setInfo(std::move(info));
-	}
-}
-
-int HJPluginAVDropping::canDeliverToOutputs(HJMediaFrame::Ptr i_mediaFrame, int)
+/*
+int HJPluginAVDropping::canDeliverToOutputs(HJMediaFrame::Ptr i_mediaFrame)
 {
 	auto graph = m_graph.lock();
 	if (!graph) {
@@ -250,13 +245,50 @@ int HJPluginAVDropping::canDeliverToOutputs(HJMediaFrame::Ptr i_mediaFrame, int)
 	(*param)["mediaFrame"] = i_mediaFrame;
 	return graph->getInfo(param);
 }
-
-void HJPluginAVDropping::dropFrames(int64_t i_audioDutation, size_t* o_size, int64_t* o_audioDuration, int64_t* o_audioSamples, int64_t* o_videoKeyFrames, int64_t* o_videoFrames)
+*/
+bool HJPluginAVDropping::tryDropFrames(std::string& route, size_t inputKeyHash, int64_t& size)
 {
-	auto input = getInput(m_inputKeyHash.load());
-	if (input != nullptr) {
-		input->mediaFrames.dropFrames(i_audioDutation, o_size, o_audioDuration, o_audioSamples, o_videoKeyFrames, o_videoFrames);
-	}
+	bool ret{ false };
+	do {
+		Input::Ptr input{};
+		int64_t maxAudioDuration{};
+		int64_t minAudioDuration{};
+		ret = m_inputSync.consLock([this, inputKeyHash, &input, &maxAudioDuration, &minAudioDuration] {
+			if (m_quitting.load()) {
+				return false;
+			}
+
+			auto it = m_inputs.find(inputKeyHash);
+			if (it == m_inputs.end()) {
+				return false;
+			}
+
+			input = it->second;
+			maxAudioDuration = m_maxAudioDuration;
+			minAudioDuration = m_minAudioDuration;
+			return true;
+		});
+		if (!ret) {
+			route += "_10";
+			break;
+		}
+
+		if (input->mediaFrames.audioDuration() > maxAudioDuration) {
+			route += "_11";
+			HJMediaFrameDeque::FrameDequeInfo info;
+			ret = input->mediaFrames.dropFrames(minAudioDuration, &info);
+			if (ret) {
+				route += "_12";
+				reportFrameDequeInfo(input->eventFlags, info);
+
+				size = info.dequeSize;
+			}
+		}
+
+		route += "_13";
+	} while (false);
+
+	return ret;
 }
 
 NS_HJ_END

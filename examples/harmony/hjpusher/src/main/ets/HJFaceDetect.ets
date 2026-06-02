@@ -7,7 +7,7 @@ export enum HJFaceDetectState {
   done,
 }
 
-type HJCallbackDetect = (data: faceDetector.Face[], width:number, height:number) => void;
+type HJCallbackDetect = (data: faceDetector.Face[], width:number, height:number, sourceWidth:number, sourceHeight:number) => void;
 
 export class HJFaceDetect
 {
@@ -71,7 +71,7 @@ export class HJFaceDetect
         return Promise.resolve(false);
     }
 
-    async detect(chooseImage: image.PixelMap)
+    async detect(chooseImage: image.PixelMap, sourceWidth:number, sourceHeight:number)
     {
       this.m_bRunning = true;
       do
@@ -89,24 +89,25 @@ export class HJFaceDetect
               };
 
               const t0: number = Date.now();
-              let data: faceDetector.Face[] = await faceDetector.detect(visionInfo)
-              if (data.length > 0)
-              {
-                  const t1: number = Date.now();
-                  this.m_statTime += (t1-t0);
-                  this.m_statIdx++;
+              let data: faceDetector.Face[] = await faceDetector.detect(visionInfo);
+              const t1: number = Date.now();
+              const imageInfoStart: number = t1;
+              let info: image.ImageInfo = visionInfo.pixelMap.getImageInfoSync();
+              const imageInfoCost: number = Date.now() - imageInfoStart;
+              let width: number = info.size.width;
+              let height: number = info.size.height;
+              const hasFace: boolean = data.length > 0;
 
-                  if ((this.m_statIdx - 1) % 60 === 0)
-                  {
-                      console.log(`${this.TAG} statidx:${this.m_statIdx} avg:${this.m_statTime/this.m_statIdx} cur:${t1-t0} fps:${1000*this.m_statIdx/this.m_statTime}`);
-                  }
+              this.m_statTime += (t1 - t0);
+              this.m_statIdx++;
+
+              if ((this.m_statIdx - 1) % 60 === 0)
+              {
+                  console.log(`${this.TAG} statidx:${this.m_statIdx} avg:${this.m_statTime / this.m_statIdx} cur:${t1 - t0} fps:${1000 * this.m_statIdx / this.m_statTime} imageInfoCost:${imageInfoCost} hasFace:${hasFace} width:${width} height:${height}`);
               }
               if (this.m_detectCb)
               {
-                  let info: image.ImageInfo = visionInfo.pixelMap.getImageInfoSync();
-                  let width: number = info.size.width;
-                  let height: number = info.size.height;
-                  this.m_detectCb(data, width, height);
+                  this.m_detectCb(data, width, height, sourceWidth, sourceHeight);
               }
           }
           else

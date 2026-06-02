@@ -26,7 +26,7 @@ function getPreviewProfile(previewProfiles: Array<camera.Profile>,
     return profile.format === cameraData.previewProfile.format &&
       profile.size.width === cameraData.previewProfile.size.width && profile.size.height === cameraData.previewProfile.size.height
   });
-  Logger.info(TAG, `profile.format: ${JSON.stringify(previewProfile)}`);
+  Logger.info(TAG, `HVSwitchStat profile.format: ${JSON.stringify(previewProfile)}`);
   return previewProfile;
 }
 

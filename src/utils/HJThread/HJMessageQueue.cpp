@@ -51,7 +51,13 @@ HJMessage::Ptr HJMessageQueue::next()
 					mBlocked = false;
 					mMessages = msg->next;
 					msg->next = nullptr;
-					return msg;
+					// Target may have expired; drop and continue.
+					auto target = msg->target.lock();
+					if (target) {
+						return msg;
+					}
+					msg->recycleUnchecked();
+					continue;
 				}
 			}
 			else {
@@ -91,7 +97,7 @@ void HJMessageQueue::quit(bool safe)
 
 bool HJMessageQueue::enqueueMessage(HJMessage::Ptr msg, uint64_t when)
 {
-	if (msg->target == nullptr)	{
+	if (msg->target.expired())	{
 		throw std::invalid_argument("Message must have a target.");
 	}
 
@@ -115,7 +121,7 @@ bool HJMessageQueue::enqueueMessage(HJMessage::Ptr msg, uint64_t when)
 			// Inserted within the middle of the queue.  Usually we don't have to wake
 			// up the event queue unless there is a barrier at the head of the queue
 			// and the message is the earliest asynchronous message in the queue.
-			needWake = mBlocked && p->target == nullptr;
+			needWake = mBlocked && p->target.expired();
 
 			HJMessage::Ptr prev;
 			for (;;) {
@@ -151,20 +157,34 @@ void HJMessageQueue::removeMessages(HJHandlerPtr h, int what, HJSyncObject::Ptr 
 		auto p = mMessages;
 
 		// Remove all messages at front.
-		while (p != nullptr && p->target == h && p->what == what
-			&& (object == nullptr || p->obj == object)) {
+		while (p != nullptr) {
+			auto target = p->target.lock();
+			if (target == h && p->what == what
+				&& (object == nullptr || p->obj == object)) {
+				auto n = p->next;
+				mMessages = n;
+				p->recycleUnchecked();
+				p = n;
+				continue;
+			}
 			auto n = p->next;
-			mMessages = n;
-			p->recycleUnchecked();
-			p = n;
+			// drop expired targets at head
+			if (!target) {
+				mMessages = n;
+				p->recycleUnchecked();
+				p = n;
+				continue;
+			}
+			break;
 		}
 
 		// Remove all messages after front.
 		while (p != nullptr) {
 			auto n = p->next;
 			if (n != nullptr) {
-				if (n->target == h && n->what == what
-					&& (object == nullptr || n->obj == object)) {
+				auto target = n->target.lock();
+				if ((target == h && n->what == what
+					&& (object == nullptr || n->obj == object)) || !target) {
 					auto nn = n->next;
 					n->recycleUnchecked();
 					p->next = nn;

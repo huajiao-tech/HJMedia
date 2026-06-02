@@ -26,7 +26,7 @@ int HJBlockFile::init(const std::string& url)
 	m_url = url;
 	try
 	{ 
-		bool isExist = HJFileUtil::fileExist(m_url);
+		bool isExist = HJFileUtil::isFileExist(m_url);
 		//
 		auto url = HJCreates<HJUrl>(m_url);
 		auto xio = HJCreates<HJXIOFile>();

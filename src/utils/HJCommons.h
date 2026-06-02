@@ -12,7 +12,7 @@ NS_HJ_BEGIN
 typedef enum HJStatus
 {
     HJSTATUS_NONE = 0x00,
-    HJSTATUS_Initializing,
+//    HJSTATUS_Initializing,
     HJSTATUS_Inited,
     //--------------------
     HJSTATUS_Ready,
@@ -21,7 +21,7 @@ typedef enum HJStatus
     HJSTATUS_Stoped,
     HJSTATUS_Exception,
     //--------------------
-    HJSTATUS_Releasing,
+//    HJSTATUS_Releasing,
     HJSTATUS_Released,
     HJSTATUS_Done
 } HJStatus;

@@ -8,8 +8,15 @@
 #endif
 
 #if defined(WINDOWS)
-#include "HJPluginAudioWORender.h"
 #include "HJPluginAudioWASRender.h"
+#endif
+
+#if defined(HJ_OS_IOS)
+#include "HJPluginAudioIOSRender.h"
+#endif
+
+#if defined(HJ_OS_ANDROID)
+#include "HJPluginAudioAARender.h"
 #endif
 
 #include "HJPluginRTMPMuxer.h"
@@ -20,6 +27,8 @@
 #include "HJPluginAudioFFDecoder.h"
 #include "HJPluginVideoFFDecoder.h"
 
+#include "HJPluginAudioInput.h"
+#include "HJPluginAudioMixer.h"
 #include "HJPluginAudioResampler.h"
 #include "HJPluginSpeechRecognizer.h"
 #include "HJPluginSpeedControl.h"

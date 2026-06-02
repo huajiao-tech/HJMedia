@@ -34,6 +34,7 @@ typedef enum HJMessageID
 } HJMessageID;
 
 #define HJ_NOTIFY_IO_INTERRUPT_NET    0x1000
+#define HJ_NOTIFY_IO_INTERRUPT        0x1001
 
 class HJNotification : public HJKeyStorage, public HJObject
 {
@@ -103,7 +104,7 @@ inline HJMessage::Ptr HJMakeMessage(const size_t identify, const std::string& ms
 }
 */
 //***********************************************************************************//
-using HJListener = std::function<int(const HJNotification::Ptr)>;
+using HJListener = std::function<int(HJNotification::Ptr)>;
 
 //***********************************************************************************//
 class HJNotifyDelegate : public virtual HJObject

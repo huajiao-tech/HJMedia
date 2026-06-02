@@ -15,7 +15,7 @@ export struct PlayerSwiper {
         .each(iterator => {
           Stack() {
             if (iterator.item.isPlaying) {
-              PlayerXComponent({ url: iterator.item.url })
+              PlayerXComponent({ url: iterator.item.url, isHLDS: this.livePlayerState?.isHLDS, isVOD: this.livePlayerState?.isVOD})
             }
           }
           .size({ width: "100%", height: "100%" })

@@ -511,17 +511,24 @@ public:
     
     void setUrl(const std::string& url) {
         m_url = url;
-        m_urlHash = HJUtilitys::hash(m_url);
+        if(!m_url.empty()) {
+            m_urlHash = HJUtilitys::hash(m_url);
+        }
     }
     const std::string& getUrl() const {
         return m_url;
+    }
+    void setUrlHash(const size_t& hash) {
+        m_urlHash = hash;
     }
     const size_t& getUrlHash() const {
         return m_urlHash;
     }
     void setOutUrl(const std::string& url) {
         m_outUrl = url;
-        m_outUrlHash = HJUtilitys::hash(m_outUrl);
+        if(!m_outUrl.empty()) {
+            m_outUrlHash = HJUtilitys::hash(m_outUrl);
+        }
     }
     const std::string& getOutUrl() const {
         return m_outUrl;
@@ -838,8 +845,49 @@ public:
     size_t          m_streamIndex = 0;
 };
 using HJStreamInfoList = std::list<HJStreamInfo::Ptr>;
+class HJAudioInfo;
+using HJAudioInfoList = std::list<std::shared_ptr<HJAudioInfo>>;
 using HJStreamInfoMap = std::unordered_map<std::string, HJStreamInfo::Ptr>;
 #define HJMediaType2String(v)  HJ::HJStreamInfo::type2String(v)
+
+class HJAudioTrackDisplayInfo : public HJObject
+{
+public:
+    using Ptr = std::shared_ptr<HJAudioTrackDisplayInfo>;
+
+    HJAudioTrackDisplayInfo() = default;
+
+    HJAudioTrackDisplayInfo::Ptr dup() const {
+        auto info = std::make_shared<HJAudioTrackDisplayInfo>();
+        *info = *this;
+        return info;
+    }
+
+    std::string formatInfo() const {
+        return "trackID:" + HJ2STR(m_trackID)
+            + ", display:" + m_displayName
+            + ", title:" + m_title
+            + ", language:" + m_language
+            + ", handler:" + m_handlerName
+            + ", default:" + HJ2STR(m_isDefault)
+            + ", commentary:" + HJ2STR(m_isCommentary)
+            + ", selected:" + HJ2STR(m_isSelected);
+    }
+
+public:
+    int         m_trackID{ -1 };
+    std::string m_displayName{};
+    std::string m_title{};
+    std::string m_language{};
+    std::string m_handlerName{};
+    std::string m_codecName{};
+    int         m_channels{ 0 };
+    int         m_sampleRate{ 0 };
+    bool        m_isDefault{ false };
+    bool        m_isCommentary{ false };
+    bool        m_isSelected{ false };
+};
+using HJAudioTrackDisplayInfoVector = std::vector<HJAudioTrackDisplayInfo::Ptr>;
 
 class HJSubtitleInfo : public HJStreamInfo
 {
@@ -958,6 +1006,7 @@ public:
         ainfo->setDefaultSampleRate();
         return ainfo;
     }
+    static HJAudioInfo::Ptr makeAudioInfo(int channels, int sampleRate, int sampleFmt = 1, int sampleCnt = HJ_FRAME_SAMPLES_DEFAULT);
 public:
     int         m_channels = HJ_CHANNEL_DEFAULT;
     int         m_bytesPerSample = 4;
@@ -1067,6 +1116,9 @@ public:
         m_streamInfos.push_back(info);
     }
     const HJStreamInfo::Ptr getStreamInfo(const HJMediaType type) {
+        if (HJMEDIA_TYPE_AUDIO == type) {
+            return std::static_pointer_cast<HJStreamInfo>(getAudioInfo());
+        }
         for (auto &info : m_streamInfos) {
             if(type == info->getType()) {
                 return info;
@@ -1075,24 +1127,93 @@ public:
         return nullptr;
     }
     int forEachInfo(const std::function<int(const HJStreamInfo::Ptr &)>& cb);
+    void addAudioInfo(const HJAudioInfo::Ptr& info);
 
     void clearStreamInfos() {
         m_streamInfos.clear();
+        m_audioInfos.clear();
+        m_audioTrackDisplayInfos.clear();
         m_mediaTypes = HJMediaType::HJMEDIA_TYPE_NONE;
+        m_astIdx = -1;
+        m_selectedAstIdx = -1;
     }
     
     const HJVideoInfo::Ptr getVideoInfo() {
         return std::dynamic_pointer_cast<HJVideoInfo>(getStreamInfo(HJMEDIA_TYPE_VIDEO));
     }
     const HJAudioInfo::Ptr getAudioInfo() {
-        return std::dynamic_pointer_cast<HJAudioInfo>(getStreamInfo(HJMEDIA_TYPE_AUDIO));
+        return getSelectedAudioInfo();
+    }
+    const HJAudioInfo::Ptr getSelectedAudioInfo() {
+        int selectedTrackID = getSelectedAudioTrackID();
+        if (selectedTrackID >= 0) {
+            auto info = findAudioInfoByTrackID(selectedTrackID);
+            if (info) {
+                return info;
+            }
+        }
+        if (!m_audioInfos.empty()) {
+            return m_audioInfos.front();
+        }
+        return nullptr;
+    }
+    const HJAudioInfo::Ptr findAudioInfoByTrackID(const int trackID) {
+        for (auto& info : m_audioInfos) {
+            if (info && info->m_trackID == trackID) {
+                return info;
+            }
+        }
+        return nullptr;
+    }
+    const HJAudioInfoList& getAudioInfos() const {
+        return m_audioInfos;
+    }
+    void addAudioTrackDisplayInfo(const HJAudioTrackDisplayInfo::Ptr& info) {
+        if (!info) {
+            return;
+        }
+        m_audioTrackDisplayInfos.push_back(info);
+    }
+    const HJAudioTrackDisplayInfoVector& getAudioTrackDisplayInfos() const {
+        return m_audioTrackDisplayInfos;
+    }
+    HJAudioTrackDisplayInfo::Ptr findAudioTrackDisplayInfoByTrackID(const int trackID) const {
+        for (const auto& info : m_audioTrackDisplayInfos) {
+            if (info && info->m_trackID == trackID) {
+                return info;
+            }
+        }
+        return nullptr;
+    }
+    int getSelectedAudioTrackID() const {
+        if (m_selectedAstIdx >= 0) {
+            return m_selectedAstIdx;
+        }
+        return m_astIdx;
+    }
+    bool setSelectedAudioTrackID(const int trackID);
+    void syncSelectedAudioStreamInfo();
+    void syncSelectedAudioTrackDisplayInfo();
+    void replacePrimaryAudioInfo(const HJAudioInfo::Ptr& info) {
+        if (!info) {
+            return;
+        }
+        for (auto it = m_streamInfos.begin(); it != m_streamInfos.end(); ++it) {
+            if (*it && (*it)->getType() == HJMEDIA_TYPE_AUDIO) {
+                *it = info;
+                return;
+            }
+        }
+        addStreamInfo(info);
     }
     
     //
     virtual void clone(const HJMediaInfo::Ptr& other)
     {
+        HJKeyStorage::clone(other);
         m_mediaTypes = other->m_mediaTypes;
         m_astIdx = other->m_astIdx;
+        m_selectedAstIdx = other->m_selectedAstIdx;
         m_vstIdx = other->m_vstIdx;
         m_sstIdx = other->m_sstIdx;
         m_startTime = other->m_startTime;
@@ -1107,6 +1228,14 @@ public:
         for (auto &it : m_streamInfos) {
             info->addStreamInfo(it->dup());
         }
+        for (auto& it : m_audioInfos) {
+            info->addAudioInfo(std::dynamic_pointer_cast<HJAudioInfo>(it->dup()));
+        }
+        info->syncSelectedAudioStreamInfo();
+        for (const auto& it : m_audioTrackDisplayInfos) {
+            info->addAudioTrackDisplayInfo(it ? it->dup() : nullptr);
+        }
+        info->syncSelectedAudioTrackDisplayInfo();
         return info;
     }
     //
@@ -1129,6 +1258,7 @@ public:
 public:
     int                 m_mediaTypes{ HJMEDIA_TYPE_NONE };
     int                 m_astIdx = -1;
+    int                 m_selectedAstIdx = -1;
     int                 m_vstIdx = -1;
     int                 m_sstIdx = -1;
     int64_t             m_startTime = 0;        //ms
@@ -1136,6 +1266,8 @@ public:
     HJTimeRange        m_timeRange = {HJUtilTime::HJTimeZero, HJUtilTime::HJTimeZero};
     //streams
     HJStreamInfoList   m_streamInfos;
+    HJAudioInfoList    m_audioInfos;
+    HJAudioTrackDisplayInfoVector m_audioTrackDisplayInfos;
     HJMediaUrl::Ptr     m_url = nullptr;
     //
     std::vector<HJMediaInfo::Ptr>   m_subMInfos;

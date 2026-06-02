@@ -3,11 +3,10 @@
     "products": [
       {
         "name": "default",
-        "signingConfig": "lfs",
+        "signingConfig": "default",
         "runtimeOS": "HarmonyOS",
         "compatibleSdkVersion": "5.0.0(12)",
         "targetSdkVersion": "6.0.0(20)",
-        "compileSdkVersion": "6.0.0(20)"
       }
     ],
     "buildModeSet": [
@@ -23,78 +22,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
+          "certpath": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\default_harmony_wu4xLZIKFqaFYMMSZDcAKEAWA2xX7PNd4cZzUH9kmfQ=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B4146DA48DCD77BCD05097C3CA1D4497197E8594EEFB997B850A665DB37C6736C6E460327B5431D",
-          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
+          "keyPassword": "0000001B5ED6284D9A45B979BF024A91505117A5B1F4C6019908A22C52EEF75ACE224093A7052813936830",
+          "profile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\default_harmony_wu4xLZIKFqaFYMMSZDcAKEAWA2xX7PNd4cZzUH9kmfQ=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\default_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
-          "storePassword": "0000001BE06F3A51FFDBFBFC6E7649C297F5C2DB1208B29753B5B42A969766DAEA54E765EE2DA24AEBDDD4"
-        }
-      },
-      {
-        "name": "gs",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\gs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001BAB92DDE5488F44DB856FBD144DAA85988B05E276583A8754B5631DD6FC3C9F22EA388FDAE1455B",
-          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\gs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\gs_harmony_oJVNKGuUTFuIz-hvgcY3WNmXWaFeWJzz5W9PVydOLoM=.p12",
-          "storePassword": "0000001BADCCE65C27490459D08956DF84949CA163C94D46E149CC28A921AE8A6C175104C366DBE553B892"
-        }
-      },
-      {
-        "name": "wks",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "/Users/wks/.ohos/config/wks_harmony_RFBDYeiOXDCpaZnQaUzaQlzgvi-D0WqjPHG4mK5RDms=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001BF4C17770A578E914B2939A640AD1AA120B19EC80A02E58BF32D46AF5C94094A7354FFC6FB0D22F",
-          "profile": "/Users/wks/.ohos/config/wks_harmony_RFBDYeiOXDCpaZnQaUzaQlzgvi-D0WqjPHG4mK5RDms=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "/Users/wks/.ohos/config/wks_harmony_RFBDYeiOXDCpaZnQaUzaQlzgvi-D0WqjPHG4mK5RDms=.p12",
-          "storePassword": "0000001BD25338AEC0D76A6BAB1F0A6F47B9FC92F00C09C793DF9791F1C19D74A79518B092A32887B96AD5"
-        }
-      },
-      {
-        "name": "lzy",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001B3C360B4834F73719BA5BFF09C510B0F4877433C03BCF31C9FD22A9670958EDF8B28906B4B05A7D",
-          "profile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\lzy_harmony_fqfjwRu1v7tSqhhg1NACnMCsI8WduOt31APNxpPkRAg=.p12",
-          "storePassword": "0000001B92BEAC252C2B9DB4EF4FD032BF61F81E2CAEF6DE7B1C965102969C72231870967C34F9E1FEF59E"
-        }
-      },
-      {
-        "name": "mac",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "/Users/zhiyongleng/.ohos/config/mac_harmony_EJ6yLUh-3d27KBlISXd6N4dEkrJNXjVdYxJOGihsB-4=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001A6120980F15BFEEEC302E203BA8B5B2D1ED3073BEBB7DF6A74777782D5F0874A2BFAA36FC4C72",
-          "profile": "/Users/zhiyongleng/.ohos/config/mac_harmony_EJ6yLUh-3d27KBlISXd6N4dEkrJNXjVdYxJOGihsB-4=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "/Users/zhiyongleng/.ohos/config/mac_harmony_EJ6yLUh-3d27KBlISXd6N4dEkrJNXjVdYxJOGihsB-4=.p12",
-          "storePassword": "0000001A19E0FC0E6B832EB907C9494690A379438E8C5C1475344A1896F5DF15795CEFAFFA4A9020102E"
-        }
-      },
-      {
-        "name": "lfs",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001B83C1D4DAD397A5CF8A1126087DA70CE0B4CA802F30A4B8A47281BCD7720992F67774970A31765F",
-          "profile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\lifengshan-hj\\.ohos\\config\\lfs_harmony_7WfYlVWe1jVGsE3tRpSAe8-pF_VWxa71aOkeYlvc_u8=.p12",
-          "storePassword": "0000001B24C0949FA36835E3A784C06ADA2D8530C1F5FE7F17B0A8D5A91BB51F53FCCBF279FF0C92EC7940"
+          "storeFile": "C:\\Users\\lengzhiyong-hj\\.ohos\\config\\default_harmony_wu4xLZIKFqaFYMMSZDcAKEAWA2xX7PNd4cZzUH9kmfQ=.p12",
+          "storePassword": "0000001BB079614D84772E548C6FDCE79BC1231A3783D1306355E45EE0E648CDD2F2C77BCB4835567085C1"
         }
       }
     ]

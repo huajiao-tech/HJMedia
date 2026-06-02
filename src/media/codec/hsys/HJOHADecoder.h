@@ -36,8 +36,10 @@ private:
 private:
     OH_AVCodec*             m_decoder = nullptr;
     HJOHACodecUserData::Ptr m_userData = nullptr;
-    // bool                        m_isChanged = false;
-    // HJMediaFrame::Ptr           m_storeFrame = nullptr;
+    HJRunState              m_decState = HJRun_NONE;
+
+    HJRunnable              m_inputBufferListener{};
+    HJRunnable              m_outputBufferListener{};
 };
 
 NS_HJ_END

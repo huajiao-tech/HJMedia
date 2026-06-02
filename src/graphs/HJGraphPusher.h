@@ -10,14 +10,11 @@ class HJGraphPusher : public HJGraph
 public:
 	HJ_DEFINE_CREATE(HJGraphPusher);
 
-	HJGraphPusher(const std::string& i_name = "HJGraphPusher", size_t i_identify = -1);
-	virtual ~HJGraphPusher();
-	virtual int setInfo(const Information info) override {
-		return HJ_OK;
-	}
-	virtual int getInfo(Information info) override {
-		return HJ_OK;
-	}
+	HJGraphPusher(const std::string& i_name = "HJGraphPusher", size_t i_identify = 0)
+		: HJGraph(i_name, i_identify) {}
+	virtual ~HJGraphPusher() { done(); }
+//	virtual int setInfo(const Information info) override { return HJ_OK; }
+//	virtual int getInfo(Information info) override { return HJ_OK; }
 
 	void setMute(bool i_mute);
 	int adjustBitrate(int i_newBitrate);
@@ -34,6 +31,8 @@ private:
 	// HJListener pusherListener
 	virtual int internalInit(HJKeyStorage::Ptr i_param) override;
 	virtual void internalRelease() override;
+
+	virtual int registerHandlers();
 
 	HJAudioInfo::Ptr m_audioInfo{};
 	HJVideoInfo::Ptr m_videoInfo{};

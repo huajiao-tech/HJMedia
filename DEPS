@@ -99,7 +99,18 @@
 				"url": "https://github.com/lz4/lz4.git",
 				"commit": "ebb370ca83af193212df4dcbadcc5d87bc0de2f0",
 				"dir": "third_party/lz4"
-            }
+            },
+			{
+				"url": "https://github.com/thedmd/imgui-node-editor.git",
+				"commit": "e78e447900909a051817a760efe13fe83e6e1afc",
+				"dir": "third_party/imgui-node-editor"
+			},
+			{
+				"url": "https://github.com/veselink1/refl-cpp.git",
+				"commit": "27fbd7d2e6d86bc135b87beef6b5f7ce53afd4fc",
+				"dir": "third_party/refl-cpp"
+			}
+			
         ]
     },
     "actions": {

@@ -15,14 +15,14 @@ int HJPluginSpeechRecognizer::internalInit(HJKeyStorage::Ptr i_param)
 		return HJErrInvalidParams;
 	}
 	GET_PARAMETER(HJLooperThread::Ptr, thread);
-	GET_PARAMETER(HJListener, pluginListener);
+//	GET_PARAMETER(HJListener, pluginListener);
 
-	auto param = std::make_shared<HJKeyStorage>();
-	(*param)["thread"] = thread;
+	auto param = HJKeyStorage::dupFrom(i_param);
+//	(*param)["thread"] = thread;
 	(*param)["createThread"] = (thread == nullptr);
-	if (pluginListener) {
-		(*param)["pluginListener"] = pluginListener;
-	}
+//	if (pluginListener) {
+//		(*param)["pluginListener"] = pluginListener;
+//	}
 
 	int ret = HJPlugin::internalInit(param);
 	if (ret < 0) {
@@ -54,14 +54,14 @@ int HJPluginSpeechRecognizer::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	int64_t enter = HJCurrentSteadyMS();
-	std::string route = "0";
-	size_t size = -1;
+	std::string route{};
+	int64_t size = -1;
 	int ret = HJ_OK;
 
 	do {
 		auto inFrame = receive(m_inputKeyHash.load(), &size);
 		if (inFrame == nullptr) {
-			route += "_1";
+			route += "_0";
 			ret = HJ_WOULD_BLOCK;
 			break;
 		}
@@ -73,23 +73,25 @@ int HJPluginSpeechRecognizer::runTask(int64_t* o_delay)
 		HJMediaFrame::getDataFromAVFrame(inFrame, data, data_size);
 		if (m_call) {
 			// HJFLogi("wkshhh data_size: {} {}", data_size, inFrame.use_count());
+			route += "_1";
 			m_call(inFrame);
 		}
 
 		// 可选：如果需要将数据传递给下游插件
 		// deliverToOutputs(inFrame);
 
+		route += "_2";
 	} while (false);
 
 	RUNTASKLog("{}, leave, route({}), size({}), duration({}), ret({})",
 		getName(), route, size, (HJCurrentSteadyMS() - enter), ret);
 	return ret;
 }
-
+/*
 void HJPluginSpeechRecognizer::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 {
 	// 如果需要将数据传递给下游插件，可以调用父类方法
 	HJPlugin::deliverToOutputs(i_mediaFrame);
 }
-
+*/
 NS_HJ_END

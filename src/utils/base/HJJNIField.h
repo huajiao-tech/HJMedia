@@ -57,7 +57,7 @@ public:
 	using SLFieldVariant = std::variant<int, int16_t, int64_t, bool, float, double>;
 	static SLFieldVariant GetFieldValueTest(SLFieldVariant i_value, const std::string& name);
 	static int m_exceptionVal;
-
+	static std::string m_handleName;
 #if defined(HarmonyOS)
 	template <typename T>
 	static void GetFieldGeneric(napi_env env, napi_value thiz, T& ret, const std::string& name)

@@ -12,14 +12,23 @@
 #include "HJRteUtils.h"
 #include "HJTime.h"
 #include "HJMediaData.h"
-
+#include "HJEntryBaseRender.h"
+#include "HJRteGraphSetupInfo.h"
 NS_HJ_USING
 
 namespace NativeXComponentSample
 {
 
     std::string HJVerifyManager::s_path = "/data/storage/el2/base/haps/entry/files/";
-    std::string HJVerifyManager::s_url = s_path + "H264_H264_ResChange.flv";//"ShuangDanCaiShen.mp4";//"huajiaot.mp4";//"huajiaoline2_noaudio.flv";
+    //std::string HJVerifyManager::s_url = s_path + "change.flv";
+    //std::string HJVerifyManager::s_url = "https://live-pull-1.huajiao.com/main/HJ_0_ali_1_main__h265_273499550_1773992985952_2648_O.flv?auth_key=1774079771-0-0-de602a36ea1f8c4b7bd75aa27dd6ebe7";
+    std::string HJVerifyManager::s_url = "/data/storage/el1/bundle/entry/resources/resfile/H264_H264_ResChange.flv";    //s_path + "H264_H264_ResChange.flv";//"H264_H264_ResChange.flv";//"ShuangDanCaiShen.mp4";//"huajiaot.mp4";//"huajiaoline2_noaudio.flv";
+//    int HJVerifyManager::s_sourceType = HJPrioComSourceType_SPLITSCREEN;//HJPrioComSourceType_SERIES;
+
+//    std::string HJVerifyManager::s_url = "/data/storage/el2/base/haps/entry/files/hjmedias/1525758055919491248.mp4";    //s_path + "H264_H264_ResChange.flv";//"H264_H264_ResChange.flv";//"ShuangDanCaiShen.mp4";//"huajiaot.mp4";//"huajiaoline2_noaudio.flv";
+//    std::string HJVerifyManager::s_url = "/data/storage/el2/base/haps/entry/files/hjmedias/0_output.mp4";
+//    std::string HJVerifyManager::s_url = "/data/storage/el2/base/haps/entry/files/hjmedias/98f380f6ed6eb248b8c463d7e7387ea7.mp4";
+    int HJVerifyManager::s_sourceType = HJPrioComSourceType_SERIES;//HJPrioComSourceType_SERIES;
 
 //    std::string HJVerifyManager::s_url = s_path + "huajiaoline2_noaudio.flv";//"qingxi.mp4";//"huajiaot.mp4";//"H264-265-264_RES.flv";//"liujianfang5.mp4";//H264-265-264_RES.flv";//huajiaot.mp4";
 //s_path + "ShuangDanCaiShen.mp4";//"http://www.w3school.com.cn/example/html5/mov_bbb.mp4";
@@ -27,10 +36,11 @@ namespace NativeXComponentSample
     //std::string HJVerifyManager::s_url = "https://live-pull-2.huajiao.com/main/HJ_0_ali_2_main__h265_200818137_1761212882838_1194_O.flv?auth_key=1761360085-0-0-470fbad9409e9f40f0550042f9501dc8";
     
     //s_path + "PK_ZUOJIA.mp4";
-    int HJVerifyManager::s_fps = 30;
+    int HJVerifyManager::s_fps = 60;
     int HJVerifyManager::s_videoCodecType = HJPlayerVideoCodecType_OHCODEC; // HJPlayerVideoCodecType_SoftDefault;//HJPlayerVideoCodecType_OHCODEC;//HJPlayerVideoCodecType_SoftDefault;
-    int HJVerifyManager::s_sourceType = HJPrioComSourceType_SERIES;
-    std::string HJVerifyManager::s_faceuUrl = "/data/storage/el2/base/haps/entry/files/90237_1";
+    int HJVerifyManager::s_repeats = 2;
+    
+    std::string HJVerifyManager::s_faceuUrl = "/data/storage/el1/bundle/entry/resources/resfile/800624_1_1504602801";//"/data/storage/el2/base/haps/entry/files/60031_10";
     HJThreadPool::Ptr HJVerifyManager::m_exitThread = nullptr;
     HJTimerThreadPool::Ptr HJVerifyManager::m_playerThread = nullptr;
     std::deque<HJNAPIPlayer::Ptr> HJVerifyManager::m_playerActiveQueue;
@@ -38,6 +48,7 @@ namespace NativeXComponentSample
     std::atomic<bool> HJVerifyManager::m_bQuit{false};
     int HJVerifyManager::m_restartTime = 60 * 60 * 1000;
     int HJVerifyManager::s_logCnt = 5;
+    bool HJVerifyManager::s_bSplitScreenMirror = false;
 
     HJVerifyManager HJVerifyManager::m_HJVerifyManager;
 
@@ -47,17 +58,22 @@ namespace NativeXComponentSample
 
     napi_value HJVerifyManager::tryOpen(napi_env env, napi_callback_info info)
     {
-        HJFLogi("playerexit tryOpen enter");
+        HJFLogi("playerexit tryOpen enter aaa");
         static bool s_bCtxInit = false;
         if (!s_bCtxInit)
         {
-            HJEntryContextInfo contextInfo;
+            HJEntryContextPlayerInfo contextInfo;
             contextInfo.logIsValid = true;
             contextInfo.logDir = "/data/storage/el2/base/haps/entry/files/log_player";
             contextInfo.logLevel = HJLOGLevel_INFO;
             contextInfo.logMode = HJLogLMode_CONSOLE | HJLLogMode_FILE;
             contextInfo.logMaxFileSize = 1024 * 1024 * 5;
             contextInfo.logMaxFileNum = s_logCnt;
+            contextInfo.medias_dir = "/data/storage/el2/base/haps/entry/files/medias";
+            contextInfo.medias_cache_max = 200;
+            // contextInfo.other_dirs_options = config->other_dirs_options;
+            contextInfo.download_retry_max = 10;
+        
             HJNAPIPlayer::contextInit(contextInfo);
             s_bCtxInit = true;
         }
@@ -87,7 +103,7 @@ namespace NativeXComponentSample
                         HJNAPIPlayer::Ptr player = *m_playerActiveQueue.begin();
                         if (player)
                         {
-                            int ret = player->setNativeWindow(window, width, height, HJ::HJTargetState_Change);
+                            int ret = player->setNativeWindow(HJRteGraphConfig::HJNodeClass_TargetUI_0, HJRteGraphConfig::HJNodeClass_TargetUI_0, window, width, height, HJ::HJTargetState_Change);
                             return ret;
                         }
                     }
@@ -100,7 +116,7 @@ namespace NativeXComponentSample
             m_playerThread = HJTimerThreadPool::Create();
             m_playerThread->startTimer(m_restartTime, [window, width, height]()
             {
-                HJFLogi("playerexit startTimer enter");
+                HJFLogi("playerexit startTimer enter aa");
                 if (!m_bQuit)
                 {
                     static int s_idxCnt = 0;
@@ -122,36 +138,70 @@ namespace NativeXComponentSample
             return nullptr;
         }
 
-        size_t argCnt = 3;
-        napi_value args[3];
+        size_t argCnt = 4;
+        napi_value args[4] = {nullptr};
         if (napi_get_cb_info(env, info, &argCnt, args, nullptr, nullptr) != napi_ok)
         {
             OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "HJVerifyManager", "GetContext napi_get_cb_info failed");
+            return nullptr;
         }
-        int32_t w;
-        napi_get_value_int32(env, args[0], &w);
-        int32_t h;
-        napi_get_value_int32(env, args[1], &h);
-        
-        
-        size_t strLen;
-        napi_get_value_string_utf8(env, args[2], nullptr, 0, &strLen);
 
-        std::vector<char> buffer(strLen + 1);
-        napi_get_value_string_utf8(env, args[2], buffer.data(), buffer.size(), nullptr);
-        std::string pointsInfo = std::string(buffer.data());
+        std::string sourceInsName = HJRteGraphConfig::HJNodeClass_SourceBridge;
+        int32_t w = 0;
+        int32_t h = 0;
+        std::string pointsInfo;
 
-        HJFacePointsWrapper::Ptr faceInfo = HJFacePointsWrapper::Create<HJFacePointsWrapper>(w, h, pointsInfo);
+        napi_valuetype arg0Type = napi_undefined;
+        if (argCnt > 0 && args[0] != nullptr)
+        {
+            napi_typeof(env, args[0], &arg0Type);
+        }
+
+        if (argCnt >= 4 && arg0Type == napi_string)
+        {
+            size_t nameLen = 0;
+            napi_get_value_string_utf8(env, args[0], nullptr, 0, &nameLen);
+            std::vector<char> nameBuf(nameLen + 1);
+            napi_get_value_string_utf8(env, args[0], nameBuf.data(), nameBuf.size(), nullptr);
+            sourceInsName = std::string(nameBuf.data());
+
+            napi_get_value_int32(env, args[1], &w);
+            napi_get_value_int32(env, args[2], &h);
+
+            size_t strLen = 0;
+            napi_get_value_string_utf8(env, args[3], nullptr, 0, &strLen);
+            std::vector<char> buffer(strLen + 1);
+            napi_get_value_string_utf8(env, args[3], buffer.data(), buffer.size(), nullptr);
+            pointsInfo = std::string(buffer.data());
+        }
+        else if (argCnt >= 3)
+        {
+            // backward compatible: trySetFacePoints(width, height, faceInfo)
+            napi_get_value_int32(env, args[0], &w);
+            napi_get_value_int32(env, args[1], &h);
+
+            size_t strLen = 0;
+            napi_get_value_string_utf8(env, args[2], nullptr, 0, &strLen);
+            std::vector<char> buffer(strLen + 1);
+            napi_get_value_string_utf8(env, args[2], buffer.data(), buffer.size(), nullptr);
+            pointsInfo = std::string(buffer.data());
+        }
+        else
+        {
+            OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "HJVerifyManager", "trySetFacePoints invalid args");
+            return nullptr;
+        }
+    
         if (m_playerThread)
         {
-            m_playerThread->async([faceInfo]
+            m_playerThread->async([sourceInsName, w, h, pointsInfo]
             {
                 if (!m_playerActiveQueue.empty())
                 {
                     HJNAPIPlayer::Ptr player = *m_playerActiveQueue.begin();
                     if (player)
                     {
-                        player->setFaceInfo(faceInfo);
+                        player->setFaceInfo(sourceInsName, w, h, pointsInfo);
                         return 0;
                     }
                 }
@@ -337,7 +387,11 @@ namespace NativeXComponentSample
 
             // s_url = "https://static.s3.huajiao.com/Object.access/hj-video/MTY1MDI3MjcyNDYyMzg5Lm1wNA==";
             playerInfo.m_url = s_url;//s_path + "264_1-264_2-265_1-265_1-265_2-265_1-264_1-264_1.flv"; // s_url;
+        
+            HJFLogi("playerexit url:{}", playerInfo.m_url);
+        
             playerInfo.m_fps = s_fps;
+            playerInfo.m_repeats = s_repeats;
             playerInfo.m_videoCodecType = /*HJPlayerVideoCodecType_SoftDefault;/*/ s_videoCodecType;
             playerInfo.m_sourceType = (HJPrioComSourceType)s_sourceType;
 
@@ -380,7 +434,7 @@ namespace NativeXComponentSample
                 break;
             }
 
-            ret = player->setNativeWindow(window, width, height, HJ::HJTargetState_Create);
+            ret = player->setNativeWindow(HJRteGraphConfig::HJNodeClass_TargetUI_0, HJRteGraphConfig::HJNodeClass_TargetUI_0, window, width, height, HJ::HJTargetState_Create);
             if (ret < 0)
             {
                 HJLoge("setNativeWindow error:{}", ret);
@@ -455,7 +509,7 @@ namespace NativeXComponentSample
 #if 0
         m_testThreadPool->async([](){
             HJPusherPNGSegInfo pngInfo;
-            pngInfo.pngSeqUrl = std::string("/data/storage/el2/base/haps/entry/files/ShuangDanCaiShen");
+            pngInfo.pngSeqUrl = std::string("/data/storage/el2/base/haps/entry/files/pngseq/ShuangDanCaiShen");
             return m_testLiveStream->openPngSeq(pngInfo);
         }, 1000);
 #endif
@@ -483,7 +537,8 @@ namespace NativeXComponentSample
             priConstructParam(o_videoInfo, o_audioInfo, o_rtmpInfo);
             ret = m_testLiveStream->openPusher(o_videoInfo, o_audioInfo, o_rtmpInfo);
 #endif
-            return ret; });
+            return ret; 
+        });
         }
     }
     napi_value HJVerifyManager::testOpen(napi_env env, napi_callback_info info)
@@ -517,8 +572,11 @@ namespace NativeXComponentSample
         //    }
         //    else if (s_openIdx == 2)
         {
-            s_sourceType = HJPrioComSourceType_SERIES;
-            s_url = s_url;//s_path + "264_1-264_2-265_1-265_1-265_2-265_1-264_1-264_1.flv"; //"H264-265-264_RES.flv";//"HEVC.flv"; //"264_1-264_2-265_1-265_1-265_2-265_1-264_1-264_1.flv";//"H264-265-264_RES.flv";//"H264_H264_ResChange.flv";//"huajiaoline2_noaudio.flv";
+            //s_sourceType = HJPrioComSourceType_SERIES;
+            //s_url = s_path + "huajiaoline2_noaudio.flv";
+
+            // s_sourceType = HJPrioComSourceType_SPLITSCREEN;
+            // s_url = s_path + "PK_ZUOJIA.mp4";//s_path + "264_1-264_2-265_1-265_1-265_2-265_1-264_1-264_1.flv"; //"H264-265-264_RES.flv";//"HEVC.flv"; //"264_1-264_2-265_1-265_1-265_2-265_1-264_1-264_1.flv";//"H264-265-264_RES.flv";//"H264_H264_ResChange.flv";//"huajiaoline2_noaudio.flv";
         }
         s_openIdx++;
         if (s_openIdx == 3)
@@ -538,10 +596,11 @@ namespace NativeXComponentSample
 
         m_testPlayer = HJNAPITestPlayer::Create();
         HJPlayerInfo playerInfo;
-        playerInfo.m_url = s_path + "huajiaoline2_noaudio.flv";//"H264_H264_ResChange.flv"; //"huajiaoline2_noaudio.flv";//s_url; //"https://static.s3.huajiao.com/Object.access/hj-video/MTY1MDI3MjcyNDYyMzg5Lm1wNA==";//s_url;
+        playerInfo.m_url = s_url;//"huajiaoline2_noaudio.flv";//"H264_H264_ResChange.flv"; //"huajiaoline2_noaudio.flv";//s_url; //"https://static.s3.huajiao.com/Object.access/hj-video/MTY1MDI3MjcyNDYyMzg5Lm1wNA==";//s_url;
         playerInfo.m_fps = s_fps;
         playerInfo.m_videoCodecType = s_videoCodecType;
         playerInfo.m_sourceType = (HJPrioComSourceType)s_sourceType;
+        playerInfo.m_bSplitScreenMirror = s_bSplitScreenMirror;
 
         if ((playerInfo.m_url.compare(0, 8, "https://") == 0) || (playerInfo.m_url.compare(0, 7, "http://") == 0))
         {
@@ -632,11 +691,11 @@ namespace NativeXComponentSample
             static bool s_bGray = true;
             if (s_bGray)
             {
-                m_testPlayer->openEffect(HJRteEffect_Gray);
+                m_testPlayer->openEffectTest(HJRteEffect_Gray);
             }
             else
             {
-                m_testPlayer->closeEffect(HJRteEffect_Gray);
+                m_testPlayer->closeEffectTest(HJRteEffect_Gray);
             }
             s_bGray = !s_bGray;
         }
@@ -649,11 +708,11 @@ namespace NativeXComponentSample
             static bool s_bBlur = true;
             if (s_bBlur)
             {
-                m_testPlayer->openEffect(HJRteEffect_Blur);
+                m_testPlayer->openEffectTest(HJRteEffect_Blur);
             }
             else
             {
-                m_testPlayer->closeEffect(HJRteEffect_Blur);
+                m_testPlayer->closeEffectTest(HJRteEffect_Blur);
             }
             s_bBlur = !s_bBlur;
         }

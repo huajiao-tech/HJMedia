@@ -39,7 +39,7 @@ HJMediaFrame::Ptr HJAudioConverter::convert(HJMediaFrame::Ptr&& inFrame)
     if (!m_dstInfo || !m_dstInfo->getChannelLayout()) {
         return std::move(inFrame);
     }
-	//HJLogi("convert begin");
+    HJFPERLogi("{} entry, frame info:{}", getName(), inFrame->formatInfo());
 	HJAudioInfo::Ptr inInfo = std::dynamic_pointer_cast<HJAudioInfo>(inFrame->m_info);
     //if (inInfo->m_channels != m_srcInfo->m_channels) {
     //    inFrame = channelMap(std::move(inFrame), m_srcInfo->m_channels);
@@ -49,7 +49,7 @@ HJMediaFrame::Ptr HJAudioConverter::convert(HJMediaFrame::Ptr&& inFrame)
     //}
     AVFrame* avf = (AVFrame *)inFrame->getAVFrame();
     if (!avf) {
-        HJLogi("have no AVFrame");
+        HJLoge("error, have no AVFrame");
         return nullptr;
     }
     HJChannelLayout::Ptr tmpCHLayout = m_srcInfo->getChannelLayout();
@@ -58,7 +58,7 @@ HJMediaFrame::Ptr HJAudioConverter::convert(HJMediaFrame::Ptr&& inFrame)
     }
     HJChannelLayout::Ptr inCHLayout = inInfo->getChannelLayout();
     if (!inCHLayout) {
-        HJLogi("in channel layout invalid");
+        HJLoge("error, in channel layout invalid");
         return nullptr;
     }
     //int64_t ch_layout = (inInfo->m_channelLayout && inInfo->m_channels == av_get_channel_layout_nb_channels(inInfo->m_channelLayout)) ? inInfo->m_channelLayout : av_get_default_channel_layout(inInfo->m_channels);
@@ -93,7 +93,7 @@ HJMediaFrame::Ptr HJAudioConverter::convert(HJMediaFrame::Ptr&& inFrame)
         //                        m_srcInfo->m_samplesRate,
         //                        0, NULL);
         if (!swr || swr_init(swr) < HJ_OK) {
-            HJLoge("swr_init error");
+            HJLoge("error, swr_init failed");
             return NULL;
         }
         m_swr = swr;
@@ -116,12 +116,12 @@ HJMediaFrame::Ptr HJAudioConverter::convert(HJMediaFrame::Ptr&& inFrame)
         outInfo->m_sampleCnt = outSamples;
         HJMediaFrame::Ptr mavf = HJMediaFrame::makeSilenceAudioFrame(outInfo);
         if (!mavf) {
-            HJLoge("make slience audio frame error");
+            HJLoge("error, make slience audio frame");
             return nullptr;
         }
         AVFrame* outAvf = (AVFrame *)mavf->getAVFrame();
         if (!outAvf) {
-            HJLoge("get avf error");
+            HJLoge("error, get avf is null");
             return nullptr;
         }
         uint8_t** out = { (uint8_t**)outAvf->data };
@@ -131,7 +131,7 @@ HJMediaFrame::Ptr HJAudioConverter::convert(HJMediaFrame::Ptr&& inFrame)
                                     in,
                                     avf->nb_samples);
         if (nbSamples < 0) {
-            HJLoge("swr_convert error, nbSamples:" + HJ2STR(nbSamples));
+            HJLoge("error, swr_convert nbSamples:" + HJ2STR(nbSamples));
             return nullptr;
         }
         outInfo->m_sampleCnt = outAvf->nb_samples = nbSamples;
@@ -167,7 +167,7 @@ HJMediaFrame::Ptr HJAudioConverter::channelMap(HJMediaFrame::Ptr&& inFrame, int 
 	}
 	AVFrame* avf = (AVFrame*)inFrame->getAVFrame();
 	if (!avf) {
-		HJLogi("have no AVFrame");
+		HJLoge("error, have no AVFrame");
 		return nullptr;
 	}
 	//HJLogi("channelMap begin");

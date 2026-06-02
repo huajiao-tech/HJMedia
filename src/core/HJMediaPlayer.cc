@@ -417,9 +417,20 @@ int HJMediaPlayer::seek(float progress)
         HJLoge("seek error:" + HJ2String(res));
         return res;
     }
-    //int64_t pos
-    
+
     return HJ_OK;
+}
+
+int HJMediaPlayer::switchAudioTrack(int trackID)
+{
+    int res = HJPlayerBase::switchAudioTrack(trackID);
+    if (HJErrNotSupport != res) {
+        return res;
+    }
+    if (!m_graphDec) {
+        return HJErrNotAlready;
+    }
+    return m_graphDec->switchAudioTrack(trackID);
 }
 
 int HJMediaPlayer::speed(float speed)
@@ -442,6 +453,15 @@ int64_t HJMediaPlayer::getCurrentPos()
     HJ_AUTO_LOCK(m_mutex);
     if (m_progInfo) {
         return m_progInfo->getPos();
+    }
+    return 0;
+}
+
+int64_t HJMediaPlayer::getDuration()
+{
+    HJ_AUTO_LOCK(m_mutex);
+    if (m_graphDec) {
+        return m_graphDec->getDuration();
     }
     return 0;
 }

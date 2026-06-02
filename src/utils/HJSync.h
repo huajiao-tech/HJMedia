@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+#include <stdexcept>
 #include <shared_mutex>
 #include <condition_variable>
 #include "HJCommons.h"
@@ -13,6 +15,7 @@ NS_HJ_BEGIN
 #define SYNCHRONIZED(sync, lock)	UNIQUE_LOCK lock((sync).m)
 #define SYNCHRONIZED_LOCK(sync)		SYNCHRONIZED(sync, lock)
 
+// 基于 shared_mutex 的同步原语，生产者优先；详见 doc/HJSync.md
 struct HJSync
 {
 	std::shared_mutex m;
@@ -31,11 +34,7 @@ struct HJSync
 	// 默认构造函数
 	HJSync() = default;
 
-	void wait(UNIQUE_LOCK& lock) {
-		cv.wait(lock);
-	}
-
-	void wait(UNIQUE_LOCK& lock, int64_t timeout) {
+	void wait(UNIQUE_LOCK& lock, int64_t timeout = 0) {
 		if (timeout < 0) {
 			throw std::invalid_argument("Timeout value cannot be negative");
 		}
@@ -80,21 +79,21 @@ struct HJSync
 	template <typename T>
 	auto prodLock(T&& run) -> decltype(run()) {
 		++prodCount;
-		UNIQUE_LOCK lock(m);
-
 		try {
+			UNIQUE_LOCK lock(m);
+
 			if constexpr (std::is_void_v<decltype(run())>) {
 				run();
 				if (--prodCount == 0) cv.notify_all();
 			}
 			else {
-				auto result = run();
+				decltype(auto) result = run();  // 保留引用/const
 				if (--prodCount == 0) cv.notify_all();
 				return result;
 			}
 		}
 		catch (...) {
-			if (--prodCount == 0) cv.notify_all();
+			if (--prodCount == 0) cv.notify_all();  // 包括加锁失败时回退
 			throw;
 		}
 	}

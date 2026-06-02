@@ -10,7 +10,7 @@
 #include "HJFileUtil.h"
 #include "HJMediaUtils.h"
 #include "HJServerUtils.h"
-#include "HJMediaStorageManager.h"
+#include "HJMediaDBManager.h"
 #include <algorithm>
 
 NS_HJ_BEGIN
@@ -220,7 +220,7 @@ void HJCacheFile::getOptions(const HJUrl::Ptr& murl)
         m_dbinfo = murl->getValue<HJDBFileInfo>("dbInfo");
     }
     m_remoteUrl = murl->getUrl();
-    m_localUrl = HJMediaUtils::getLocalUrl(m_cacheDir, m_remoteUrl, m_rid);
+    m_localUrl = HJMediaUtils::makeLocalUrl(m_cacheDir, m_remoteUrl, m_rid);
     if (!m_dbinfo.has_value()) 
     {
         HJFLogi("create dbInfo for {}", m_remoteUrl);
@@ -243,7 +243,7 @@ void HJCacheFile::getOptions(const HJUrl::Ptr& murl)
 
     m_blockSize = static_cast<size_t>((*m_dbinfo).block_size);
     m_fileStatus = static_cast<HJFileStatus>((*m_dbinfo).status);
-    if (m_fileStatus == HJFileStatus::NONE && HJFileUtil::fileExist(m_localUrl)) {
+    if (m_fileStatus == HJFileStatus::NONE && HJFileUtil::isFileExist(m_localUrl)) {
         m_fileStatus = HJFileStatus::PENDING;
     }
     if(HJFileStatus::COMPLETED == m_fileStatus) {
@@ -531,7 +531,7 @@ void HJCacheFile::persistDBInfoLocked()
         return;
     }
     m_dbinfo->modify_time = HJCurrentEpochMS();
-    manager->AddOrUpdateFile(m_category, *m_dbinfo);
+    manager->addOrUpdateFile(m_category, *m_dbinfo);
 }
 
 void HJCacheFile::updateFileStatusLocked()
@@ -634,7 +634,7 @@ int HJCacheFile::onNetFetchNotify(HJNotification::Ptr ntfy)
     }
     switch (ntfy->getID())
     {
-    case HJNETFETCH_INIT: {
+    case HJNETFETCH_START: {
         HJFLogi("fetch init rid:{}, msg:{}", m_rid, ntfy->getMsg());
         break;
     }
@@ -649,7 +649,7 @@ int HJCacheFile::onNetFetchNotify(HJNotification::Ptr ntfy)
         }
         break;
     }
-    case HJNETFETCH_DONE: {
+    case HJNETFETCH_END: {
         HJFLogi("fetch done rid:{}, msg:{}", m_rid, ntfy->getMsg());
         break;
     }

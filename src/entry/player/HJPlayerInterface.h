@@ -2,6 +2,7 @@
 
 #include <string>
 #include <functional>
+#include <map>
 #include "HJCommonInterface.h"
 #include "HJPrioUtils.h"
 
@@ -35,13 +36,18 @@ typedef enum HJPlayerMediaType
 
 typedef struct HJPlayerInfo
 {
-    std::string m_url = "";
+    std::string m_url{""};
+    std::string m_localDir{""};
+    std::string m_rid{""};
     int m_fps = 30;
+    int m_repeats = 0;
     int m_videoCodecType = HJPlayerVideoCodecType_SoftDefault;
     HJPrioComSourceType m_sourceType = HJPrioComSourceType_SERIES;
     HJPlayerType m_playerType = HJPlayerType_LIVESTREAM;
     bool m_bSplitScreenMirror = false;
+    std::string m_graphConfig = "";    
     int m_disableMFlag = HJPLAYER_MEDIA_TYPE_NONE;
+    std::map<std::string, bool> m_enableSEIUUids;
 } HJPlayerInfo;
 
 typedef enum HJPlayerNotifyType
@@ -52,19 +58,22 @@ typedef enum HJPlayerNotifyType
     HJ_PLAYER_NOTIFY_AUDIO_FRAME = 6,
     HJ_PLAYER_NOTIFY_EOF = 7,
 
+    HJ_PLAYER_NOTIFY_DURATION = 50,
+    HJ_PLAYER_NOTIFY_SEI_INFOS = 51,
+
     HJ_PLAYER_NOTIFY_CLOSEDONE = 90,
 
 
-    HJ_RENDER_NOTIFY_ERROR_DEFAULT = 100,
-    HJ_RENDER_NOTIFY_ERROR_UPDATE = 101,
-    HJ_RENDER_NOTIFY_ERROR_DRAW = 102,
-    HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT = 103,
-    HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT = 104,
-    HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE = 105,
-    HJ_RENDER_NOTIFY_NEED_SURFACE = 106,
-    
-    HJ_RENDER_NOTIFY_FACEU_ERROR = 107,
-    HJ_RENDER_NOTIFY_FACEU_COMPLETE = 108,
+//    HJ_RENDER_NOTIFY_ERROR_DEFAULT = 100,
+//    HJ_RENDER_NOTIFY_ERROR_UPDATE = 101,
+//    HJ_RENDER_NOTIFY_ERROR_DRAW = 102,
+//    HJ_RENDER_NOTIFY_ERROR_VIDEOCAPTURE_INIT = 103,
+//    HJ_RENDER_NOTIFY_ERROR_PNGSEQ_INIT = 104,
+//    HJ_RENDER_NOTIFY_PNGSEQ_COMPLETE = 105,
+//    HJ_RENDER_NOTIFY_NEED_SURFACE = 106,
+//    
+//    HJ_RENDER_NOTIFY_FACEU_ERROR = 107,
+//    HJ_RENDER_NOTIFY_FACEU_COMPLETE = 108,
 
 } HJPlayerNotifyType;
 

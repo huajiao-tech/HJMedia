@@ -108,6 +108,10 @@ public:
     virtual void done();
     virtual int seek(int64_t pos);
     virtual int getFrame(HJMediaFrame::Ptr& frame) { return  HJ_OK; }
+    virtual int switchAudioTrack(int trackID) {
+        (void)trackID;
+        return HJErrNotSupport;
+    }
     virtual void reset();
     //
     void setMediaUrl(const HJMediaUrl::Ptr mediaUrl) {
@@ -152,6 +156,12 @@ public:
     const bool getTimeOffsetEnable() const {
         return m_timeOffsetEnable;
     }
+    void setSeekKeyFrame(const bool seekKeyFrame) {
+        m_seekKeyFrame = seekKeyFrame;
+    }
+    const bool getSeekKeyFrame() const {
+        return m_seekKeyFrame;
+    }
 
     void setNext(HJBaseDemuxer::Ptr next) {
         m_next = next;
@@ -162,11 +172,12 @@ public:
     const auto& getRunState() {
         return m_runState;
     }
-    const bool isReady() {
+    const bool isReady() const {
         return (HJRun_Ready == m_runState);
     }
 public:
     static const std::string KEY_WORLDS_URLBUFFER;
+    static const std::string KEY_WORLDS_AVIOCONTEXT;
 protected:
     HJRunState              m_runState{ HJRun_NONE };
     HJMediaUrl::Ptr         m_mediaUrl = nullptr;
@@ -179,6 +190,7 @@ protected:
     bool                    m_isLiving = false;
     int				        m_streamID{ 0 };
     bool                    m_timeOffsetEnable{ false };
+    bool                    m_seekKeyFrame{ true };
     //
     HJSourceAttribute::Ptr m_atrs = nullptr;
     HJBuffer::Ptr          m_extraVBuffer = nullptr;

@@ -13,15 +13,17 @@
  * limitations under the License.
  */
 
+import { HJPlayerDemo } from '../view/HJPlayerDemo';
+import { HJPusherDemo } from '../view/HJPusherDemo';
 import { PusherView } from '../view/PusherView';
 import { PlayerView} from '../view/PlayerView';
+import { SRView} from '../view/SRView';
 import { CommonConstant as Common } from '../common/CommonConstant';
-import { NavStackUtil } from '../util/NavStackUitl';
 
 @Entry
 @ComponentV2
 struct Index {
-  @Local currentIndex: number = 0;//1;//0;
+  @Local currentIndex: number = 0;
 
   @Builder
   tabBuilder(index: number, name: ResourceStr) {
@@ -47,36 +49,32 @@ struct Index {
 
   build() {
     Column() {
-      Row() {
-        Text($r('app.string.page_title'))
-          .fontSize($r('app.float.page_title_font_size'))
-          .fontWeight(Common.FONT_WEIGHT_500)
-          .margin({
-            left: $r('app.float.page_title_margin_left')
-          })
-        Button("Demo页面")
-          .onClick(() => {
-            this.getUIContext().getRouter().pushUrl({url: "pages/IndexV2"})
-          })
-      }
-      .margin({
-        top: $r('app.float.page_title_margin_top')
-      })
-      .width(Common.FULL_PERCENT)
-      .height($r('app.float.page_title_height'))
-      .justifyContent(FlexAlign.Start)
-
       Tabs({ barPosition: BarPosition.Start, index: this.currentIndex }) {
+
+        TabContent() {
+          HJPusherDemo()
+        }
+        .tabBar(this.tabBuilder(0, $r('app.string.pusherDemo')))
+
+        TabContent() {
+          HJPlayerDemo()
+        }
+        .tabBar(this.tabBuilder(1, $r('app.string.playerDemo')))
 
         TabContent() {
           PlayerView()
         }
-        .tabBar(this.tabBuilder(0, $r('app.string.player')))
+        .tabBar(this.tabBuilder(2, $r('app.string.player')))
 
         TabContent() {
           PusherView()
         }
-        .tabBar(this.tabBuilder(1, $r('app.string.pusher')))
+        .tabBar(this.tabBuilder(3, $r('app.string.pusher')))
+
+        TabContent() {
+          SRView()
+        }
+        .tabBar(this.tabBuilder(4, $r('app.string.sr')))
       }
       .vertical(false)
       .barMode(BarMode.Fixed)
@@ -88,7 +86,7 @@ struct Index {
       .width(Common.FULL_PERCENT)
       .layoutWeight(1)
       .margin({
-        top: $r('app.float.tabs_margin_top')
+        top: 0
       })
     }
     .width(Common.FULL_PERCENT)

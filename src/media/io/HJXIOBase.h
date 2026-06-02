@@ -18,6 +18,7 @@ typedef enum HJXIOMode {
     HJ_XIO_READ    = 1,
     HJ_XIO_WRITE   = 2,
     HJ_XIO_RW      = HJ_XIO_READ | HJ_XIO_WRITE,
+    HJ_XIO_RWONLY  = 4,
 } HJXIOMode;
 
 typedef enum HJSeekDir {
@@ -99,6 +100,9 @@ public:
         }
         return "";
     }
+    virtual void setSize(const int64_t size) {
+		m_size = size;
+	}
     virtual HJBuffer::Ptr readBlock(size_t cnt) {
         HJBuffer::Ptr block = std::make_shared<HJBuffer>(cnt);
         int recnt = read(block->data(), cnt);
@@ -117,6 +121,7 @@ public:
     }
 protected:
 	HJUrl::Ptr		m_url;
+    size_t          m_size{0};
 };
 
 //***********************************************************************************//
@@ -128,6 +133,7 @@ public:
     virtual ~HJXIOInterrupt();
     
     virtual void onNotify(HJListener listener) { m_listener = listener; }
+    virtual void setInterruptCB(AVIOInterruptCB* cb);
     virtual void setQuit(const bool isQuit = true) {
         m_isQuit = isQuit;
     }
@@ -135,13 +141,30 @@ public:
         return m_isQuit;
     }
     virtual int onInterruptNetNotify(const HJNotification::Ptr ntfy);
+
+    void setIORunTime(int64_t time) {
+        m_ioRunTime = time;
+    }
+    void setIOTimeout(int64_t time) {
+        m_ioTimeout = time;
+    }
+    int64_t getIORunTime() const {
+        return m_ioRunTime;
+    }
+    int64_t getIOTimeout() const {
+        return m_ioTimeout;
+    }
 private:
     static int onInterruptCB(void *ctx);
     static int onInterruptNetCB(void* ctx, int state);
+
+    bool isIOTimeout();
 protected:
     AVIOInterruptCB*    m_interruptCB;
-    HJListener         m_listener = nullptr;
+    HJListener          m_listener = nullptr;
     std::atomic<bool>   m_isQuit = {false};
+    int64_t             m_ioRunTime = HJ_NOPTS_VALUE;
+    int64_t             m_ioTimeout = HJ_NOPTS_VALUE;
 };
 
 NS_HJ_END

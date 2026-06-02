@@ -7,7 +7,7 @@ set -e
 GIT_ROOT=$(git rev-parse --show-toplevel)
 cd "$GIT_ROOT"
 
-projs=("sonic" "soundtouch" "librtmp" "yyjson" "fdk-aac" "spdlog" "imgui" "implot" "glfw" "ImFileDialog" "ImGuiFileDialog" "zlib" "lz4")
+projs=("sonic" "soundtouch" "librtmp" "yyjson" "fdk-aac" "spdlog" "imgui" "implot" "glfw" "ImFileDialog" "ImGuiFileDialog" "zlib" "lz4" "imgui-node-editor")
 
 echo "Starting patch application process..."
 echo "====================================="

@@ -3,6 +3,7 @@
 #include "HJFileData.h"
 #include "libYuv.h"
 #include "HJSPBuffer.h"
+#include "HJOGCommon.h"
 
 NS_HJ_BEGIN
 
@@ -28,13 +29,7 @@ int yuvRender::init(const std::string& i_url, int i_width, int i_height)
 		if (!m_bCreateTexture)
 		{
 			m_bCreateTexture = true;
-			glGenTextures(1, &m_textureId);
-			glBindTexture(GL_TEXTURE_2D, m_textureId);
-
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			m_textureId = HJOGCommon::textureCreate();
 		}
 		m_RGBBuffer = HJSPBuffer::create(i_width * i_height * 4);
 	} while (false);

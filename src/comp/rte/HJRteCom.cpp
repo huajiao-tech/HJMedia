@@ -1,13 +1,14 @@
-#pragma once
-
 #include "HJRteCom.h"
 #include "HJFLog.h"
-
-#if defined (HarmonyOS)
-    #include "HJOGBaseShader.h"
-#endif
+#include "HJOGBaseShader.h"
 
 NS_HJ_BEGIN
+
+/////////////////////////////////////////////////////////////////////////////////////////
+HJRteDriftInfo::~HJRteDriftInfo()
+{
+    HJFLogd("{} ~HJRteDriftInfo ", m_strComName);
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -15,13 +16,15 @@ HJRteComLinkInfo::HJRteComLinkInfo()
 {
 
 }
-HJRteComLinkInfo::HJRteComLinkInfo(float i_x, float i_y, float i_width, float i_height, bool i_xMirror, bool i_yMirror) :
+HJRteComLinkInfo::HJRteComLinkInfo(float i_x, float i_y, float i_width, float i_height,  HJWindowRenderMode i_renderMode, bool i_xMirror, bool i_yMirror, const std::string &i_linkId) :
     m_x(i_x)
    , m_y(i_y)
    , m_width(i_width)
    , m_height(i_height)
+   , m_renderMode(i_renderMode)
    , m_xMirror(i_xMirror)
    , m_yMirror(i_yMirror)
+   , m_linkId(i_linkId)
 {
 }
 HJRteComLinkInfo::~HJRteComLinkInfo()
@@ -30,7 +33,7 @@ HJRteComLinkInfo::~HJRteComLinkInfo()
 
 std::string HJRteComLinkInfo::getInfo() const
 {
-    return HJFMT("viewport: <{} {} {} {}>", m_x, m_y, m_width, m_height);
+    return HJFMT("{} linkId:{} viewport: <{} {} {} {}> renderMode:{} xMirror:{} yMirror:{}", getInsName(), m_linkId, m_x, m_y, m_width, m_height, (int)m_renderMode, m_xMirror, m_yMirror);
 }
     
 HJVec4i HJRteComLinkInfo::convert(int i_targetWidth, int i_targetHeight)
@@ -62,21 +65,20 @@ HJRteComLink::HJRteComLink(const std::shared_ptr<HJRteCom>& i_srcCom, const std:
 HJRteComLink::~HJRteComLink()
 {
     m_memoryRteComLinkStatIdx--;
-    HJFLogi("{} ~HJRtelink {} memoryStatIdx:{}", m_insName, size_t(this), m_memoryRteComLinkStatIdx);
-    
+    //HJFLogi("{} ~HJRtelink {} memoryStatIdx:{}", m_insName, size_t(this), m_memoryRteComLinkStatIdx);
+  
     if (m_shader)
     {
-#if defined (HarmonyOS)
-        m_shader->release();
+        //not use this; A-B-C, remove B, B-C link shader is smart pt, and A-C link is shared, not m_shader->release, so release is in ~shader function is best
+        //m_shader->release();
         m_shader = nullptr;
-#endif
     } 
 }
 
 void HJRteComLink::priMemoryStat()
 {
     m_memoryRteComLinkStatIdx++;
-    HJFLogi("{} HJRtelink {} memoryStatIdx:{}", m_insName, size_t(this), m_memoryRteComLinkStatIdx);
+    //HJFLogi("{} HJRtelink {} memoryStatIdx:{}", m_insName, size_t(this), m_memoryRteComLinkStatIdx);
     
     if (!m_linkInfo)
     {
@@ -91,14 +93,7 @@ bool HJRteComLink::isReady() const
 {
     return m_bReady;
 }
-void HJRteComLink::setDriftInfo(HJRteDriftInfo::Ptr i_driftInfo)
-{
-    m_driftInfo = i_driftInfo;
-}
-HJRteDriftInfo::Ptr HJRteComLink::getDriftInfo() const
-{
-    return m_driftInfo;
-}
+
 std::shared_ptr<HJRteCom> HJRteComLink::getSrcComPtr() const
 {
     return HJRteCom::GetPtrFromWtr(m_srcCom);
@@ -158,13 +153,15 @@ std::atomic<int> HJRteCom::m_memoryRteComStatIdx = 0;
 
 HJRteCom::HJRteCom()
 {
-    m_curIdx = m_memoryRteComStatIdx++;
-    HJFLogi("{} HJRteCom {} memoryStatIdx:{}", m_insName, size_t(this), m_memoryRteComStatIdx);
+    const int memory_stat_idx = m_memoryRteComStatIdx.fetch_add(1, std::memory_order_relaxed) + 1;
+    m_curIdx = memory_stat_idx - 1;
+    HJFLogi("{} HJRteCom {} memoryStatIdx:{}", getDebugName(), size_t(this), memory_stat_idx);
 }
 HJRteCom::~HJRteCom()
 {
-    m_memoryRteComStatIdx--;
-    HJFLogi("{} ~HJRteCom {} m_curIdx:{} memoryStatIdx:{}", m_insName, size_t(this), m_curIdx, m_memoryRteComStatIdx);
+    const int memory_stat_idx = m_memoryRteComStatIdx.fetch_sub(1, std::memory_order_relaxed) - 1;
+    HJFLogi("{} ~HJRteCom {} m_curIdx:{} memoryStatIdx:{}", getDebugName(), size_t(this), m_curIdx,
+            memory_stat_idx);
 }
 int HJRteCom::init(HJBaseParam::Ptr i_param)
 {
@@ -221,6 +218,12 @@ bool HJRteCom::pricompare(const std::weak_ptr<HJRteComLink>& i_a, const std::wea
 
 HJRteComLink::Ptr HJRteCom::addTarget(HJRteCom::Ptr i_com, std::shared_ptr<HJOGBaseShader> i_shader, std::shared_ptr<HJRteComLinkInfo> i_linkInfo)
 {
+    if (i_com.get() == this)
+    {
+        HJFLoge("{} addTarget self link error i_com:{}", getDebugName(), i_com->getInsName());
+        return nullptr;
+    }
+
     HJRteComLink::Ptr link = HJRteComLink::Create<HJRteComLink>(HJBaseSharedObject::getSharedFrom(this), i_com, i_linkInfo, i_shader);
     std::string linkName = this->getInsName();
     if (i_shader)
@@ -351,23 +354,13 @@ int HJRteCom::getNextCount()
 {
     return m_nextQueue.size();
 }
+void HJRteCom::setRteComType(HJRteComType i_type)
+{
+    m_rteComType = i_type;
+}
 HJRteComType HJRteCom::getRteComType() const
 {
-    HJRteComType type = HJRteComType_Filter;
-
-    if (!m_nextQueue.empty() && !m_preQueue.empty())
-    {
-        type = HJRteComType_Filter;
-    }
-    else if (!m_nextQueue.empty())
-    {
-        type = HJRteComType_Source;
-    }
-    else if (!m_preQueue.empty())
-    {
-        type = HJRteComType_Target;
-    }
-    return type;
+    return m_rteComType;
 }
 bool HJRteCom::isSource() const
 {
@@ -386,7 +379,48 @@ bool HJRteCom::isTarget() const
 }
 void HJRteCom::reset()
 {
-    
+    m_driftInfo = nullptr;
+    m_refCntEvery = m_refCntStable;
+    //refCntClear();
+}
+HJRteDriftInfo::Ptr HJRteCom::getDriftInfo()
+{
+    HJRteDriftInfo::Ptr driftInfo = m_driftInfo;
+    if (m_driftInfo)
+    {
+        m_refCntEvery--;
+		if (m_refCntEvery <= 0)
+		{
+			m_driftInfo = nullptr;
+		}
+    }
+    return driftInfo;
+}
+void HJRteCom::setDriftInfo(HJRteDriftInfo::Ptr i_driftInfo)
+{
+    m_driftInfo = std::move(i_driftInfo);
+    //// 
+    //if (i_isSrcDrift && HJRteCom::isFilter() && m_driftInfo && !m_driftInfo->hasFboLease())
+    //{
+    //    m_driftInfo->setFunc([this]()
+    //    {
+    //        HJFLogi("{} ~driftInfo", getInsName());
+    //        resouceRelease();
+    //    });
+    //}
+}
+void HJRteCom::refCntClear()
+{
+    m_refCntStable = 0;
+}
+void HJRteCom::refCntSet(int i_refCnt)
+{
+    m_refCntStable = i_refCnt;
+    m_refCntEvery = m_refCntStable;
+}
+int HJRteCom::refCntGet() const
+{
+    return m_refCntStable;
 }
 //int HJRteCom::update(HJBaseParam::Ptr i_param)
 //{
@@ -433,6 +467,5 @@ void HJRteCom::reset()
 
 
 NS_HJ_END
-
 
 

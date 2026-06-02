@@ -16,10 +16,10 @@ void HJTimeline::internalRelease()
 	HJFLogi("{}, internalRelease() end", getName());
 }
 
-void HJTimeline::addListener(const std::string& i_name, Listener i_listener)
+void HJTimeline::addListener(const std::string& i_name, HJListener i_listener)
 {
 	if (i_listener != nullptr) {
-		SYNC_PROD_LOCK([=] {
+		SYNC_PROD_LOCK([this, i_name, i_listener] {
 			CHECK_DONE_STATUS();
 
 			m_listeners[i_name] = i_listener;
@@ -29,7 +29,7 @@ void HJTimeline::addListener(const std::string& i_name, Listener i_listener)
 
 void HJTimeline::removeListener(const std::string& i_name)
 {
-	SYNC_PROD_LOCK([=] {
+	SYNC_PROD_LOCK([this, i_name] {
 		CHECK_DONE_STATUS();
 
 		m_listeners.erase(i_name);
@@ -42,7 +42,7 @@ bool HJTimeline::setTimestamp(int64_t i_streamIndex, int64_t i_timestamp, double
 		return false;
 	}
 
-	return SYNC_PROD_LOCK([=] {
+	auto ret = SYNC_PROD_LOCK([this, i_streamIndex, i_timestamp, i_speed] {
 		CHECK_DONE_STATUS(false);
 		if (i_streamIndex < m_streamIndex) {
 			return false;
@@ -55,7 +55,7 @@ bool HJTimeline::setTimestamp(int64_t i_streamIndex, int64_t i_timestamp, double
 			m_sysTimestamp = HJCurrentSteadyMS();
 		}
 
-		notifyUpdated();
+		//notify(std::move(HJMakeNotification(HJ_TIMELINE_NOTIFY_UPDATED)));
 
 		auto time = HJCurrentSteadyMS();
 		if (m_updateTime < 0 || time >= m_updateTime + 2000) {
@@ -65,11 +65,17 @@ bool HJTimeline::setTimestamp(int64_t i_streamIndex, int64_t i_timestamp, double
 
 		return true;
 	});
+
+	if (ret) {
+		notify(std::move(HJMakeNotification(HJ_TIMELINE_NOTIFY_UPDATED)));
+	}
+
+	return ret;
 }
 
 bool HJTimeline::getTimestamp(int64_t& o_streamIndex, int64_t& o_timestamp, double& o_speed)
 {
-	return SYNC_PROD_LOCK([&] {
+	return SYNC_CONS_LOCK([this, &o_streamIndex, &o_timestamp, &o_speed] {
 		CHECK_DONE_STATUS(false);
 		if (m_streamIndex < 0) {
 			return false;
@@ -91,7 +97,7 @@ bool HJTimeline::getTimestamp(int64_t& o_streamIndex, int64_t& o_timestamp, doub
 
 void HJTimeline::flush()
 {
-	SYNC_PROD_LOCK([=] {
+	SYNC_PROD_LOCK([this] {
 		CHECK_DONE_STATUS();
 
 		m_streamIndex = -1;
@@ -101,37 +107,55 @@ void HJTimeline::flush()
 
 void HJTimeline::play()
 {
-	SYNC_PROD_LOCK([=] {
-		CHECK_DONE_STATUS();
+	auto ret = SYNC_PROD_LOCK([this] {
+		CHECK_DONE_STATUS(false);
 
 		if (m_paused) {
 			m_sysTimestamp = HJCurrentSteadyMS();
 			m_paused = false;
 
-			notifyUpdated();
+			return true;
 		}
+
+		return false;
 	});
+	if (ret) {
+		notify(HJMakeNotification(HJ_TIMELINE_NOTIFY_PLAY));
+	}
 }
 
 void HJTimeline::pause()
 {
-	SYNC_PROD_LOCK([=] {
-		CHECK_DONE_STATUS();
+	auto ret = SYNC_PROD_LOCK([this] {
+		CHECK_DONE_STATUS(false);
 
 		if (!m_paused) {
-			int64_t now = HJCurrentSteadyMS();
-			m_timestamp = m_timestamp + (now - m_sysTimestamp) * m_speed;
+			if (m_streamIndex >= 0) {
+				int64_t now = HJCurrentSteadyMS();
+				m_timestamp = m_timestamp + (now - m_sysTimestamp) * m_speed;
+			}
 			m_paused = true;
 
-//			notifyUpdated();
+			return true;
 		}
+
+		return false;
 	});
+	if (ret) {
+		notify(HJMakeNotification(HJ_TIMELINE_NOTIFY_PAUSE));
+	}
 }
 
-void HJTimeline::notifyUpdated()
+void HJTimeline::notify(HJNotification::Ptr i_ntf)
 {
-	for (const auto& [name, listener] : m_listeners) {
-		listener();
+	ListenerMap listeners;
+    SYNC_CONS_LOCK([&listeners, this] {
+		CHECK_DONE_STATUS();
+		listeners = m_listeners;
+	});
+
+	for (const auto& [name, listener] : listeners) {
+		listener(i_ntf);
 	}
 }
 

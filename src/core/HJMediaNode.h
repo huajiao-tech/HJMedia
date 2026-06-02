@@ -21,6 +21,7 @@ public:
     virtual int pause() = 0;
     virtual int resume() { return HJ_OK; }
     virtual int flush() { return HJ_OK; }
+    virtual int64_t getDuration() { return 0; }
     virtual void done() { }
 };
 

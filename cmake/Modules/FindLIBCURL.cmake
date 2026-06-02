@@ -1,0 +1,54 @@
+set(PROJ_NAME CURL)
+set(LIBPROJ_NAME LIB${PROJ_NAME})
+set(PROJ_LIB_NAME curl)
+set(PROJ_DIR_NAME libcurl)
+set(PROJ_HEADER curl/curl.h)
+
+# find_package(PkgConfig QUIET)
+# if(PKG_CONFIG_FOUND)
+#   pkg_check_modules(${PROJ_NAME} QUIET ${PROJ_LIB_NAME})
+# endif()
+
+find_path(
+  ${PROJ_NAME}_INCLUDE_DIR
+  NAMES ${PROJ_HEADER}
+  HINTS ${HJ_DEPS_DIR}/${PROJ_DIR_NAME}
+  PATH_SUFFIXES include)
+get_filename_component(${PROJ_NAME}_DIR ${${PROJ_NAME}_INCLUDE_DIR} DIRECTORY)
+# message(STATUS "HJ_DEPS_DIR=${HJ_DEPS_DIR}, ${PROJ_NAME}_INCLUDE_DIR=${${PROJ_NAME}_INCLUDE_DIR}, ${PROJ_NAME}_DIR:${${PROJ_NAME}_DIR}")
+
+if(WINDOWS AND DEFINED ${PROJ_NAME}_LIB)
+  if(NOT EXISTS "${${PROJ_NAME}_LIB}" OR "${${PROJ_NAME}_LIB}" MATCHES [[libcurl\.lib$]])
+    unset(${PROJ_NAME}_LIB CACHE)
+  endif()
+endif()
+
+if(WINDOWS)
+  find_file(
+    ${PROJ_NAME}_LIB
+    NAMES ${PROJ_LIB_NAME}.lib
+    HINTS ${HJ_DEPS_DIR}/${PROJ_DIR_NAME} ${HJ_DEPS_DIR}/${PROJ_DIR_NAME}/lib
+    PATH_SUFFIXES ${ARCHS_NAME})
+else()
+  find_library(
+    ${PROJ_NAME}_LIB
+    NAMES ${PROJ_LIB_NAME}
+    HINTS ${HJ_DEPS_DIR}/${PROJ_DIR_NAME} ${HJ_DEPS_DIR}/${PROJ_DIR_NAME}/lib
+    PATH_SUFFIXES ${ARCHS_NAME})
+endif()
+get_filename_component(${PROJ_NAME}_LIB_DIR ${${PROJ_NAME}_LIB} DIRECTORY)
+# message(STATUS "${PROJ_NAME}_LIB=${${PROJ_NAME}_LIB} ${PROJ_NAME}_LIB_DIR=${${PROJ_NAME}_LIB_DIR}")
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(${LIBPROJ_NAME} DEFAULT_MSG ${PROJ_NAME}_INCLUDE_DIR ${PROJ_NAME}_LIB)
+mark_as_advanced(${PROJ_NAME}_INCLUDE_DIR ${PROJ_NAME}_LIB)
+
+if(${LIBPROJ_NAME}_FOUND)
+  set(${LIBPROJ_NAME}_INCLUDE_DIRS ${${PROJ_NAME}_INCLUDE_DIR})
+  set(${LIBPROJ_NAME}_LIBRARIES ${${PROJ_NAME}_LIB})
+  # message(STATUS "${LIBPROJ_NAME}_INCLUDE_DIRS=${${LIBPROJ_NAME}_INCLUDE_DIRS}, ${LIBPROJ_NAME}_LIBRARIES:${${LIBPROJ_NAME}_LIBRARIES}")
+
+  add_library(${LIBPROJ_NAME} INTERFACE)
+  target_link_libraries(${LIBPROJ_NAME} INTERFACE ${${LIBPROJ_NAME}_LIBRARIES})
+  target_include_directories(${LIBPROJ_NAME} INTERFACE ${${LIBPROJ_NAME}_INCLUDE_DIRS})
+endif()

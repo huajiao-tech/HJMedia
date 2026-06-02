@@ -1,7 +1,8 @@
 #pragma once
 
 #include "HJPrerequisites.h"
-#include "HJJsonBase.h"
+#include "HJReflCppJson.h"
+#include "HJComUtils.h"
 
 NS_HJ_BEGIN
 
@@ -11,7 +12,7 @@ typedef enum HJRenderSurfaceType
     HJOGEGLSurfaceType_UI,
     HJOGEGLSurfaceType_EncoderPusher,
     HJOGEGLSurfaceType_EncoderRecord,
-    HJOGEGLSurfaceType_FaceDetect,
+    HJOGEGLSurfaceType_ImageReceiver,
 } HJRenderSurfaceType;
 
 typedef enum HJTransferCommandType
@@ -34,29 +35,9 @@ typedef enum HJTransferRenderTargetState
 
 using HJTransferFun = std::function<int (const std::string& i_info)>;
 
-class HJTransferRenderEnvInfo : public HJJsonBase
+class HJTransferRenderEnvInfo : public HJReflCppJsonInterpreter<HJTransferRenderEnvInfo>
 {
-public:
-    virtual int deserialInfo(const HJYJsonObject::Ptr &i_obj = nullptr)
-    {
-        int i_err = HJ_OK;
-        do
-        {
-            HJ_JSON_BASE_DESERIAL(m_obj, i_obj, bUseRenderEnv, renderFps);
-        } while (false);
-        return i_err;
-    }
-    
-    virtual int serialInfo(const HJYJsonObject::Ptr &i_obj = nullptr)
-    {
-        int i_err = HJ_OK;
-        do
-        {
-            HJ_JSON_BASE_SERIAL(m_obj, i_obj, bUseRenderEnv, renderFps);
-        } while (false);
-        return i_err;
-    }
-    
+public:    
  	bool bUseRenderEnv = true;
  	int renderFps = 30;
 };
@@ -84,34 +65,14 @@ public:
     int height = 0;
 };
 
-class HJTransferRenderModeInfo : public HJJsonBase
+class HJTransferRenderModeInfo : public HJReflCppJsonInterpreter<HJTransferRenderModeInfo>
 {
 public:
     HJ_DEFINE_CREATE(HJTransferRenderModeInfo);
     HJTransferRenderModeInfo()
     {
         
-    }
-    virtual int deserialInfo(const HJYJsonObject::Ptr &i_obj = nullptr)
-    {
-        int i_err = HJ_OK;
-        do
-        {
-            HJ_JSON_BASE_DESERIAL(m_obj, i_obj, color, cropMode, bAlphaVideoLeftRight, viewOffx, viewOffy, viewWidth, viewHeight);
-        } while (false);
-        return i_err;
-    }
-    
-    virtual int serialInfo(const HJYJsonObject::Ptr &i_obj = nullptr)
-    {
-        int i_err = HJ_OK;
-        do
-        {
-            HJ_JSON_BASE_SERIAL(m_obj, i_obj, color, cropMode, bAlphaVideoLeftRight, viewOffx, viewOffy, viewWidth, viewHeight);
-        } while (false);
-        return i_err;
-    }
-    
+    }    
     static HJTransferRenderViewPortInfo::Ptr compute(HJTransferRenderModeInfo::Ptr i_renderModeInfo, int i_targetWidth, int i_targetHeight)
     {
         int x = i_targetWidth * i_renderModeInfo->viewOffx;
@@ -130,7 +91,7 @@ public:
         return HJTransferRenderViewPortInfo::Create(x, y, w, h);
     }
 	std::string color = "BT601";      //BT601  BT709; only soft decode support
- 	std::string cropMode = "clip";     //fit clip origin full 
+ 	int cropMode = (int)HJWindowRenderMode_CLIP;     //fit clip origin full 
 
     bool bAlphaVideoLeftRight = false;
 
@@ -140,29 +101,9 @@ public:
     double viewHeight = 1.0;
 };
 
-class HJTransferRenderTargetInfo : public HJJsonBase
+class HJTransferRenderTargetInfo : public HJReflCppJsonInterpreter<HJTransferRenderTargetInfo>
 {
-public:
-    virtual int deserialInfo(const HJYJsonObject::Ptr &i_obj = nullptr)
-    {
-        int i_err = HJ_OK;
-        do
-        {
-            HJ_JSON_BASE_DESERIAL(m_obj, i_obj, nativeWindow, width, height, state, type, fps);  
-        } while (false);
-        return i_err;
-    }
-    
-    virtual int serialInfo(const HJYJsonObject::Ptr &i_obj = nullptr)
-    {
-        int i_err = HJ_OK;
-        do
-        {
-            HJ_JSON_BASE_SERIAL(m_obj, i_obj, nativeWindow, width, height, state, type, fps);
-        } while (false);
-        return i_err;
-    }
-    
+public:    
     int64_t nativeWindow = 0;
     int width = 0;
     int height = 0;   
@@ -173,3 +114,7 @@ public:
 
 
 NS_HJ_END
+
+REFL_AUTO_SIMPLE(HJ::HJTransferRenderEnvInfo, bUseRenderEnv, renderFps);
+REFL_AUTO_SIMPLE(HJ::HJTransferRenderModeInfo, color, cropMode, bAlphaVideoLeftRight, viewOffx, viewOffy, viewWidth, viewHeight);
+REFL_AUTO_SIMPLE(HJ::HJTransferRenderTargetInfo, nativeWindow, width, height, state, type, fps);

@@ -22,6 +22,8 @@ public:
     virtual int init(const HJMediaUrlVector& mediaUrls);
     virtual void done() override;
     int seek(const HJSeekInfo::Ptr info);
+    int switchAudioTrack(int trackID);
+    int64_t getDuration();
 private:
     virtual int proRun() override;
     virtual void run() override;

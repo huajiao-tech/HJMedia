@@ -1,0 +1,11 @@
+{
+	"prefix": "480x848",
+	"loops": 5000000,
+	"fps": 15,
+	"position": {
+		"topx": 0.0,
+		"topy": 0.0,
+		"width": 1.0,
+		"height": 1.0
+	}
+}

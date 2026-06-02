@@ -41,6 +41,13 @@ napi_value NapiUtil::SetNapiCallBool(napi_env env, bool value)
     return result;
 }
 
+napi_value NapiUtil::SetNapiCallString(const napi_env & env, const std::string& stringValue)
+{
+    napi_value result;
+    napi_create_string_utf8(env, stringValue.c_str(), NAPI_AUTO_LENGTH, &result);
+    return result;
+}
+
 int NapiUtil::StringToInt(std::string value){
     return atoi((char*)value.c_str());
 }
@@ -57,3 +64,19 @@ bool NapiUtil::StringToBool(const std::string value){
     return value=="true" ? true:false;
 }
 
+std::string NapiUtil::parseString(const napi_env &env, const napi_value &value)
+{
+    size_t strLen = 0;
+    napi_get_value_string_utf8(env, value, nullptr, 0, &strLen);
+
+    std::vector<char> buffer(strLen + 1);
+    napi_get_value_string_utf8(env, value, buffer.data(), buffer.size(), nullptr);
+    return std::string(buffer.data());
+}
+
+bool NapiUtil::parseBool(const napi_env &env, const napi_value &value)
+{
+    bool bValue = false;
+    napi_get_value_bool(env, value, &bValue);
+    return bValue;
+}

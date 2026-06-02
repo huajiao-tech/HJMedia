@@ -1,0 +1,60 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "XComponent"
+    },
+    {
+      "name": "page_title",
+      "value": "faceu"
+    },
+    {
+      "name": "faceu",
+      "value": "faceu"
+    },
+    {
+      "name": "status_redraw",
+      "value": "Touch button below to redraw"
+    },
+    {
+      "name": "faceuopen",
+      "value": "open"
+    },
+    {
+      "name": "faceuclose",
+      "value": "close"
+    },
+    {
+      "name": "faceuremoveall",
+      "value": "removeAll"
+    },
+    {
+      "name": "faceuadd",
+      "value": "add"
+    },
+    {
+      "name": "faceuremove",
+      "value": "remove"
+    },
+    {
+      "name": "faceudebugpoints",
+      "value": "debugPoints"
+    },
+    {
+      "name": "change_color",
+      "value": "Touch image to change its color"
+    },
+    {
+      "name": "load_yuv",
+      "value": "Load YUV"
+    }
+  ]
+}

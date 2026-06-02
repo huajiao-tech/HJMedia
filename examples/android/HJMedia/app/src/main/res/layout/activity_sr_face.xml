@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".SRFaceActivity">
+
+    <SurfaceView
+        android:id="@+id/srFaceSurfaceView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/srFaceControlTopGuide"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.66" />
+
+    <TextView
+        android:id="@+id/tvSRStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="#66000000"
+        android:paddingStart="10dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="4dp"
+        android:text="ON"
+        android:textAllCaps="true"
+        android:textColor="#00FF66"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Control panel wrapped in ScrollView -->
+    <ScrollView
+        android:id="@+id/srFaceControlScrollView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_margin="16dp"
+        android:background="#99000000"
+        android:fillViewport="true"
+        android:elevation="10dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/srFaceControlTopGuide">
+
+        <LinearLayout
+            android:id="@+id/srFaceButtonBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvSRFaceInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/sr_face_info_default"
+                android:textSize="12sp"
+                android:textColor="#00FF66" />
+
+            <!-- Row 1: SR Toggle and Setting Button -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <CheckBox
+                    android:id="@+id/cbUseSR"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="@string/sr_use_sr"
+                    android:textColor="#00FF66"
+                    android:buttonTint="#00FF66" />
+
+                <Button
+                    android:id="@+id/btnSRFaceSetting"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/sr_setting"
+                    android:textColor="#00FF66" />
+
+                <Button
+                    android:id="@+id/btnSRFacePause"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/sr_face_pause"
+                    android:textColor="#00FF66" />
+            </LinearLayout>
+
+            <CheckBox
+                android:id="@+id/cbSRPostResizeCompare"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:checked="true"
+                android:text="@string/sr_face_post_resize_compare"
+                android:textColor="#00FF66"
+                android:buttonTint="#00FF66" />
+
+            <LinearLayout
+                android:id="@+id/llTextureFSRControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tvTextureFSRHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Texture FSR"
+                    android:textSize="12sp"
+                    android:textColor="#00FF66" />
+
+                <TextView
+                    android:id="@+id/tvTextureFSRDenoise"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="FSR Denoise: 1.00"
+                    android:textSize="12sp"
+                    android:textColor="#00FF66" />
+
+                <SeekBar
+                    android:id="@+id/sbTextureFSRDenoise"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100"
+                    android:progress="100"
+                    android:thumbTint="#00FF66"
+                    android:progressTint="#00FF66"
+                    android:progressBackgroundTint="#335500" />
+
+                <TextView
+                    android:id="@+id/tvTextureFSRSharpness"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="FSR Sharpness: 1.00"
+                    android:textSize="12sp"
+                    android:textColor="#00FF66" />
+
+                <SeekBar
+                    android:id="@+id/sbTextureFSRSharpness"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100"
+                    android:progress="100"
+                    android:thumbTint="#00FF66"
+                    android:progressTint="#00FF66"
+                    android:progressBackgroundTint="#335500" />
+
+                <CheckBox
+                    android:id="@+id/cbTextureFSRExtraSharpen"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Enable FSR Extra Sharpen"
+                    android:textColor="#00FF66"
+                    android:buttonTint="#00FF66" />
+
+                <TextView
+                    android:id="@+id/tvTextureFSRBoost"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="FSR Extra Boost: 0.55"
+                    android:textSize="12sp"
+                    android:textColor="#00FF66" />
+
+                <SeekBar
+                    android:id="@+id/sbTextureFSRBoost"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100"
+                    android:progress="55"
+                    android:thumbTint="#00FF66"
+                    android:progressTint="#00FF66"
+                    android:progressBackgroundTint="#335500" />
+            </LinearLayout>
+
+            <!-- Row 2: Mode, ProcPolicy -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="top"
+                android:layout_marginTop="4dp">
+
+                <LinearLayout
+                    android:id="@+id/llSRModeControl"
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sr_mode"
+                        android:textSize="12sp"
+                        android:textColor="#00FF66"
+                        android:buttonTint="#00FF66" />
+
+                    <Spinner
+                        android:id="@+id/spSRMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/spinner_bg_black"
+                        android:popupBackground="#CC000000"
+                        android:spinnerMode="dropdown" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/llSRProcPolicyControl"
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sr_face_scale_policy"
+                        android:textSize="12sp"
+                        android:textColor="#00FF66"
+                        android:buttonTint="#00FF66" />
+
+                    <Spinner
+                        android:id="@+id/spSRProcPolicy"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/spinner_bg_black"
+                        android:popupBackground="#CC000000"
+                        android:spinnerMode="dropdown" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llSRFaceRatioRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/llSRFaceScaleRatio"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tvSRFaceScaleValue"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sr_face_scale_value_default"
+                        android:textSize="12sp"
+                        android:textColor="#00FF66" />
+
+                    <Spinner
+                        android:id="@+id/spSRFaceScalePreset"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/spinner_bg_black"
+                        android:popupBackground="#CC000000"
+                        android:spinnerMode="dropdown" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/llSRFaceMixRatio"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvSRFaceMix"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sr_face_mix_default"
+                        android:textSize="12sp"
+                        android:textColor="#00FF66" />
+
+                    <SeekBar
+                        android:id="@+id/sbSRFaceMix"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:max="100"
+                        android:progress="100"
+                        android:thumbTint="#00FF66"
+                        android:progressTint="#00FF66"
+                        android:progressBackgroundTint="#335500" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llSRFaceMatchRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/llSRFaceMatchRatio"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvSRFaceMatch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sr_face_match_default"
+                        android:textSize="12sp"
+                        android:textColor="#00FF66" />
+
+                    <SeekBar
+                        android:id="@+id/sbSRFaceMatch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:max="100"
+                        android:progress="100"
+                        android:thumbTint="#00FF66"
+                        android:progressTint="#00FF66"
+                        android:progressBackgroundTint="#335500" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llSRDisplayScaleRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/llSRDisplayScaleW"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvSRDisplayScaleW"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Display W: 1.00"
+                        android:textSize="12sp"
+                        android:textColor="#00FF66" />
+
+                    <SeekBar
+                        android:id="@+id/sbSRDisplayScaleW"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:max="100"
+                        android:progress="100"
+                        android:thumbTint="#00FF66"
+                        android:progressTint="#00FF66"
+                        android:progressBackgroundTint="#335500" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/llSRDisplayScaleH"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvSRDisplayScaleH"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Display H: 1.00"
+                        android:textSize="12sp"
+                        android:textColor="#00FF66" />
+
+                    <SeekBar
+                        android:id="@+id/sbSRDisplayScaleH"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:max="100"
+                        android:progress="100"
+                        android:thumbTint="#00FF66"
+                        android:progressTint="#00FF66"
+                        android:progressBackgroundTint="#335500" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvSRFaceSettingInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/sr_face_setting_default"
+                android:textSize="12sp"
+                android:textColor="#00FF66" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

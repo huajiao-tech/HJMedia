@@ -6,6 +6,7 @@ NS_HJ_BEGIN
 
 class HJHandler;
 using HJHandlerPtr = std::shared_ptr<HJHandler>;
+using HJHandlerWtr = std::weak_ptr<HJHandler>;
 
 class HJMessage final : public std::enable_shared_from_this<HJMessage>
 {
@@ -17,7 +18,7 @@ public:
 	int arg2{};
 	HJSyncObject::Ptr obj{};
 	uint64_t when{};
-	HJHandlerPtr target{};
+	HJHandlerWtr target{};
 	HJRunnable callback{};
 	Ptr next{};
 

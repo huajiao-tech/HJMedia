@@ -7,7 +7,7 @@
 #include "HJFLog.h"
 #include "HJFileUtil.h"
 #include "HJException.h"
-#include "HJMediaStorageManager.h"
+#include "HJMediaDBManager.h"
 
 #define HJ_SERVER_DB_FILE "hjmedia.sqlite"
 
@@ -129,7 +129,7 @@ int HJLocalServer::setupStorage()
     HJFLogi("setup storage entry");
     try {
         std::string db_file = HJUtilitys::concatenatePath(m_params.cache_dir, HJ_SERVER_DB_FILE);
-        m_storageManager = HJCreates<HJMediaStorageManager>(db_file, m_params.cache_dir);
+        m_storageManager = HJCreates<HJMediaDBManager>(db_file);
         m_storageManager->init();
         //
         m_cacheManager = HJCreateu<HJCacheManager>(m_params);

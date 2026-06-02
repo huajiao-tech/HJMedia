@@ -5,7 +5,7 @@
 //***********************************************************************************//
 #include "HJServerUtils.h"
 #include "HJFLog.h"
-#include "HJMediaStorageManager.h"
+#include "HJMediaDBManager.h"
 #include "HJMediaUtils.h"
 
 NS_HJ_BEGIN

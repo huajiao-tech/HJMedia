@@ -40,4 +40,14 @@ protected:
 	uint64_t	m_texID = 0;
 };
 
+class HJGuiImageManager : public HJObject
+{
+public:
+	HJ_INSTANCE_DECL(HJGuiImageManager);
+
+	HJImage::Ptr load(const std::string& filename);
+private:
+	std::unordered_map<std::string, HJImage::Ptr> m_images;
+};
+
 NS_HJ_END

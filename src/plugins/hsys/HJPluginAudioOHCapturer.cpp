@@ -10,17 +10,17 @@ int HJPluginAudioOHCapturer::internalInit(HJKeyStorage::Ptr i_param)
 	if (!audioInfo) {
 		return HJErrInvalidParams;
 	}
-	GET_PARAMETER(HJLooperThread::Ptr, thread);
-	GET_PARAMETER(HJListener, pluginListener);
-	auto param = std::make_shared<HJKeyStorage>();
+//	GET_PARAMETER(HJLooperThread::Ptr, thread);
+//	GET_PARAMETER(HJListener, pluginListener);
+	auto param = HJKeyStorage::dupFrom(i_param);
 	(*param)["streamInfo"] = std::static_pointer_cast<HJStreamInfo>(audioInfo);
-	(*param)["thread"] = thread;
-	if (pluginListener) {
-		(*param)["pluginListener"] = pluginListener;
-	}
+//	(*param)["thread"] = thread;
+//	if (pluginListener) {
+//		(*param)["pluginListener"] = pluginListener;
+//	}
 	return HJPluginCapturer::internalInit(param);
 }
-
+/*
 void HJPluginAudioOHCapturer::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 {
 	auto info = i_mediaFrame->getAudioInfo();
@@ -40,7 +40,7 @@ void HJPluginAudioOHCapturer::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 
 	HJPluginCapturer::deliverToOutputs(i_mediaFrame);
 }
-
+*/
 HJBaseCapture::Ptr HJPluginAudioOHCapturer::createCapturer()
 {
 	return HJBaseCapture::createCapture(HJMEDIA_TYPE_AUDIO, HJCAPTURE_TYPE_OH);

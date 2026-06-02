@@ -1,0 +1,72 @@
+[
+  {
+    "metadataOutputVersion" : "3.0",
+    "storagePrecision" : "Float16",
+    "outputSchema" : [
+      {
+        "height" : "992",
+        "colorspace" : "RGB",
+        "isOptional" : "0",
+        "width" : "800",
+        "isColor" : "1",
+        "formattedType" : "Image (Color 800 × 992)",
+        "hasSizeFlexibility" : "0",
+        "type" : "Image",
+        "shortDescription" : "",
+        "name" : "output_image"
+      }
+    ],
+    "modelParameters" : [
+
+    ],
+    "specificationVersion" : 7,
+    "mlProgramOperationTypeHistogram" : {
+      "Ios16.cast" : 2,
+      "Ios16.add" : 1,
+      "Ios16.mul" : 2,
+      "PixelShuffle" : 1,
+      "Ios16.prelu" : 33,
+      "Ios16.clip" : 1,
+      "UpsampleNearestNeighbor" : 1,
+      "Ios16.conv" : 34
+    },
+    "computePrecision" : "Mixed (Float16, Float32, Int32)",
+    "isUpdatable" : "0",
+    "stateSchema" : [
+
+    ],
+    "availability" : {
+      "macOS" : "13.0",
+      "tvOS" : "16.0",
+      "visionOS" : "1.0",
+      "watchOS" : "9.0",
+      "iOS" : "16.0",
+      "macCatalyst" : "16.0"
+    },
+    "modelType" : {
+      "name" : "MLModelType_mlProgram"
+    },
+    "userDefinedMetadata" : {
+      "com.github.apple.coremltools.conversion_date" : "2026-03-30",
+      "com.github.apple.coremltools.source" : "torch==2.10.0",
+      "com.github.apple.coremltools.version" : "9.0",
+      "com.github.apple.coremltools.source_dialect" : "TorchScript"
+    },
+    "inputSchema" : [
+      {
+        "height" : "248",
+        "colorspace" : "RGB",
+        "isOptional" : "0",
+        "width" : "200",
+        "isColor" : "1",
+        "formattedType" : "Image (Color 200 × 248)",
+        "hasSizeFlexibility" : "0",
+        "type" : "Image",
+        "shortDescription" : "",
+        "name" : "input_image"
+      }
+    ],
+    "generatedClassName" : "realesr_general_merge05_x4v3_fixed_200x248_image_ios16",
+    "method" : "predict"
+  }
+]

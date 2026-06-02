@@ -21,6 +21,38 @@ HJYJsonObject::HJYJsonObject()
 {
     
 }
+
+HJYJsonObject::HJYJsonObject(HJYJsonObject&& other) noexcept
+    : HJObject(std::move(other))
+    , m_key(std::move(other.m_key))
+    , m_rval(other.m_rval)
+    , m_wval(other.m_wval)
+    , m_mdoc(other.m_mdoc)
+    , m_subObjs(std::move(other.m_subObjs))
+    , m_childList(std::move(other.m_childList))
+{
+    other.m_rval = nullptr;
+    other.m_wval = nullptr;
+    other.m_mdoc = nullptr;
+}
+
+HJYJsonObject& HJYJsonObject::operator=(HJYJsonObject&& other) noexcept
+{
+    if (this != &other) {
+        HJObject::operator=(std::move(other));
+        m_key = std::move(other.m_key);
+        m_rval = other.m_rval;
+        m_wval = other.m_wval;
+        m_mdoc = other.m_mdoc;
+        m_subObjs = std::move(other.m_subObjs);
+        m_childList = std::move(other.m_childList);
+        
+        other.m_rval = nullptr;
+        other.m_wval = nullptr;
+        other.m_mdoc = nullptr;
+    }
+    return *this;
+}
 HJYJsonObject::HJYJsonObject(const std::string& key, yyjson_val* val)
     : m_key(key)
     , m_rval(val)
@@ -52,35 +84,35 @@ HJYJsonObject::~HJYJsonObject()
     
 }
 
-bool HJYJsonObject::isNull() {
+bool HJYJsonObject::isNull() const {
     return yyjson_is_null(m_rval);
 }
-bool HJYJsonObject::isObj() {
+bool HJYJsonObject::isObj() const {
     return yyjson_is_obj(m_rval);
 }
-bool HJYJsonObject::isArr() {
+bool HJYJsonObject::isArr() const {
     return yyjson_is_arr(m_rval);
 }
-bool HJYJsonObject::isStr() {
+bool HJYJsonObject::isStr() const {
     return yyjson_is_str(m_rval);
 }
-bool HJYJsonObject::isInt64() {
+bool HJYJsonObject::isInt64() const {
     return yyjson_is_int(m_rval);
 }
-bool HJYJsonObject::isUInt64() {
+bool HJYJsonObject::isUInt64() const {
     return yyjson_is_uint(m_rval);
 }
-bool HJYJsonObject::isReal() {
+bool HJYJsonObject::isReal() const {
     return yyjson_is_real(m_rval);
 }
-bool HJYJsonObject::isBool() {
+bool HJYJsonObject::isBool() const {
     return yyjson_is_bool(m_rval);
 }
-int HJYJsonObject::getType() {
+int HJYJsonObject::getType() const {
     return unsafe_yyjson_get_type(m_rval);
 }
 
-bool HJYJsonObject::hasObj(const std::string& key)
+bool HJYJsonObject::hasObj(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return false;
@@ -92,7 +124,7 @@ bool HJYJsonObject::hasObj(const std::string& key)
     return true;
 }
 
-bool HJYJsonObject::isObj(const std::string& key)
+bool HJYJsonObject::isObj(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return false;
@@ -104,7 +136,7 @@ bool HJYJsonObject::isObj(const std::string& key)
     return yyjson_is_obj(val);
 }
 
-bool HJYJsonObject::isArr(const std::string& key)
+bool HJYJsonObject::isArr(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return false;
@@ -116,7 +148,7 @@ bool HJYJsonObject::isArr(const std::string& key)
     return yyjson_is_arr(val);
 }
 
-HJYJsonObject::Ptr HJYJsonObject::getObj(const std::string& key)
+HJYJsonObject::Ptr HJYJsonObject::getObj(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return nullptr;
@@ -145,29 +177,51 @@ int HJYJsonObject::addObj(HJYJsonObject::Ptr obj)
     return HJ_OK;
 }
 
-bool HJYJsonObject::getBool() {
+bool HJYJsonObject::getBool() const {
     return yyjson_get_bool(m_rval);
 }
-int HJYJsonObject::getInt() {
+int HJYJsonObject::getInt() const {
     return yyjson_get_int(m_rval);
 }
-int64_t HJYJsonObject::getInt64() {
+int64_t HJYJsonObject::getInt64() const {
     return yyjson_get_sint(m_rval);
 }
-uint64_t HJYJsonObject::getUInt64() {
+uint64_t HJYJsonObject::getUInt64() const {
     return yyjson_get_uint(m_rval);
 }
-double HJYJsonObject::getReal() {
+double HJYJsonObject::getReal() const{
+    if (yyjson_is_real(m_rval)) {
+        return yyjson_get_real(m_rval);
+    } else if (yyjson_is_int(m_rval)) {
+        return (double)yyjson_get_sint(m_rval);
+    } else if (yyjson_is_uint(m_rval)) {
+        return (double)yyjson_get_uint(m_rval);
+    }
     return yyjson_get_real(m_rval);
 }
-std::string HJYJsonObject::getString() {
-    return yyjson_get_str(m_rval);
+std::string HJYJsonObject::getString() const {
+    const char* s = yyjson_get_str(m_rval);
+    return s ? s : "";
 }
-uint8_t* HJYJsonObject::getRaw() {
+uint8_t* HJYJsonObject::getRaw() const {
     return (uint8_t*)yyjson_get_raw(m_rval);
 }
 
-bool HJYJsonObject::getBool(const std::string& key)
+std::vector<std::string> HJYJsonObject::getKeys() const {
+    std::vector<std::string> keys;
+    if (isObj()) {
+        size_t idx, max;
+        yyjson_val *key_val, *val;
+        yyjson_obj_foreach(m_rval, idx, max, key_val, val) {
+            if (key_val && yyjson_is_str(key_val)) {
+                keys.push_back(yyjson_get_str(key_val));
+            }
+        }
+    }
+    return keys;
+}
+
+bool HJYJsonObject::getBool(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return false;
@@ -179,7 +233,7 @@ bool HJYJsonObject::getBool(const std::string& key)
     return yyjson_get_bool(val);
 }
 
-int HJYJsonObject::getInt(const std::string& key)
+int HJYJsonObject::getInt(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return 0;
@@ -187,11 +241,14 @@ int HJYJsonObject::getInt(const std::string& key)
     yyjson_val* val = yyjson_obj_get(m_rval, key.c_str());
     if (!val) {
         return 0;
+    }
+    if(yyjson_is_real(val)) {
+        return (int)yyjson_get_real(val);
     }
     return yyjson_get_int(val);
 }
 
-int64_t HJYJsonObject::getInt64(const std::string& key)
+int64_t HJYJsonObject::getInt64(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return 0;
@@ -199,11 +256,14 @@ int64_t HJYJsonObject::getInt64(const std::string& key)
     yyjson_val* val = yyjson_obj_get(m_rval, key.c_str());
     if (!val) {
         return 0;
+    }
+    if(yyjson_is_real(val)) {
+        return (int64_t)yyjson_get_real(val);
     }
     return yyjson_get_sint(val);
 }
 
-uint64_t HJYJsonObject::getUInt64(const std::string& key)
+uint64_t HJYJsonObject::getUInt64(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return 0;
@@ -211,11 +271,14 @@ uint64_t HJYJsonObject::getUInt64(const std::string& key)
     yyjson_val* val = yyjson_obj_get(m_rval, key.c_str());
     if (!val) {
         return 0;
+    }
+    if(yyjson_is_real(val)) {
+        return (uint64_t)yyjson_get_real(val);
     }
     return yyjson_get_uint(val);
 }
 
-double HJYJsonObject::getReal(const std::string& key)
+double HJYJsonObject::getReal(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return 0.0;
@@ -223,11 +286,19 @@ double HJYJsonObject::getReal(const std::string& key)
     yyjson_val* val = yyjson_obj_get(m_rval, key.c_str());
     if (!val) {
         return 0.0;
+    }
+
+    if (yyjson_is_real(val)) {
+        return yyjson_get_real(val);
+    } else if (yyjson_is_int(val)) {
+        return (double)yyjson_get_sint(val);
+    } else if (yyjson_is_uint(val)) {
+        return (double)yyjson_get_uint(val);
     }
     return yyjson_get_real(val);
 }
 
-std::string HJYJsonObject::getString(const std::string& key)
+std::string HJYJsonObject::getString(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return "";
@@ -236,10 +307,11 @@ std::string HJYJsonObject::getString(const std::string& key)
     if (!val) {
         return "";
     }
-    return yyjson_get_str(val);
+    const char* s = yyjson_get_str(val);
+    return s ? s : "";
 }
 
-uint8_t* HJYJsonObject::getRaw(const std::string& key)
+uint8_t* HJYJsonObject::getRaw(const std::string& key) const
 {
     if (!m_rval || key.empty()) {
         return NULL;
@@ -251,7 +323,7 @@ uint8_t* HJYJsonObject::getRaw(const std::string& key)
     return (uint8_t *)yyjson_get_raw(val);
 }
 
-std::deque<HJYJsonObject::Ptr> HJYJsonObject::getArr(const std::string& key)
+std::deque<HJYJsonObject::Ptr> HJYJsonObject::getArr(const std::string& key) const
 {
     std::deque<HJYJsonObject::Ptr> objs;
     if (!m_rval || key.empty()) {
@@ -272,7 +344,7 @@ std::deque<HJYJsonObject::Ptr> HJYJsonObject::getArr(const std::string& key)
     return objs;
 }
 
-int HJYJsonObject::getMember(const std::string& key, bool& value)
+int HJYJsonObject::getMember(const std::string& key, bool& value) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -286,7 +358,7 @@ int HJYJsonObject::getMember(const std::string& key, bool& value)
     return HJ_OK;
 }
 
-int HJYJsonObject::getMember(const std::string& key, int& value)
+int HJYJsonObject::getMember(const std::string& key, int& value) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -294,12 +366,15 @@ int HJYJsonObject::getMember(const std::string& key, int& value)
     yyjson_val* val = yyjson_obj_get(m_rval, key.c_str());
     if (!val) {
         return HJErrNotExist;
+    }
+    if(yyjson_is_real(val)) {
+        return (int)yyjson_get_real(val);
     }
     value = yyjson_get_int(val);
     
     return HJ_OK;
 }
-int HJYJsonObject::getMember(const std::string& key, int64_t& value)
+int HJYJsonObject::getMember(const std::string& key, int64_t& value) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -307,12 +382,15 @@ int HJYJsonObject::getMember(const std::string& key, int64_t& value)
     yyjson_val* val = yyjson_obj_get(m_rval, key.c_str());
     if (!val) {
         return HJErrNotExist;
+    }
+    if(yyjson_is_real(val)) {
+        return (int64_t)yyjson_get_real(val);
     }
     value = yyjson_get_sint(val);
     
     return HJ_OK;
 }
-int HJYJsonObject::getMember(const std::string& key, uint64_t& value)
+int HJYJsonObject::getMember(const std::string& key, uint64_t& value) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -320,12 +398,15 @@ int HJYJsonObject::getMember(const std::string& key, uint64_t& value)
     yyjson_val* val = yyjson_obj_get(m_rval, key.c_str());
     if (!val) {
         return HJErrNotExist;
+    }
+    if(yyjson_is_real(val)) {
+        return (uint64_t)yyjson_get_real(val);
     }
     value = yyjson_get_uint(val);
     
     return HJ_OK;
 }
-int HJYJsonObject::getMember(const std::string& key, double& value)
+int HJYJsonObject::getMember(const std::string& key, double& value) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -334,11 +415,18 @@ int HJYJsonObject::getMember(const std::string& key, double& value)
     if (!val) {
         return HJErrNotExist;
     }
-    value = yyjson_get_real(val);
-    
+    if (yyjson_is_real(val)) {
+        value = yyjson_get_real(val);
+    } else if (yyjson_is_int(val)) {
+        value = (double)yyjson_get_sint(val);
+    } else if (yyjson_is_uint(val)) {
+        value = (double)yyjson_get_uint(val);
+    } else {
+        value = yyjson_get_real(val);
+    }
     return HJ_OK;
 }
-int HJYJsonObject::getMember(const std::string& key, std::string& value)
+int HJYJsonObject::getMember(const std::string& key, std::string& value) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -347,11 +435,12 @@ int HJYJsonObject::getMember(const std::string& key, std::string& value)
     if (!val) {
         return HJErrNotExist;
     }
-    value = yyjson_get_str(val);
+    const char* s = yyjson_get_str(val);
+    value = s ? s : "";
     
     return HJ_OK;
 }
-int HJYJsonObject::getMember(const std::string& key, uint8_t*& value, size_t& len)
+int HJYJsonObject::getMember(const std::string& key, uint8_t*& value, size_t& len) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -366,7 +455,7 @@ int HJYJsonObject::getMember(const std::string& key, uint8_t*& value, size_t& le
     return HJ_OK;
 }
 
-int HJYJsonObject::getMember(const std::string& key, std::vector<HJYJsonObject::Ptr>& objs)
+int HJYJsonObject::getMember(const std::string& key, std::vector<HJYJsonObject::Ptr>& objs) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -385,7 +474,7 @@ int HJYJsonObject::getMember(const std::string& key, std::vector<HJYJsonObject::
     }
     return HJ_OK;
 }
-int HJYJsonObject::forEachAnonymous(const std::function<int(const HJYJsonObject::Ptr&)>& cb)
+int HJYJsonObject::forEachAnonymous(const std::function<int(const HJYJsonObject::Ptr&)>& cb) const
 {
 	if (!m_rval) {
 		return HJErrNotAlready;
@@ -405,7 +494,7 @@ int HJYJsonObject::forEachAnonymous(const std::function<int(const HJYJsonObject:
 	}
 	return res;
 }
-int HJYJsonObject::forEach(const std::string& key, const std::function<int(const HJYJsonObject::Ptr &)>& cb)
+int HJYJsonObject::forEach(const std::string& key, const std::function<int(const HJYJsonObject::Ptr &)>& cb) const
 {
     if (!m_rval || key.empty()) {
         return HJErrNotAlready;
@@ -578,7 +667,7 @@ int HJYJsonObject::setMember(const std::string& key, const double value)
     }
     return HJ_OK;
 }
-int HJYJsonObject::setMember(const std::string& key, const std::string value)
+int HJYJsonObject::setMember(const std::string& key, const std::string& value)
 {
     if (key.empty() || !m_wval || !m_mdoc) {
         return HJErrNotAlready;
@@ -623,7 +712,7 @@ int HJYJsonObject::setMember(const std::string& key, const uint8_t* value, const
     return HJ_OK;
 }
 
-int HJYJsonObject::setMember(const std::string& key, std::vector<HJYJsonObject::Ptr> value)
+int HJYJsonObject::setMember(const std::string& key, const std::vector<HJYJsonObject::Ptr>& value)
 {
     if (key.empty() || !m_wval || !m_mdoc) {
         return HJErrNotAlready;
@@ -632,7 +721,7 @@ int HJYJsonObject::setMember(const std::string& key, std::vector<HJYJsonObject::
     m_subObjs[key] = subObj;
     //
     yyjson_mut_val* arr = yyjson_mut_obj_add_arr(m_mdoc, m_wval, subObj->getName().c_str()); //yyjson_mut_arr(m_mdoc);
-    for (auto obj : value) {
+    for (auto& obj : value) {
         yyjson_mut_val* item = obj->getWVal();
         yyjson_mut_arr_add_val(arr, item);
     }
@@ -872,7 +961,7 @@ int HJYJsonDocument::initWithUrl(const std::string& url)
     return res;
 }
 
-std::string HJYJsonDocument::getSerialInfo()
+std::string HJYJsonDocument::getSerialInfo() const
 {
     if (!m_wdoc) {
         return "";
@@ -894,7 +983,7 @@ int HJYJsonDocument::writeFile(const std::string &path)
         return HJErrInvalidParams;
     }
     yyjson_write_err err;
-    yyjson_write_flag flg = YYJSON_WRITE_PRETTY | YYJSON_WRITE_ESCAPE_UNICODE;
+    yyjson_write_flag flg = YYJSON_WRITE_PRETTY;// | YYJSON_WRITE_ESCAPE_UNICODE;
     yyjson_mut_write_file(path.c_str(), m_wdoc, flg, NULL, &err);
     if (err.code) {
         HJLogi("write json error:" + HJ2STR(err.code) + HJ2SSTR(err.msg));
@@ -941,5 +1030,62 @@ int HJSJsonDocument::initWithUrl(const std::string& url)
 }
 #endif //
 
+
+HJInterpreter::HJInterpreter(const std::string& info) {
+    if (info.empty()) {
+        throw std::runtime_error("HJInterpreter init with empty string");
+    }
+    m_obj = HJYJsonDocument::createWithInfo(info);
+    if (!m_obj) {
+        throw std::runtime_error("HJInterpreter init info error: invalid JSON");
+    }
+}
+
+std::string HJInterpreter::getSerialInfo() {
+    if (!m_obj) {
+        m_obj = HJYJsonDocument::create();
+        if (!m_obj) {
+            return "";
+        }
+    }
+    
+    // Ensure C++ members are synced to JSON before serializing
+    serialInfo();
+    
+    // If m_obj is a document, use its getSerialInfo
+    auto doc = std::dynamic_pointer_cast<HJYJsonDocument>(m_obj);
+    if (doc) {
+        return doc->getSerialInfo();
+    }
+    
+    // If it's a sub-object (not a full document), serialize its node
+    if (m_obj->getWVal()) {
+        size_t len = 0;
+        char* json = yyjson_mut_val_write(m_obj->getWVal(), YYJSON_WRITE_NOFLAG, &len);
+        if (json) {
+            std::string res(json, len);
+            free(json);
+            return res;
+        }
+    }
+    
+    return "";
+}
+
+int HJInterpreter::deserialInfo(const HJYJsonObject::Ptr& obj) {
+    auto targetObj = obj ? obj : m_obj;
+    if (!targetObj) {
+        return HJErrInvalidParams;
+    }
+    return HJ_OK;
+}
+
+int HJInterpreter::serialInfo(const HJYJsonObject::Ptr& obj) {
+    auto targetObj = obj ? obj : m_obj;
+    if (!targetObj) {
+        return HJErrInvalidParams;
+    }
+    return HJ_OK;
+}
 
 NS_HJ_END

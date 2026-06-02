@@ -4,15 +4,15 @@
 
 NS_HJ_BEGIN
 
-HJGraphPusher::HJGraphPusher(const std::string& i_name, size_t i_identify)
-    : HJGraph(i_name, i_identify)
-{
-}
-
-HJGraphPusher::~HJGraphPusher()
-{
-    HJGraphPusher::done();
-}
+HJ_NAME_DECLARE(ffMuxer)
+HJ_NAME_DECLARE(rtmpMuxer)
+HJ_NAME_DECLARE(avInterleave)
+HJ_NAME_DECLARE(audioResampler)
+HJ_NAME_DECLARE(speechResampler)
+HJ_NAME_DECLARE(speechRecognizer)
+HJ_NAME_DECLARE(audioEncoder)
+HJ_NAME_DECLARE(audioCapturer)
+HJ_NAME_DECLARE(videoEncoder)
 
 int HJGraphPusher::internalInit(HJKeyStorage::Ptr i_param)
 {
@@ -39,9 +39,9 @@ int HJGraphPusher::internalInit(HJKeyStorage::Ptr i_param)
         GET_PARAMETER(HJListener, pusherListener);
         m_pusherListener = pusherListener;
 
-        IF_FALSE_BREAK(m_rtmp = HJPluginRTMPMuxer::Create(), HJErrFatal);
+        IF_FALSE_BREAK(m_rtmp = HJPluginRTMPMuxer::Create<HJPluginRTMPMuxer>(rtmpMuxer_STRING, rtmpMuxer_HASH64), HJErrFatal);
         addPlugin(m_rtmp);
-        IF_FALSE_BREAK(m_avInterleave = HJPluginAVInterleave::Create(), HJErrFatal);
+        IF_FALSE_BREAK(m_avInterleave = HJPluginAVInterleave::Create<HJPluginAVInterleave>(avInterleave_STRING, avInterleave_HASH64), HJErrFatal);
         addPlugin(m_avInterleave);
         IF_FAIL_BREAK(ret = connectPlugins(m_avInterleave, m_rtmp, HJMEDIA_TYPE_DATA), ret);
         if (audioInfo != nullptr) {
@@ -49,12 +49,12 @@ int HJGraphPusher::internalInit(HJKeyStorage::Ptr i_param)
             IF_FALSE_BREAK(m_audioThread = HJLooperThread::quickStart("audioThread"), HJErrFatal);
             addThread(m_audioThread);
 #if defined(HarmonyOS)
-            IF_FALSE_BREAK(m_audioCapturer = HJPluginAudioOHCapturer::Create(), HJErrFatal);
+            IF_FALSE_BREAK(m_audioCapturer = HJPluginAudioOHCapturer::Create<HJPluginAudioOHCapturer>(audioCapturer_STRING, audioCapturer_HASH64), HJErrFatal);
             addPlugin(m_audioCapturer);
 #endif
-            IF_FALSE_BREAK(m_audioResampler = HJPluginAudioResampler::Create(), HJErrFatal);
+            IF_FALSE_BREAK(m_audioResampler = HJPluginAudioResampler::Create<HJPluginAudioResampler>(audioResampler_STRING, audioResampler_HASH64), HJErrFatal);
             addPlugin(m_audioResampler);
-            IF_FALSE_BREAK(m_audioEncoder = HJPluginFDKAACEncoder::Create(), HJErrFatal);
+            IF_FALSE_BREAK(m_audioEncoder = HJPluginFDKAACEncoder::Create<HJPluginFDKAACEncoder>(audioEncoder_STRING, audioEncoder_HASH64), HJErrFatal);
             addPlugin(m_audioEncoder);
 #if defined(HarmonyOS)
             IF_FAIL_BREAK(ret = connectPlugins(m_audioCapturer, m_audioResampler, HJMEDIA_TYPE_AUDIO), ret);
@@ -65,7 +65,7 @@ int HJGraphPusher::internalInit(HJKeyStorage::Ptr i_param)
         if (videoInfo != nullptr) {
             m_videoInfo = videoInfo;
 #if defined(HarmonyOS)
-            IF_FALSE_BREAK(m_videoEncoder = HJPluginVideoOHEncoder::Create(), HJErrFatal);
+            IF_FALSE_BREAK(m_videoEncoder = HJPluginVideoOHEncoder::Create<HJPluginVideoOHEncoder>(videoEncoder_STRING, videoEncoder_HASH64), HJErrFatal);
             addPlugin(m_videoEncoder);
             IF_FAIL_BREAK(ret = connectPlugins(m_videoEncoder, m_avInterleave, HJMEDIA_TYPE_VIDEO), ret);
 #endif
@@ -83,24 +83,24 @@ int HJGraphPusher::internalInit(HJKeyStorage::Ptr i_param)
             (*param)["rtmpListener"] = rtmpListener;
         }
         (*param)["HJStatContext"] = statCtx;
-        if (pusherListener) {
-            (*param)["pluginListener"] = pusherListener;
-        }
+        //if (pusherListener) {
+        //    (*param)["pluginListener"] = pusherListener;
+        //}
         IF_FAIL_BREAK(ret = m_rtmp->init(param), ret);
 
         param = std::make_shared<HJKeyStorage>();
-        if (pusherListener) {
-            (*param)["pluginListener"] = pusherListener;
-        }
+        //if (pusherListener) {
+        //    (*param)["pluginListener"] = pusherListener;
+        //}
         IF_FAIL_BREAK(ret = m_avInterleave->init(param), ret);
 
         if (audioInfo != nullptr) {
             param = std::make_shared<HJKeyStorage>();
             (*param)["audioInfo"] = audioInfo;
             (*param)["thread"] = m_audioThread;
-            if (pusherListener) {
-                (*param)["pluginListener"] = pusherListener;
-            }
+            //if (pusherListener) {
+            //    (*param)["pluginListener"] = pusherListener;
+            //}
             IF_FAIL_BREAK(ret = m_audioEncoder->init(param), ret);
             (*param)["fifo"] = true;
             IF_FAIL_BREAK(ret = m_audioResampler->init(param), ret);
@@ -118,9 +118,9 @@ int HJGraphPusher::internalInit(HJKeyStorage::Ptr i_param)
             (*param)["surfaceCb"] = surfaceCb;
 #endif
             (*param)["videoInfo"] = videoInfo;
-            if (pusherListener) {
-                (*param)["pluginListener"] = pusherListener;
-            }
+            //if (pusherListener) {
+            //    (*param)["pluginListener"] = pusherListener;
+            //}
             
             if (i_param->haveValue("ROIEncodeCb"))
             {
@@ -211,7 +211,7 @@ int HJGraphPusher::openRecorder(HJKeyStorage::Ptr i_param)
 
         int ret;
         do {
-            IF_FALSE_BREAK(m_muxer = HJPluginFFMuxer::Create(), HJErrFatal);
+            IF_FALSE_BREAK(m_muxer = HJPluginFFMuxer::Create<HJPluginFFMuxer>(ffMuxer_STRING, ffMuxer_HASH64), HJErrFatal);
             addPlugin(m_muxer);
             IF_FAIL_BREAK(ret = connectPlugins(m_avInterleave, m_muxer, HJMEDIA_TYPE_DATA), ret);
 
@@ -264,9 +264,9 @@ int HJGraphPusher::openSpeechRecognizer(HJKeyStorage::Ptr i_param)
 
         int ret;
         do {
-            IF_FALSE_BREAK(m_speechResampler = std::make_shared<HJPluginAudioResampler>("HJPluginSpeechResampler"), HJErrFatal);
+            IF_FALSE_BREAK(m_speechResampler = HJPluginAudioResampler::Create<HJPluginAudioResampler>(speechResampler_STRING, speechResampler_HASH64), HJErrFatal);
             addPlugin(m_speechResampler);
-            IF_FALSE_BREAK(m_speechRecognizer = HJPluginSpeechRecognizer::Create(), HJErrFatal);
+            IF_FALSE_BREAK(m_speechRecognizer = HJPluginSpeechRecognizer::Create<HJPluginSpeechRecognizer>(speechRecognizer_STRING, speechRecognizer_HASH64), HJErrFatal);
             m_speechRecognizer->m_call = speechRecognizerCall;
             addPlugin(m_speechRecognizer);
 #if defined(HarmonyOS)
@@ -304,6 +304,28 @@ void HJGraphPusher::closeSpeechRecognizer()
             removePlugin(m_speechResampler);
             m_speechResampler = nullptr;
             m_speechRecognizing = false;
+        }
+    });
+}
+
+int HJGraphPusher::registerHandlers()
+{
+    return m_eventBus->registerHandler(EVENT_PLUGIN_NOTIFY_ID, [this](HJPluginNotifyType notifyType, size_t pluginID) {
+        switch (notifyType) {
+        case HJ_PLUGIN_NOTIFY_ERROR_MUXER_INIT:
+        case HJ_PLUGIN_NOTIFY_ERROR_MUXER_WRITEFRAME:
+        case HJ_PLUGIN_NOTIFY_ERROR_AUDIOCONVERTER_CONVERT:
+        case HJ_PLUGIN_NOTIFY_ERROR_AUDIOFIFO_ADDFRAME:
+        case HJ_PLUGIN_NOTIFY_ERROR_CODEC_INIT:
+        case HJ_PLUGIN_NOTIFY_ERROR_CODEC_RUN:
+        case HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME:
+        case HJ_PLUGIN_NOTIFY_ERROR_CODEC_INVALID_DATA:
+        case HJ_PLUGIN_NOTIFY_ERROR_CAPTURER_GETFRAME:
+            break;
+        }
+
+        if (m_pusherListener) {
+            m_pusherListener(std::move(HJMakeNotification(notifyType)));
         }
     });
 }

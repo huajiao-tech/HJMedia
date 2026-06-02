@@ -39,7 +39,7 @@ export class CommonConstant {
    * Library name.
    */
   static readonly LIBRARY_NAME: string = 'HJPusher';
-  static readonly LIBRARY_NAME_PLAYER: string = 'HJPlayer';
+  static readonly LIBRARY_NAME_PLAYER: string = 'HJMediaPlayer';
   /**
    * File name.
    */

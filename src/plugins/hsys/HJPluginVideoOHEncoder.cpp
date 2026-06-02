@@ -15,21 +15,20 @@ int HJPluginVideoOHEncoder::internalInit(HJKeyStorage::Ptr i_param)
 	if (surfaceCb == nullptr || videoInfo == nullptr) {
 		return HJErrInvalidParams;
 	}
-	GET_PARAMETER(HJLooperThread::Ptr, thread);
-	GET_PARAMETER(HJListener, pluginListener);
-	auto param = std::make_shared<HJKeyStorage>();
+//	GET_PARAMETER(HJLooperThread::Ptr, thread);
+//	GET_PARAMETER(HJListener, pluginListener);
+	auto param = HJKeyStorage::dupFrom(i_param);
 	(*param)["streamInfo"] = std::static_pointer_cast<HJStreamInfo>(videoInfo);
 //	(*param)["thread"] = thread;
 	(*param)["createThread"] = false;
-	if (pluginListener) {
-		m_listener = pluginListener;
-		(*param)["pluginListener"] = pluginListener;
-	}
-
-	if (i_param->haveValue("ROIEncodeCb"))
-    {
-        (*param)["ROIEncodeCb"] = i_param->getValueObj<HJRoiEncodeCb>("ROIEncodeCb");
-    }
+	//if (pluginListener) {
+	//	m_listener = pluginListener;
+	//	(*param)["pluginListener"] = pluginListener;
+	//}
+	//if (i_param->haveValue("ROIEncodeCb"))
+	//{
+	//	(*param)["ROIEncodeCb"] = i_param->getValueObj<HJRoiEncodeCb>("ROIEncodeCb");
+	//}
 
 	int ret = HJPluginCodec::internalInit(param);
 	if (ret < 0) {
@@ -47,8 +46,6 @@ int HJPluginVideoOHEncoder::internalInit(HJKeyStorage::Ptr i_param)
 			ret = HJErrFatal;
 			break;
 		}
-
-		
 
 		m_surfaceCb = surfaceCb;
 		m_surfaceCb(m_nativeWindow, videoInfo->m_width, videoInfo->m_height, true);
@@ -75,36 +72,42 @@ int HJPluginVideoOHEncoder::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	int64_t enter = HJCurrentSteadyMS();
-	std::string route = "0";
+	std::string route{};
 	int ret;
 	do {
 		HJMediaFrame::Ptr outFrame{};
 		ret = SYNC_CONS_LOCK([&route, &outFrame, this] {
 			if (m_status == HJSTATUS_Done) {
-				route += "_1";
+				route += "_0";
 				return HJErrAlreadyDone;
 			}
 			if (m_status < HJSTATUS_Inited) {
-				route += "_2";
+				route += "_1";
 				return HJ_WOULD_BLOCK;
 			}
 			if (m_status >= HJSTATUS_Stoped) {
-				route += "_3";
+				route += "_2";
 				return HJ_WOULD_BLOCK;
 			}
 			auto err = m_codec->getFrame(outFrame);
 			if (err < 0) {
-				route += "_4";
+				route += "_3";
 				HJFLoge("{}, 0, m_codec->getFrame() error({})", getName(), err);
-				if (m_pluginListener) {
-					m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME)));
-				}
-				m_status = HJSTATUS_Exception;
+				//if (m_pluginListener) {
+				//	m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME)));
+				//}
+				//m_status = HJSTATUS_Exception;
 				return HJErrFatal;
 			}
+
+			route += "_4";
 			return HJ_OK;
 		});
 		if (ret != HJ_OK) {
+			if (ret == HJErrFatal) {
+				IF_FALSE_BREAK(setStatus(HJSTATUS_Exception), HJErrAlreadyDone);
+				report(EVENT_PLUGIN_NOTIFY_ID, HJ_PLUGIN_NOTIFY_ERROR_CODEC_GETFRAME, getID());
+			}
 			break;
 		}
 		if (outFrame == nullptr) {
@@ -114,8 +117,8 @@ int HJPluginVideoOHEncoder::runTask(int64_t* o_delay)
 		}
 		requireSEI(outFrame);
 
-		route += "_6";
 		deliverToOutputs(outFrame);
+		route += "_6";
 	} while (false);
 
 	RUNTASKLog("{}, leave, route({}), duration({}), ret({})", getName(), route, (HJCurrentSteadyMS() - enter), ret);
@@ -135,13 +138,12 @@ int HJPluginVideoOHEncoder::initCodec(const HJStreamInfo::Ptr& i_streamInfo)
 
 	auto streamInfo = i_streamInfo->dup();
 	(*streamInfo)["newBufferCb"] = (HJRunnable)[=] {
-//		internalUpdated();
 		runTask();
 	};
 
 	return HJPluginCodec::initCodec(streamInfo);
 }
-
+/*
 void HJPluginVideoOHEncoder::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 {
 	auto info = i_mediaFrame->getVideoInfo();
@@ -161,7 +163,7 @@ void HJPluginVideoOHEncoder::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 
 	HJPluginCodec::deliverToOutputs(i_mediaFrame);
 }
-
+*/
 int HJPluginVideoOHEncoder::adjustBitrate(int i_newBitrate)
 {
 	if (i_newBitrate <= 0) {
@@ -186,22 +188,25 @@ int HJPluginVideoOHEncoder::adjustBitrate(int i_newBitrate)
 
 void HJPluginVideoOHEncoder::requireSEI(HJMediaFrame::Ptr& mvf)
 {
-	if(!mvf || !m_listener) {
+	if(!mvf/* || !m_listener*/) {
 		return;
 	}
 	auto info = mvf->getVideoInfo();
 
-	auto ntfy = HJMakeNotification(HJ_PLUGIN_NOTIFY_PLUGIN_SEI_REQUIRE);
-	(*ntfy)["timestamp"] = mvf->getPTS();
-	(*ntfy)["key_frame"] = mvf->isKeyFrame();
-	m_listener(ntfy);
-	//
-	std::vector<HJSEIData> userSEIDatas = ntfy->getValue<std::vector<HJSEIData>>("user_sei_datas");
-	if (userSEIDatas.empty()) {
+	//auto ntfy = HJMakeNotification(HJ_PLUGIN_NOTIFY_PLUGIN_SEI_REQUIRE);
+	//(*ntfy)["timestamp"] = mvf->getPTS();
+	//(*ntfy)["key_frame"] = mvf->isKeyFrame();
+	//m_listener(ntfy);
+	//std::vector<HJSEIData> userSEIDatas = ntfy->getValue<std::vector<HJSEIData>>("user_sei_datas");
+	//if (userSEIDatas.empty()) {
+	//	return;
+	//}
+	auto res = query(QUERY_SEI_REQUIRE_ID, mvf->getPTS(), mvf->isKeyFrame());
+	if (!res.isOk() || res.value.empty()) {
 		return;
 	}
 	HJSEINals::Ptr seiNals = HJCreates<HJSEINals>();
-	for (auto& seiData : userSEIDatas) {
+	for (auto& seiData : /*userSEIDatas*/res.value) {
 		bool isH265 = (AV_CODEC_ID_H265 == info->m_codecID);
 		auto out_nal = HJSEIWrapper::makeSEINal({ seiData }, isH265, HJSEIWrapper::HJNALFormat::AVCC);
 		seiNals->addData(out_nal);

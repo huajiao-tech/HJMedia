@@ -18,9 +18,13 @@ class HJThreadPool;
 		break;\
 	}\
 
-#define HJ_CatchMapPlainSetVal(param, Type, name, value) (*param)[name] = (Type)value;
+#define HJ_CatchMapPlainSetVal(param, Type, name, value) \
+	if (param) \
+		(*param)[name] = (Type)value;
+	
+
 #define HJ_CatchMapPlainGetVal(param, Type, name, value) \
-    if (param->contains(name)) \
+    if (param && param->contains(name)) \
 		value = param->getValue<Type>(name);
 
 #define HJ_CatchMapSetVal(param, Type, value)  HJ_CatchMapPlainSetVal(param, Type, HJ_CatchName(Type), value)
@@ -50,13 +54,28 @@ void signal()\
 	return thread->signal();\
 }\
 
+typedef enum HJWindowRenderMode
+{
+	HJWindowRenderMode_CLIP,
+	HJWindowRenderMode_FIT,
+	HJWindowRenderMode_FULL,
+	HJWindowRenderMode_ORIGIN,
+} HJWindowRenderMode;
+
 class HJSPBuffer;
 class HJBaseObject;
 class HJBaseCom;
 class HJBaseNotifyInfo;
 class HJBaseParam;
+class HJBaseNotifyInfo;
+class HJFacePointsReal;
+class HJMoreFacePointsReal;
 
+using FacePointAcquireFunc = std::function<std::shared_ptr<HJFacePointsReal>()>;
+using MoreFacePointAcquireFunc = std::function<std::shared_ptr<HJMoreFacePointsReal>()>;
 using HJFunc = std::function<int()>;
+using HJIntFunc = std::function<int()>;
+using HJVoidFunc = std::function<void()>;
 using HJBaseNotify = std::function<void(std::shared_ptr<HJBaseNotifyInfo> i_info)>;
 using HJBaseComWtrQueue = std::deque<std::weak_ptr<HJBaseCom>>;
 using HJBaseComPtrQueue = std::deque<std::shared_ptr<HJBaseCom>>;
@@ -69,6 +88,13 @@ using HOVideoSurfaceCb = std::function<int(void *i_window, int i_width, int i_he
 using HJFaceFindCb = std::function<void(bool i_bFindFace)>;
 
 using HJMediaDataReaderCb = std::function<int(HJSPBuffer::Ptr i_buffer, int width, int height)>;
+
+using HJRenderInitCb = std::function<int()>;
+using HJRenderEveryStartCb = std::function<int()>;
+using HJRenderEveryEndCb = std::function<int()>;
+using HJRenderMakeCurrent = std::function<int(bool i_bMake)>;
+
+using HJRenderIndexCb = std::function<void(int i_idx)>;
 
 typedef enum HJFaceStatus
 {
@@ -85,12 +111,18 @@ public:
 	virtual ~HJBaseObject();
 	virtual void setInsName(const std::string& i_insName);
     const std::string& getInsName() const;
+
+	void setDebugIdx(int i_idx);
+	int getDebugIdx() const;
+	const std::string& getDebugName() const;
 protected:
 	std::string m_insName = "";
     
 private:
     static std::atomic<int> m_memoryBaseObjStatIdx;
     int m_curIdx = 0;
+	int m_debugIdx = 0;
+	std::string m_debugName = "";
 };
 
 class HJBaseSharedObject : public HJBaseObject, public std::enable_shared_from_this<HJBaseSharedObject>
@@ -145,6 +177,7 @@ public:
 	virtual ~HJBaseParam();
     
     static std::string s_paramFps;
+	static std::string s_paramIsManulDrive;
 };  
 
 class HJBaseMessage : public HJBaseParam

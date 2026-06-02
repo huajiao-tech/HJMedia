@@ -105,7 +105,12 @@ int HJLog::init(const bool valid/* = true*/, const std::string& logDir, const in
     catch (std::exception& ex) {
         return -1;
     }
-    HJFLogi("init log:{}, logDir:{}, logLevel:{}, logMode:{}, rotatingFile:{}", m_valid, logDir, logLevel, logMode, rotatingFile);
+    HJFLogi("init log:{}, logDir:{}, logLevel:{}, logMode:{}, rotatingFile:{}",
+            m_valid.load(std::memory_order_relaxed),
+            logDir,
+            logLevel,
+            logMode,
+            rotatingFile);
     return 0;
 }
 

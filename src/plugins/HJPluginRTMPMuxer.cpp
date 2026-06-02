@@ -2,13 +2,15 @@
 #include "HJFLog.h"
 
 NS_HJ_BEGIN
-
+/*
 HJPluginRTMPMuxer::HJPluginRTMPMuxer(const std::string& i_name, HJKeyStorage::Ptr i_graphInfo)
 	: HJPluginMuxer(i_name, i_graphInfo)
 {
-	m_muxer = std::make_shared<HJRTMPMuxer>([&](const HJNotification::Ptr ntf) -> int {
-		if (m_listener) {
-			m_listener(ntf);
+	Wtr wMuxer = SHARED_FROM_THIS;
+	m_muxer = std::make_shared<HJRTMPMuxer>([wMuxer](const HJNotification::Ptr ntf) -> int {
+		auto muxer = wMuxer.lock();
+		if (muxer) {
+			muxer->listener(ntf);
 		}
 		return HJ_OK;
 	});
@@ -22,13 +24,26 @@ int HJPluginRTMPMuxer::done()
 	m_muxer->setQuit(true);
 	return HJPluginMuxer::done();
 }
-
+*/
 int HJPluginRTMPMuxer::internalInit(HJKeyStorage::Ptr i_param)
 {
-	// TODO ÖØ¸´µ÷ÓÃinternalInit£¬Ê§°ÜµÄ»°m_listenerÓÐÒþ»¼£»ÍË³öÐèÒªm_listener = nullptrÂð£¿
+	// TODO 重复调用internalInit，失败的话m_listener有隐患；退出需要m_listener = nullptr吗？
 	m_listener = i_param->getValue<HJListener>("rtmpListener");
 	i_param->erase("rtmpListener");
 	return HJPluginMuxer::internalInit(i_param);
+}
+/*
+int HJPluginRTMPMuxer::beforeDone()
+{
+	m_quitting.store(true);
+	auto muxer = m_muxerSync.consLock([this] {
+		return m_muxer;
+	});
+	if (muxer) {
+		muxer->setQuit(true);
+	}
+
+	return HJPluginMuxer::beforeDone();
 }
 
 void HJPluginRTMPMuxer::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
@@ -61,7 +76,21 @@ void HJPluginRTMPMuxer::deliverToOutputs(HJMediaFrame::Ptr& i_mediaFrame)
 		start_time  = now;
 	}
 }
-
+*/
+HJBaseMuxer::Ptr HJPluginRTMPMuxer::createMuxer()
+{
+	Wtr wMuxer = SHARED_FROM_THIS;
+	auto baseMuxer = std::make_shared<HJRTMPMuxer>([wMuxer](const HJNotification::Ptr ntf) -> int {
+		auto muxer = wMuxer.lock();
+		if (muxer) {
+			muxer->listener(ntf);
+		}
+		return HJ_OK;
+	});
+	baseMuxer->setTimestampZero(true);
+	return baseMuxer;
+}
+/*
 int HJPluginRTMPMuxer::initMuxer(std::string i_url, int i_mediaTypes, std::weak_ptr<HJStatContext> statCtx)
 {
 	auto muxer = SHARED_FROM_THIS;
@@ -75,18 +104,30 @@ int HJPluginRTMPMuxer::initMuxer(std::string i_url, int i_mediaTypes, std::weak_
 
 void HJPluginRTMPMuxer::asyncInitMuxer(std::string i_url, int i_mediaTypes, std::weak_ptr<HJStatContext> statCtx)
 {
-	SYNC_PROD_LOCK([=] {
-		CHECK_DONE_STATUS();
-		auto ret = HJPluginMuxer::initMuxer(i_url, i_mediaTypes, statCtx);
-		if (ret < 0) {
-			if (m_pluginListener) {
-				m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_MUXER_INIT)));
-			}
-		}
-		if (ret == HJ_OK) {
-			m_status = HJSTATUS_Ready;
-		}
+	auto ret = SYNC_PROD_LOCK([=] {
+		CHECK_DONE_STATUS(HJErrAlreadyDone);
+		return HJPluginMuxer::initMuxer(i_url, i_mediaTypes, statCtx);
 	});
+	if (ret < 0) {
+		IF_FALSE_RETURN(setStatus(HJSTATUS_Exception));
+		//if (m_pluginListener) {
+		//	m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_MUXER_INIT)));
+		//}
+		report(EVENT_PLUGIN_NOTIFY_ID, HJ_PLUGIN_NOTIFY_ERROR_MUXER_INIT, getID());
+	}
+	else if (ret == HJ_STOP) {
+		setStatus(HJSTATUS_Stoped);
+	}
+	else if (ret == HJ_OK) {
+		setStatus(HJSTATUS_Ready);
+	}
+}
+*/
+void HJPluginRTMPMuxer::listener(const HJNotification::Ptr ntf)
+{
+	if (m_listener) {
+		m_listener(ntf);
+	}
 }
 
 NS_HJ_END

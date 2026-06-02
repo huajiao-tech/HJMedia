@@ -139,8 +139,9 @@ std::string HJRTMPPacketStats::formatInfo()
 }
 
 //***********************************************************************************//
-HJRTMPPacketManager::HJRTMPPacketManager(HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts, HJListener listener)
+HJRTMPPacketManager::HJRTMPPacketManager(HJMediaInfo::Ptr& mediaInfo, int mediaTypes, HJOptions::Ptr opts, HJListener listener)
     : m_mediaInfo(mediaInfo)
+    , m_expectedMediaTypes(mediaTypes)
     , m_opts(opts)
     , m_listener(listener)
 {
@@ -176,6 +177,17 @@ HJRTMPPacketManager::HJRTMPPacketManager(HJMediaInfo::Ptr& mediaInfo, HJOptions:
 HJRTMPPacketManager::~HJRTMPPacketManager()
 {
 
+}
+
+int HJRTMPPacketManager::getExpectedMediaTypes() const
+{
+    if (m_expectedMediaTypes != HJMEDIA_TYPE_NONE) {
+        return m_expectedMediaTypes;
+    }
+    if (m_mediaInfo) {
+        return m_mediaInfo->getMediaTypes();
+    }
+    return HJMEDIA_TYPE_NONE;
 }
 
 std::tuple<int64_t, int64_t, int64_t> HJRTMPPacketManager::getDuartion()
@@ -458,7 +470,7 @@ HJBuffer::Ptr HJRTMPPacketManager::getTag(bool isHeader)
         //
         tag = buffer;
         m_sentStatus |= HJ_RTMP_SENT_META;
-        HJFLogi("build meta data tag");
+        HJFLogi("build meta data tag, size:{}", tag->size());
     }
 //    else if (!(m_sentStatus & HJ_RTMP_SENT_EXTRA_META)) {  //audio track 1
 //        auto buffer = HJFLVUtils::buildAdditionalMetaTag();
@@ -474,12 +486,12 @@ HJBuffer::Ptr HJRTMPPacketManager::getTag(bool isHeader)
     else if (!(m_sentStatus & HJ_RTMP_SENT_A_HEADER)) {
         tag = buildAudioHeader();
         m_sentStatus |= HJ_RTMP_SENT_A_HEADER;
-        HJFLogi("build audio header tag");
+        HJFLogi("build audio header tag, size:{}", tag ? tag->size() : 0);
     }
     else if (!(m_sentStatus & HJ_RTMP_SENT_V_HEADER)) {
         tag = buildVideoHeader();
         m_sentStatus |= HJ_RTMP_SENT_V_HEADER;
-        HJFLogi("build video header tag");
+        HJFLogi("build video header tag, size:{}", tag ? tag->size() : 0);
     }
     else if (!(m_sentStatus & HJ_RTMP_SENT_HDR_HEADER) && (colorspace == HJ_VIDEO_CS_2100_PQ || colorspace == HJ_VIDEO_CS_2100_HLG)) {
         tag = buildHDRVideoHeader();
@@ -491,6 +503,11 @@ HJBuffer::Ptr HJRTMPPacketManager::getTag(bool isHeader)
     {
         if (m_packets.size() <= 0) {
             return nullptr;
+        }
+        const int expectedMediaTypes = getExpectedMediaTypes();
+        const bool needVideo = (expectedMediaTypes & HJMEDIA_TYPE_VIDEO) == HJMEDIA_TYPE_VIDEO;
+        if (!needVideo) {
+            m_firstKeyFrame = true;
         }
         if (!m_firstKeyFrame) 
         {
@@ -545,6 +562,9 @@ HJBuffer::Ptr HJRTMPPacketManager::getTag(bool isHeader)
 int64_t HJRTMPPacketManager::waitStartDTSOffset()
 {
     int64_t startDTSOffset = HJ_NOTS_VALUE;
+    int expectedMediaTypes = getExpectedMediaTypes();
+    bool needVideo = (expectedMediaTypes & HJMEDIA_TYPE_VIDEO) == HJMEDIA_TYPE_VIDEO;
+    bool needAudio = (expectedMediaTypes & HJMEDIA_TYPE_AUDIO) == HJMEDIA_TYPE_AUDIO;
     HJFLVPacket::Ptr videoPkt = nullptr;
     HJFLVPacket::Ptr audioPkt = nullptr;
     //
@@ -556,9 +576,30 @@ int64_t HJRTMPPacketManager::waitStartDTSOffset()
         } else if (pkt->isAudio() && !audioPkt) {
             audioPkt = pkt;
         }
-        if(videoPkt && audioPkt) {
-            startDTSOffset = HJ_MIN(videoPkt->m_dts, audioPkt->m_dts);
+        if (videoPkt && audioPkt) {
             break;
+        }
+    }
+
+    if (needVideo && needAudio) {
+        if (videoPkt && audioPkt) {
+            startDTSOffset = HJ_MIN(videoPkt->m_dts, audioPkt->m_dts);
+        }
+    } else if (needVideo) {
+        if (videoPkt) {
+            startDTSOffset = videoPkt->m_dts;
+        }
+    } else if (needAudio) {
+        if (audioPkt) {
+            startDTSOffset = audioPkt->m_dts;
+        }
+    } else {
+        if (videoPkt && audioPkt) {
+            startDTSOffset = HJ_MIN(videoPkt->m_dts, audioPkt->m_dts);
+        } else if (videoPkt) {
+            startDTSOffset = videoPkt->m_dts;
+        } else if (audioPkt) {
+            startDTSOffset = audioPkt->m_dts;
         }
     }
     return startDTSOffset;
@@ -573,7 +614,9 @@ HJBuffer::Ptr HJRTMPPacketManager::buildTagA(HJFLVPacket::Ptr packet, bool isHea
     } else {
         tag = HJFLVUtils::buildPacket(packet, isHeader ? 0 : m_startDTSOffset, isHeader);
     }
-    tag->setID(idx);
+    if (tag) {
+        tag->setID((int)idx);
+    }
 
     return tag;
 }
@@ -619,8 +662,14 @@ HJBuffer::Ptr HJRTMPPacketManager::buildAudioHeader()
         return nullptr;
     }
     HJFLVPacket::Ptr packet = HJFLVPacket::makeAudioPacket();
-    packet->m_data = std::make_shared<HJBuffer>(codecParam->extradata, codecParam->extradata_size);
-    HJFLogi("audio extra data:0x{:x}, 0x{:x}", codecParam->extradata[0], codecParam->extradata[1]);
+    if (codecParam->extradata && codecParam->extradata_size > 0) {
+        packet->m_data = std::make_shared<HJBuffer>(codecParam->extradata, codecParam->extradata_size);
+        if (codecParam->extradata_size > 1) {
+            HJFLogi("audio extra data:0x{:x}, 0x{:x}", codecParam->extradata[0], codecParam->extradata[1]);
+        } else {
+            HJFLogi("audio extra data:0x{:x}", codecParam->extradata[0]);
+        }
+    }
     //
     return buildTag(packet, true, false);
 }

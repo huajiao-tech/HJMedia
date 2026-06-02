@@ -15,20 +15,25 @@ public:
     HJComplexDemuxer();
     virtual ~HJComplexDemuxer();
     
-    int init(const HJMediaUrlVector& mediaUrls) override;
+    virtual int init(const HJMediaUrl::Ptr& mediaUrl) override;
+    virtual int init(const HJMediaUrlVector& mediaUrls) override;
+    virtual void done() override;
     virtual int seek(int64_t pos) override;
     virtual int getFrame(HJMediaFrame::Ptr& frame) override;
+    virtual int switchAudioTrack(int trackID) override;
     virtual void reset() override;
 
     virtual int64_t getDuration() override;
 private:
     HJBaseDemuxer::Ptr getNextSource();
-    void checkUrls();
+    int checkUrls();
+    int procMediaUrls();
 protected:
     HJMediaUrlVector        m_mediaUrls;
     HJBaseDemuxerList       m_sources;
     HJBaseDemuxer::Ptr      m_curSource = nullptr;
     int64_t                 m_segOffset = 0;
+    int                     m_streamTotalIndex = 0;
 };
 
 NS_HJ_END

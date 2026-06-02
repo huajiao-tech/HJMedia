@@ -312,7 +312,8 @@ AVFrame* hj_make_avframe(int width, int height, enum AVPixelFormat format)
     int res = av_frame_get_buffer(avf, 0);
     if (res < 0) {
         av_frame_free(&avf);
-        HJFLoge("error, avframe get buffer failed:{}, width:{}, height:{}, format:{}", res, width, height, format);
+        HJFLoge("error, avframe get buffer failed:{}, width:{}, height:{}, format:{}",
+                res, width, height, av_get_pix_fmt_name(format));
         return NULL;
     }
     //    res = av_frame_make_writable(avf);

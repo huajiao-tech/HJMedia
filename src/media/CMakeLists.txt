@@ -3,26 +3,33 @@ set(PROJ_NAME HJMedia)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/io)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/datasource)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/codec)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/demuxer)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/muxer)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/render)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/com)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/capture)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/sei)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/net)
 include_directories(${HJ_EXTERNALS_PATH}/generic)
 include_directories(${HJ_EXTERNALS_PATH}/generic/ffmpeg)
 
 set(${PROJ_NAME}_INCLUDE_DIRS 
     ${CMAKE_CURRENT_SOURCE_DIR} 
     ${CMAKE_CURRENT_SOURCE_DIR}/io
+    ${CMAKE_CURRENT_SOURCE_DIR}/datasource
     ${CMAKE_CURRENT_SOURCE_DIR}/codec
     ${CMAKE_CURRENT_SOURCE_DIR}/demuxer   
     ${CMAKE_CURRENT_SOURCE_DIR}/muxer
     ${CMAKE_CURRENT_SOURCE_DIR}/render
+	${CMAKE_CURRENT_SOURCE_DIR}/com
     ${CMAKE_CURRENT_SOURCE_DIR}/capture
-    ${CMAKE_CURRENT_SOURCE_DIR}/sei)
+    ${CMAKE_CURRENT_SOURCE_DIR}/sei
+    ${CMAKE_CURRENT_SOURCE_DIR}/net)
 	
 if (HarmonyOS)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/codec/hsys)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/capture/hsys)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/render/hsys)
 	list(APPEND ${PROJ_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/render/hsys)	
@@ -53,7 +60,14 @@ endif ()
 
 add_library(${PROJ_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
-target_link_libraries(${PROJ_NAME} PRIVATE HJDataFuse LIBSQLITEORM sqlite3 HJStat libfdkaac librtmp HJUtils soundtouch sonic lz4 zlib LIBOPENSSL LIBMBEDTLS LIBFFMPEG LIBYUV LIBMINIAUDIO LIBSPDLOG)
+target_link_libraries(${PROJ_NAME} PRIVATE HJMediaDBKit LIBSQLITEORM HJDataFuse sqlite3 HJComp HJStat libfdkaac librtmp HJUtils soundtouch sonic lz4 zlib LIBCPPHTTPLIB LIBOPENSSL LIBMBEDTLS LIBFFMPEG LIBYUV LIBMINIAUDIO LIBSPDLOG  yyjson LIBREFLCPP)
+
+if (WINDOWS)
+    target_link_libraries(${PROJ_NAME} PRIVATE glfw)
+elseif(ANDROID)
+    target_link_libraries(${PROJ_NAME} PRIVATE EGL GLESv3)
+endif()
+
 target_include_directories(${PROJ_NAME} INTERFACE ${${PROJ_NAME}_INCLUDE_DIRS})
 
 HJ_CONFIG_FRAMEWORK(${PROJ_NAME})

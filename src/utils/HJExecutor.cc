@@ -103,6 +103,7 @@ void HJExecutor::start(bool regSelf/* = true*/)
         return;
     }
 //    HJLogi("start entry");
+    m_isExitFlag.store(false);
     m_loopThreadID = std::this_thread::get_id();
     m_thread = std::make_shared<std::thread>(&HJExecutor::runLoop, this, regSelf);
     m_runStarted.wait();
@@ -116,7 +117,7 @@ void HJExecutor::stop()
     }
 //    HJFLogi("entry, name:{}", getName());
     //ExitException
-    m_isExitFlag = true;
+    m_isExitFlag.store(true);
     if (m_thread) 
     {
         m_taskMap->pushExit(); //eof
@@ -140,7 +141,7 @@ int HJExecutor::asyncFixedTask(HJTask::Ptr task, const HJRational timeBase)
     if (!task->m_fixed) {
         task->setTid(getID());
         task->setID(getTaskID());
-        //task->setExecutor(sharedFrom(this));
+        task->setExecutor(sharedFrom(this));
         task->m_runtime = HJTime::getCurrentMicrosecond() + HJ_MS_TO_US(task->m_delayTime);
         //
         task->m_fixed = std::make_shared<HJFixedTimer>(timeBase);
@@ -195,7 +196,7 @@ int HJExecutor::asyncTask(HJTask::Ptr task, bool maySync/* = true*/, bool first/
     task->setTskState(HJTASK_Ready);
     task->setTid(getID());
     task->setID(getTaskID());
-    //task->setExecutor(sharedFrom(this));
+    task->setExecutor(sharedFrom(this));
    
 //    HJLogi("asyncTask entry, tid:" + HJ2String(getID()) + ", schedule id:" + HJ2String(task->getClsID()) + ", task id:" + HJ2String(task->getID()) + ", name:" + task->getName());
     if (first) {
@@ -264,13 +265,12 @@ void HJExecutor::runLoop(bool regSelf)
 
     m_loopThreadID = std::this_thread::get_id();
     m_id = HJThreadID2ID(m_loopThreadID);
-    if (regSelf) {
-        g_CurrentExecutor = sharedFrom(this);
-    }
+    HJ_UNUSED(regSelf);
+    g_CurrentExecutor = sharedFrom(this);
     m_runStarted.notify();
     //HJLogi("notify start");
     //
-    while (!m_isExitFlag)
+    while (!m_isExitFlag.load())
     {
         HJTask::Ptr task = nullptr;
         startSleep();
@@ -278,7 +278,7 @@ void HJExecutor::runLoop(bool regSelf)
         sleepWakeUp();
         //
         if (task) {
-            //m_curTask = task;
+            m_curTask = task;
             task->setTskState(HJTASK_Running);
             try {
                 task->run();
@@ -291,9 +291,10 @@ void HJExecutor::runLoop(bool regSelf)
             } else {
                 task->setTskState(HJTASK_Done);
             }
+            m_curTask = nullptr;
         }
-        //m_curTask = nullptr;
     } //while
+    m_curTask = nullptr;
 //    HJLogi("runLoop end");
     return;
 }
@@ -377,7 +378,7 @@ int HJScheduler::asyncTask(HJTask::Ptr task, uint64_t delayTimeMS/* = 0*/, bool 
     task->setClsID(getID());
     task->setDelayTime(delayTimeMS);
     
-    return executor->asyncTask(std::move(task), maySync, false);
+    return executor->asyncTask(std::move(task), maySync, first);
 }
 
 
@@ -760,7 +761,7 @@ HJExecutor::Ptr HJExecutorManager::getExecutorByName(const std::string& name)
     if (thread) {
         return thread;
     }
-    thread = createExecutor(name, HJ_PRIORITY_NORMAL, m_otherThreads.size());
+    thread = createExecutor(name, HJ_PRIORITY_NORMAL, /*m_otherThreads.size()*/ true);
     if (!thread) {
         return nullptr;
     }
@@ -840,15 +841,21 @@ HJExecutor::Ptr HJExecutorManager::createExecutor(const std::string &name/* = HJ
 }
 //***********************************************************************************//
 const int HJExecutorPool::K_THREAD_MAX_NUM = 4;
-HJExecutorPool::HJExecutorPool(size_t initSize)
+HJExecutorPool::HJExecutorPool(size_t initSize, const HJExecutorPoolDelegate::Wtr& delegate)
     : m_initSize(initSize)
+    , m_delegate(delegate)
 {
+    if (m_initSize < 1) {
+        m_initSize = 1;
+    }
+    if (m_initSize > static_cast<size_t>(K_THREAD_MAX_NUM)) {
+        m_initSize = static_cast<size_t>(K_THREAD_MAX_NUM);
+    }
     addThread(m_initSize);
 }
 HJExecutorPool::~HJExecutorPool()
 {
-    m_run = false;
-    m_task_cv.notify_all();
+    stop();
     for (std::thread& thread : m_pool) {
         //thread.detach();
         if (thread.joinable())

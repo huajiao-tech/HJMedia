@@ -39,8 +39,8 @@ cmake --build .
 echo %BUILD_DIR%
 echo %SRC_DIR%
 
-copy /y %BUILD_DIR%\out\libs\libHJPusher.so %SRC_DIR%\examples\harmony\hjpusher\libs\arm64-v8a\libHJPusher.so
-copy /y %BUILD_DIR%\out\libs\libHJPlayer.so %SRC_DIR%\examples\harmony\hjplayer\libs\arm64-v8a\libHJPlayer.so
+REM copy /y %BUILD_DIR%\out\libs\libHJPusher.so %SRC_DIR%\examples\harmony\hjpusher\libs\arm64-v8a\libHJPusher.so
+REM copy /y %BUILD_DIR%\out\libs\libHJPlayer.so %SRC_DIR%\examples\harmony\hjplayer\libs\arm64-v8a\libHJPlayer.so
 REM copy /y %BUILD_DIR%\output\libs\libpublisher.so %SRC_DIR%\examples\Harmony\hmplayer\libs\arm64-v8a\libpublisher.so
 
 popd

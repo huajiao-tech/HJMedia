@@ -7,16 +7,22 @@
 #include "HJUtils.h"
 #include "HJMedias.h"
 #include "HJCores.h"
+#include "HJGraph.h"
 #include "HJGuis.h"
 #include "HJImguiUtils.h"
+#include <algorithm>
+#include <cctype>
 //#include "HJMediaPlayer.h"
-#include "HJGraphLivePlayer.h"
 //#include "HJMediaMuxer.h"
 //#include "HJJPusher.h"
 //#include "HJHLSParser.h"
 
 NS_HJ_BEGIN
 #define HJ_TRY_PLAY_CNT_MAX	10
+
+class HJEventBus;
+class HJGraphLivePlayer;
+class HJGraphVodPlayer;
 //***********************************************************************************//
 /**
 *         (*m_params)["stat"] = getStateString();
@@ -78,8 +84,105 @@ class HJGraphPlayerView : public HJView
 {
 public:
 	using Ptr = std::shared_ptr<HJGraphPlayerView>;
+	enum PlayerTypeHint
+	{
+		kPlayerTypeAuto = 0,
+		kPlayerTypeVod = 1,
+		kPlayerTypeLive = 2,
+	};
 	explicit HJGraphPlayerView();
 	virtual ~HJGraphPlayerView();
+
+	static HJGraphType resolveGraphTypeForUrl(const std::string& media_url, int player_type_hint = kPlayerTypeAuto)
+	{
+		if (player_type_hint == kPlayerTypeVod) {
+			return HJGraphType_VOD;
+		}
+		if (player_type_hint == kPlayerTypeLive) {
+			return HJGraphType_LIVESTREAM;
+		}
+
+		auto to_lower_copy = [](const std::string& value) {
+			std::string lowered = value;
+			std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char ch) {
+				return static_cast<char>(std::tolower(ch));
+			});
+			return lowered;
+		};
+		auto starts_with = [](const std::string& value, const std::string& prefix) {
+			return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+		};
+		auto contains = [](const std::string& value, const std::string& token) {
+			return value.find(token) != std::string::npos;
+		};
+		auto unwrap_media_url = [&](const std::string& value) {
+			std::string unwrapped = value;
+			while (true) {
+				const std::string prefix = to_lower_copy(HJUtilitys::getPrefix(unwrapped));
+				if (prefix == "exasync" || prefix == "hjds") {
+					unwrapped = unwrapped.substr(prefix.size() + 1);
+					continue;
+				}
+				return unwrapped;
+			}
+		};
+		auto is_likely_local_path = [&](const std::string& value) {
+			if (value.size() > 2 && std::isalpha(static_cast<unsigned char>(value[0])) && value[1] == ':' &&
+				(value[2] == '/' || value[2] == '\\')) {
+				return true;
+			}
+			return starts_with(value, "/") || starts_with(value, "./") || starts_with(value, "../") || starts_with(value, "file://");
+		};
+
+		const std::string unwrapped_url = unwrap_media_url(media_url);
+		const std::string core_url = to_lower_copy(HJUtilitys::getCoreUrl(unwrapped_url));
+		const std::string prefix = to_lower_copy(HJUtilitys::getPrefix(core_url));
+		const std::string suffix = to_lower_copy(HJUtilitys::getSuffix(core_url));
+		const bool is_local_path = is_likely_local_path(core_url);
+		const bool is_replay_like =
+			contains(core_url, "replay") ||
+			contains(core_url, "/record/") ||
+			contains(core_url, "record/main") ||
+			contains(core_url, "playback");
+		const bool is_live_like =
+			contains(core_url, "live-pull") ||
+			contains(core_url, "live_push") ||
+			contains(core_url, "live_huajiao") ||
+			contains(core_url, "/live/") ||
+			contains(core_url, "httpflv") ||
+			contains(core_url, "livestream");
+
+		if (prefix == "rtmp" || prefix == "rtsp") {
+			return HJGraphType_LIVESTREAM;
+		}
+
+		if (suffix == ".mp4" || suffix == ".mov" || suffix == ".m4a" || suffix == ".m4v" ||
+			suffix == ".mkv" || suffix == ".webm" || suffix == ".mp3" || suffix == ".aac" ||
+			suffix == ".wav" || suffix == ".ogg" || suffix == ".ts" || suffix == ".m4s") {
+			return HJGraphType_VOD;
+		}
+
+		if (suffix == ".m3u8") {
+			if (is_replay_like || is_local_path) {
+				return HJGraphType_VOD;
+			}
+			if (is_live_like) {
+				return HJGraphType_LIVESTREAM;
+			}
+		}
+
+		if (suffix == ".flv") {
+			if (is_local_path || is_replay_like) {
+				return HJGraphType_VOD;
+			}
+			return HJGraphType_LIVESTREAM;
+		}
+
+		if (is_replay_like || is_local_path) {
+			return HJGraphType_VOD;
+		}
+		return HJGraphType_LIVESTREAM;
+	}
 
 	virtual int init(const std::string info) override;
 	virtual int draw(const HJRectf& rect) override;
@@ -106,6 +209,7 @@ private:
 	int onPusher2(const HJMediaFrame::Ptr& frame);
 	void onClickMute(const std::string& tips);
 	void onClickVolume(const float volume);
+	int onSwitchAudioTrack(const int trackID);
 	void onTest();
 	void onTest1();
 	void onTestHLS();
@@ -115,6 +219,7 @@ private:
 	void onNetBitrate(int bitrate);
 	//
 	void onCreatePlayer();
+	void onCreateVodPlayer();
 	void onClosePlayer();
 
 	//
@@ -154,6 +259,8 @@ private:
 		}
 		m_pluginInfos.push_back(infos);
 	}
+
+	void registerHandlers(const std::shared_ptr<HJEventBus> i_bus);
 protected:
 	HJImageButton::Ptr		m_btnFileDialog = nullptr;
 	HJFileDialogView::Ptr	m_viewFileDialog = nullptr;
@@ -168,6 +275,7 @@ protected:
 	bool					m_showPusher = false;
 	bool					m_showMInfoWindow = false;
 	bool					m_thumbnail = false;
+	int						m_playerTypeHint = kPlayerTypeAuto;
 	//HJImageView::Ptr		m_imgView = nullptr;
 	HJFrameView::Ptr		m_mvfView = nullptr;
 	HJProgressView::Ptr	m_progressView = nullptr;
@@ -187,7 +295,8 @@ protected:
 	std::string				m_pushUrl = "rtmp://live-push-0.test.huajiao.com/main/kjl979?auth_key=1755677478-0-0-5427cdf5460ca7a8f9884ebe72ab20c7";
 	//std::string				m_pushUrl = "rtmp://localhost/live/livestream";
 	std::string				m_thumbUrl = "";
-	HJGraphLivePlayer::Ptr	m_player = nullptr;
+	std::shared_ptr<HJGraphLivePlayer>	m_player = nullptr;
+	std::shared_ptr<HJGraphVodPlayer>	m_vodPlayer = nullptr;
 	HJMediaInfo::Ptr		m_minfo = nullptr;
 	HJMediaFrame::Ptr		m_mvf = nullptr;
 	//HJImageWriter::Ptr     m_imageWriter = nullptr;
@@ -195,6 +304,7 @@ protected:
 	HJProgressInfo::Ptr		m_progInfo = nullptr;
 	HJStreamInfoList		m_minfos;
 	std::recursive_mutex    m_mutex;
+	int						m_selectedAudioTrackID = -1;
 	int64_t					m_curPos = 0;
 	//HJImageWriter::Ptr     m_imageWriter = nullptr;
 	int64_t					m_timeout = 3000 * 1000;	//us

@@ -110,7 +110,7 @@ void HJThreadPool::priWaitFor()
 {
 	std::unique_lock<std::mutex> lk(m_mutex);
 	m_cv.wait_for(lk, std::chrono::milliseconds(m_time_out), [this]()
-				  {
+		{
 			bool bWaitUtil = false;
 			do
 			{
@@ -120,8 +120,19 @@ void HJThreadPool::priWaitFor()
 					break;
 				}
 			} while (false);
-			return bWaitUtil; });
+			return bWaitUtil;
+		});
 	m_bSignaled = false;
+}
+bool HJThreadPool::waitForWake(int64_t i_time_out)
+{
+	std::unique_lock<std::mutex> lk(m_mutex);
+	bool woke = m_cv.wait_for(lk, std::chrono::milliseconds(i_time_out), [this]()
+		{
+			return m_bQuit || m_bSignaled;
+		});
+	m_bSignaled = false;
+	return woke;
 }
 int HJThreadPool::priProcess()
 {
@@ -177,7 +188,15 @@ int HJThreadPool::threadFun()
             if (i_err < 0)
             {
                 HJFLoge("priProcess err:{}", i_err);
-                break;
+				if (m_error_func)
+				{
+					i_err = m_error_func();
+				}
+				
+				if (i_err < 0)
+				{
+					break;
+				}
             }
 
 			if (priIsTimeout())
@@ -191,10 +210,15 @@ int HJThreadPool::threadFun()
 			}
 		}
 	} while (false);
-
 	if (m_end_func)
 	{
 		m_end_func();
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_bTaskValid = false;
+		m_task_queue.clear();
 	}
 	return i_err;
 }
@@ -213,6 +237,10 @@ void HJThreadPool::setEndFunc(HJThreadTaskFunc i_func)
 void HJThreadPool::setRunFunc(RunFunc i_func)
 {
 	m_run_func = i_func;
+}
+void HJThreadPool::setErrorFunc(HJThreadTaskFunc i_func)
+{
+	m_error_func = i_func;
 }
 int HJThreadPool::priStart()
 {
@@ -299,19 +327,30 @@ void HJThreadPool::done()
 {
 	priDone();
 }
-void HJThreadPool::priEnterTask(const HJThreadTaskFunc &task, std::shared_ptr<std::promise<int>> i_promise, int64_t i_delayTime, int i_id)
+int HJThreadPool::priEnterTask(const HJThreadTaskFunc &task, std::shared_ptr<std::promise<int>> i_promise, int64_t i_delayTime, int i_id)
 {
+	int i_err = HJ_OK;
 	std::lock_guard<std::mutex> lock(m_mutex);
-
-	HJTaskWrapper::Ptr wrapper = std::make_shared<HJTaskWrapper>();
-	wrapper->m_func = task;
-	wrapper->m_promise = i_promise;
-	wrapper->m_id = i_id;
-	if (i_delayTime > 0)
+	do 
 	{
-		wrapper->m_targetTime = i_delayTime + HJCurrentSteadyMS();
-	}
-	m_task_queue.push_back(wrapper);
+		if (!m_bTaskValid)
+		{
+			i_err = HJ_WOULD_BLOCK;
+			break;
+		}
+
+		HJTaskWrapper::Ptr wrapper = std::make_shared<HJTaskWrapper>();
+		wrapper->m_func = task;
+		wrapper->m_promise = i_promise;
+		wrapper->m_id = i_id;
+		if (i_delayTime > 0)
+		{
+			wrapper->m_targetTime = i_delayTime + HJCurrentSteadyMS();
+		}
+		m_task_queue.push_back(wrapper);
+
+	} while (false);
+	return i_err;
 }
 
 void HJThreadPool::priClearTask(int i_id)
@@ -397,9 +436,12 @@ int HJThreadPool::sync(HJThreadTaskFunc task)
 		{
 			auto promise = std::make_shared<std::promise<int>>();
 			future = promise->get_future();
-			priEnterTask(task, promise, 0, 0);
-			m_cv.notify_one();
-			submitted = true;
+			int ret = priEnterTask(task, promise, 0, 0);
+			if (ret == HJ_OK)
+			{
+				m_cv.notify_one();
+				submitted = true;
+			}
 		}
 	}
 
@@ -448,22 +490,31 @@ int HJThreadTimer::startSchedule(int64_t i_intervalMs, RunFunc i_func)
 					i_func();
 				}
 
-				uint64_t remainder = i_intervalMs;
-				while (!isQuit() && remainder)
+				uint64_t target = m_curTime + static_cast<uint64_t>(i_intervalMs) * 10000;
+				while (!isQuit())
 				{
-					uint64_t curdiff = 0;
-					if (remainder > s_maxSleepTimeMs)
+					uint64_t now = HJSleepto::Gettime100ns();
+					if (now >= target)
 					{
-						curdiff = s_maxSleepTimeMs;
+						break;
 					}
-					else
+
+					uint64_t remain100ns = target - now;
+					uint64_t remainMs = remain100ns / 10000;
+					if (remainMs > 1)
 					{
-						curdiff = remainder;
+						uint64_t waitMs = remainMs > s_maxSleepTimeMs ? s_maxSleepTimeMs : (remainMs - 1);
+						if (waitMs > 0)
+						{
+							waitForWake(static_cast<int64_t>(waitMs));
+							continue;
+						}
 					}
-					remainder -= curdiff;
-					curdiff *= 10000; //1000*1000/100     100ns
-					HJSleepto::Sleepto100ns(m_curTime += curdiff);
+
+					HJSleepto::Sleepto100ns(target);
+					break;
 				}
+				m_curTime = target;
 								
 				HJThreadPool::setTimeout(0);
 				return 0;
@@ -520,7 +571,7 @@ HJTimerThreadPool::HJTimerThreadPool()
 HJTimerThreadPool::~HJTimerThreadPool()
 {
 }
-int HJTimerThreadPool::startTimer(int64_t i_intervalMs, RunFunc i_func)
+int HJTimerThreadPool::startTimer(int64_t i_intervalMs, RunFunc i_func, bool i_bManulDrive)
 {
 	int i_err = 0;
 	do
@@ -530,18 +581,22 @@ int HJTimerThreadPool::startTimer(int64_t i_intervalMs, RunFunc i_func)
 		{
 			break;
 		}
-		m_timer = HJThreadTimer::Create();
-		m_timer->startSchedule(i_intervalMs, [this, i_func]()
+		if (!i_bManulDrive)
 		{
-				HJThreadPool::asyncClear([this, i_func] {
-					if (i_func)
-					{
-						i_func();
-					}
+			m_timer = HJThreadTimer::Create();
+			m_timer->startSchedule(i_intervalMs, [this, i_func]()
+				{
+					HJThreadPool::asyncClear([this, i_func] {
+						if (i_func)
+						{
+							i_func();
+						}
+						return 0;
+						}, s_timerId);
 					return 0;
-				}, s_timerId);
-				return 0;
-        });
+				});
+		}
+
 	} while (false);
 	return i_err;
 }

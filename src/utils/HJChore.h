@@ -11,6 +11,8 @@ typedef struct mco_coro mco_coro;
 
 NS_HJ_BEGIN
 //***********************************************************************************//
+class HJExecutor;
+
 typedef enum HJTaskState
 {
     HJTASK_NONE = 0x00,
@@ -171,13 +173,11 @@ public:
     void setDelayTime(const uint64_t time) {
         m_delayTime = time;
     }
-    //void setExecutor(const std::shared_ptr<HJExecutor>& executor) {
-    //    if (!(m_tskState & HJTASK_Reject)) {
-    //        m_executor = executor;
-    //    } else {
-    //        HJLogi("m_executor");
-    //    }
-    //}
+    void setExecutor(const std::shared_ptr<HJExecutor>& executor) {
+        if (!(m_tskState & HJTASK_Reject)) {
+            m_executor = executor;
+        }
+    }
     void setTskState(const HJTaskState state) {
         m_tskState = state;
     }
@@ -201,7 +201,7 @@ public:
     size_t                      m_tid = 0;
     uint64_t                    m_runtime = 0;          //us
     uint64_t                    m_delayTime = 0;        //ms
-    //std::weak_ptr<HJExecutor>  m_executor;
+    std::weak_ptr<HJExecutor>   m_executor;
     HJTaskState                 m_tskState = HJTASK_NONE;
     HJFixedTimer::Ptr           m_fixed = nullptr;
     //std::mutex                  m_tskMutex;

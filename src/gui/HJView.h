@@ -242,6 +242,7 @@ public:
 
 	virtual int init();
 	virtual int draw(const HJMediaFrame::Ptr frame);
+	virtual int draw(const HJMediaFrame::Ptr frame, const HJSizef& size);
 	virtual void done();
 private:
 	int createConverter(const HJVideoInfo::Ptr& vinfo);
@@ -252,7 +253,8 @@ protected:
 	HJVideoInfo::Ptr		m_info = nullptr;
 	HJVSwsConverter::Ptr	m_converter = nullptr;
 	uint64_t				m_texID = 0;
-	std::string				m_curFrameName = "";
+	int						m_tex_width = 0;
+	int						m_tex_height = 0;
 };
 
 //***********************************************************************************//
@@ -294,7 +296,6 @@ public:
 private:
 	std::vector<std::string>	m_items;
 	int							m_itemCurrentIdex = 0;
-	char**						m_comboItems = NULL;
 	HJComboCallback			m_onClick = nullptr;
 };
 

@@ -3,7 +3,7 @@
 #include "verify/HJVerifyManager.h"
 #include "HJNativeCommon.h"
 #include "HJPusherNapi.h"
-
+#include "HJNativeExportCommon.h"
 namespace NativeXComponentSample {
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
@@ -37,6 +37,8 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(tryCloseImageReceiver, HJVerifyManager::tryCloseImageReceiver),
         DECLARE_NAPI_FUNCTION_VAL(tryGetMediaData, HJVerifyManager::tryGetMediaData),
         DECLARE_NAPI_FUNCTION_VAL(trySetROIOffset, HJVerifyManager::trySetROIOffset),
+        DECLARE_NAPI_FUNCTION_VAL(tryNodeSetParam, HJVerifyManager::tryNodeSetParam),
+        DECLARE_NAPI_FUNCTION_VAL(trySetPreviewRotation, HJVerifyManager::trySetPreviewRotation),
         DECLARE_NAPI_FUNCTION_VAL(trySetFacePoints, HJVerifyManager::trySetFacePoints),
 
         DECLARE_NAPI_FUNCTION_VAL(n_contextInit, HJ::HJPusherNapi::contextInit),
@@ -48,6 +50,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(n_openPusher, HJ::HJPusherNapi::openPusher),
         DECLARE_NAPI_FUNCTION_VAL(n_closePusher, HJ::HJPusherNapi::closePusher),
         DECLARE_NAPI_FUNCTION_VAL(n_setMute, HJ::HJPusherNapi::setMute),
+        DECLARE_NAPI_FUNCTION_VAL(n_setPreviewRotation, HJ::HJPusherNapi::setPreviewRotation),
         DECLARE_NAPI_FUNCTION_VAL(n_openRecorder, HJ::HJPusherNapi::openRecorder),
         DECLARE_NAPI_FUNCTION_VAL(n_closeRecorder, HJ::HJPusherNapi::closeRecorder),
         DECLARE_NAPI_FUNCTION_VAL(n_openPngSeq, HJ::HJPusherNapi::openPngSeq),
@@ -56,15 +59,17 @@ static napi_value Init(napi_env env, napi_value exports) {
         DECLARE_NAPI_FUNCTION_VAL(n_openSpeechRecognizer, HJ::HJPusherNapi::openSpeechRecognizer),
         DECLARE_NAPI_FUNCTION_VAL(n_closeSpeechRecognizer, HJ::HJPusherNapi::closeSpeechRecognizer),
 
-        DECLARE_NAPI_FUNCTION_VAL(n_setFaceInfo, HJ::HJPusherNapi::setFaceInfo),
-        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceOpen, HJ::HJPusherNapi::nativeSourceOpen),
-        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceClose, HJ::HJPusherNapi::nativeSourceClose),
-        DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceAcquire, HJ::HJPusherNapi::nativeSourceAcquire),
-        DECLARE_NAPI_FUNCTION_VAL(n_openFaceu, HJ::HJPusherNapi::openFaceu),
-        DECLARE_NAPI_FUNCTION_VAL(n_closeFaceu, HJ::HJPusherNapi::closeFaceu),
-        DECLARE_NAPI_FUNCTION_VAL(n_setVideoEncQuantOffset, HJ::HJPusherNapi::setVideoEncQuantOffset),
+        // DECLARE_NAPI_FUNCTION_VAL(n_setFaceInfo, HJ::HJPusherNapi::setFaceInfo),
+        // DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceOpen, HJ::HJPusherNapi::nativeSourceOpen),
+        // DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceClose, HJ::HJPusherNapi::nativeSourceClose),
+        // DECLARE_NAPI_FUNCTION_VAL(n_nativeSourceAcquire, HJ::HJPusherNapi::nativeSourceAcquire),
+        // DECLARE_NAPI_FUNCTION_VAL(n_openFaceu, HJ::HJPusherNapi::openFaceu),
+        // DECLARE_NAPI_FUNCTION_VAL(n_closeFaceu, HJ::HJPusherNapi::closeFaceu),
+        // DECLARE_NAPI_FUNCTION_VAL(n_setVideoEncQuantOffset, HJ::HJPusherNapi::setVideoEncQuantOffset),
+        // DECLARE_NAPI_FUNCTION_VAL(n_setFaceProtected, HJ::HJPusherNapi::setFaceProtected),
 
-        DECLARE_NAPI_FUNCTION_VAL(n_setFaceProtected, HJ::HJPusherNapi::setFaceProtected),
+
+
         // DECLARE_NAPI_FUNCTION_VAL(n_openPixelMapOutput, HJ::HJPusherNapi::openPixelMapOutput),
         // DECLARE_NAPI_FUNCTION_VAL(n_getImageReceiver, HJ::HJPusherNapi::getImageReceiver),
         // DECLARE_NAPI_FUNCTION_VAL(n_closePixelMapOutput, HJ::HJPusherNapi::closePixelMapOutput),
@@ -75,7 +80,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Init", "napi_define_properties failed");
         return nullptr;
     }
-    
+    HJ::HJNativeExportCommon::Instance().Export(env, exports);
     HJVerifyManager::GetInstance()->Export(env, exports);
     return exports;
 }

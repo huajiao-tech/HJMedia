@@ -41,6 +41,7 @@
 !*.ttc
 !*.otf
 !*.mp4
+!*.flv
 !*.mov
 !*.aac
 !*.mp3
@@ -58,20 +59,48 @@
 !*.ico
 !*.rc
 !*.svg
+!*.pth
 
 !*.json5
 !*.ts
 !*.ets
 !*.yuv
 
+!*.mkv
+
+!*.kts
+!*.xml
 # ...even if they are in subdirectories
 !*/
+!src/entry/player/isys/test/HJMusicPlayer_open_options_test.py
+!src/entry/player/isys/test/HJPluginAudioRender_stop_locking_test.py
+
+!*.in
+!*.plist
+
+!*.tnnproto
+!*.tnnmodel
+!*.param
+
+!*.toml
+!*.properties
+!*.mlpackage
+
+# iOS ncnn framework binaries without extensions
+!externals/ios/ncnn/ncnn.framework/Versions/A/ncnn
+!externals/ios/ncnn/glslang.framework/Versions/A/glslang
+!externals/ios/ncnn/openmp.framework/Versions/A/openmp
+!externals/ios/ncnn/MoltenVK.framework/MoltenVK
 
 #
-.vscode/
-.idea/
+.*/
 third_party/
 build*/
+opens*/
 GEMINI.md
-AGENT.md
+AGENTS.md
+CLAUDE.md
 !config
+node_modules/
+package.json
+package-lock.json

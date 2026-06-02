@@ -43,7 +43,12 @@ public:
 	static std::vector<std::string> getSortedFiles(const std::string& i_dirPath, const std::string& i_prefix, bool i_bUseAbsPath = true);
 	static std::string combineUrl(const std::string& i_path, const std::string& i_fileName);
 
+	static bool isDirectoryExists(const std::string& path);
+	static bool isFileExists(const std::string& path);
+
 	static std::string getPlatform();
+
+	static void backupFile(const std::string& i_path, const std::string &i_srcFileName, const std::string &i_backFileName);
 
 	template<typename T>
 	static std::deque<T> copyDeque(const std::deque<T>& i_deque)

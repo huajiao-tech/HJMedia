@@ -91,6 +91,7 @@ int HJNodeDemuxer::init(const HJMediaUrlVector& mediaUrls)
         {
             HJComplexDemuxer::Ptr source = std::make_shared<HJComplexDemuxer>();
             source->setLowDelay(m_env->getLowDelay());
+            source->setTimeOffsetEnable(true);
             ret = source->init(mediaUrls);
             if (HJ_OK != ret) {
                 HJLoge("source init error:" + HJ2String(ret));
@@ -192,6 +193,30 @@ int HJNodeDemuxer::seek(const HJSeekInfo::Ptr info)
     m_scheduler->sync(running);
     
     return HJ_OK;
+}
+
+int HJNodeDemuxer::switchAudioTrack(int trackID)
+{
+    int res = HJ_OK;
+    m_scheduler->sync([&] {
+        if (!m_source) {
+            res = HJErrNotAlready;
+            return;
+        }
+        res = m_source->switchAudioTrack(trackID);
+    });
+    return res;
+}
+
+int64_t HJNodeDemuxer::getDuration()
+{
+    int64_t duration = 0;
+    m_scheduler->sync([&] {
+        if (m_source) {
+            duration = m_source->getDuration();
+        }
+    });
+    return duration;
 }
 
 /**

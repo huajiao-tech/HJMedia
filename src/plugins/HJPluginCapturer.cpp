@@ -11,15 +11,15 @@ int HJPluginCapturer::internalInit(HJKeyStorage::Ptr i_param)
 	if (!streamInfo) {
 		return HJErrInvalidParams;
 	}
-	GET_PARAMETER(HJLooperThread::Ptr, thread);
-	GET_PARAMETER(HJListener, pluginListener);
-	auto param = std::make_shared<HJKeyStorage>();
+//	GET_PARAMETER(HJLooperThread::Ptr, thread);
+//	GET_PARAMETER(HJListener, pluginListener);
+	auto param = HJKeyStorage::dupFrom(i_param);
 //	(*param)["thread"] = thread;
 //	(*param)["createThread"] = (thread == nullptr);
 	(*param)["createThread"] = false;
-	if (pluginListener) {
-		(*param)["pluginListener"] = pluginListener;
-	}
+//	if (pluginListener) {
+//		(*param)["pluginListener"] = pluginListener;
+//	}
 	int ret = HJPlugin::internalInit(param);
 	if (ret < 0) {
 		return ret;
@@ -52,37 +52,43 @@ int HJPluginCapturer::runTask(int64_t* o_delay)
 {
 	RUNTASKLog("{}, enter", getName());
 	int64_t enter = HJCurrentSteadyMS();
-	std::string route = "0";
+	std::string route{};
 	int ret;
 	do {
 		HJMediaFrame::Ptr outFrame = nullptr;
 		ret = SYNC_CONS_LOCK([&route, &outFrame, this] {
 			if (m_status == HJSTATUS_Done) {
-				route += "_1";
+				route += "_0";
 				return HJErrAlreadyDone;
 			}
 			if (m_status < HJSTATUS_Inited) {
-				route += "_2";
+				route += "_1";
 				return HJ_WOULD_BLOCK;
 			}
 			if (m_status >= HJSTATUS_Stoped) {
-				route += "_3";
+				route += "_2";
 				return HJ_WOULD_BLOCK;
 			}
 
 			auto err = m_capturer->getFrame(outFrame);
 			if (err < 0) {
-				route += "_4";
+				route += "_3";
 				HJFLoge("{}, m_capturer->getFrame() error({})", getName(), err);
-				if (m_pluginListener) {
-					m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CAPTURER_GETFRAME)));
-				}
-				m_status = HJSTATUS_Exception;
+				//if (m_pluginListener) {
+				//	m_pluginListener(std::move(HJMakeNotification(HJ_PLUGIN_NOTIFY_ERROR_CAPTURER_GETFRAME)));
+				//}
+				//m_status = HJSTATUS_Exception;
 				return HJErrFatal;
 			}
+
+			route += "_4";
 			return HJ_OK;
 		});
 		if (ret != HJ_OK) {
+			if (ret == HJErrFatal) {
+				IF_FALSE_BREAK(setStatus(HJSTATUS_Exception), HJErrAlreadyDone);
+				report(EVENT_PLUGIN_NOTIFY_ID, HJ_PLUGIN_NOTIFY_ERROR_CAPTURER_GETFRAME, getID());
+			}
 			break;
 		}
 		if (outFrame == nullptr) {
@@ -91,8 +97,8 @@ int HJPluginCapturer::runTask(int64_t* o_delay)
 			break;
 		}
 
-		route += "_6";
 		deliverToOutputs(outFrame);
+		route += "_6";
 	} while (false);
 
 	RUNTASKLog("{}, leave, route({}), duration({}), ret({})", getName(), route, (HJCurrentSteadyMS() - enter), ret);
@@ -130,7 +136,7 @@ int HJPluginCapturer::initCapturer(const HJStreamInfo::Ptr& i_streamInfo)
 		m_capturer->done();
 		m_capturer = nullptr;
 	}
-	m_status = HJSTATUS_Exception;
+//	m_status = HJSTATUS_Exception;
 	return ret;
 }
 

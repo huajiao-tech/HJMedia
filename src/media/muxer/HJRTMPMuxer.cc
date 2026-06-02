@@ -19,6 +19,11 @@ HJRTMPMuxer::HJRTMPMuxer(HJListener listener)
 
 }
 
+void HJRTMPMuxer::setListener(HJListener listener)
+{
+    m_listener = std::move(listener);
+}
+
 HJRTMPMuxer::~HJRTMPMuxer()
 {
     
@@ -27,8 +32,11 @@ HJRTMPMuxer::~HJRTMPMuxer()
 int HJRTMPMuxer::init(const HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts)
 {
     int res = HJBaseMuxer::init(mediaInfo, opts);
-    if (HJ_OK != res || !mediaInfo || !m_mediaInfo->getMediaUrl()) {
+    if (HJ_OK != res) {
         return res;
+    }
+    if (!mediaInfo || !m_mediaInfo->getMediaUrl()) {
+        return HJErrInvalidParams;
     }
     HJFLogi("entry, version:{}", HJ_VERSION);
     do
@@ -36,6 +44,7 @@ int HJRTMPMuxer::init(const HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts)
         m_url = m_mediaInfo->getMediaUrl()->getUrl();
         m_localUrl = m_mediaInfo->getMediaUrl()->getOutUrl();
         m_mediaTypes = mediaInfo->getMediaTypes();
+        m_opts = opts;
         if (m_url.empty()) {
             HJFLoge("error, invalid url:{}", m_url);
             res = HJErrInvalidParams;
@@ -52,7 +61,7 @@ int HJRTMPMuxer::init(const HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts)
             if (AV_CODEC_ID_H264 != codecID &&
                 AV_CODEC_ID_H265 != codecID &&
                 AV_CODEC_ID_AV1 != codecID) {
-                HJFLoge("not support codec id:{}" + codecID);
+                HJFLoge("not support codec id:{}", codecID);
                 return HJErrNotSupport;
             }
         }
@@ -65,7 +74,7 @@ int HJRTMPMuxer::init(const HJMediaInfo::Ptr& mediaInfo, HJOptions::Ptr opts)
             }
         }
         m_rtmpWrapper = HJCreates<HJRTMPAsyncWrapper>(sharedFrom(this));
-        res = m_rtmpWrapper->init(m_url);
+        res = m_rtmpWrapper->init(m_url, opts);
         if (HJ_OK != res) {
             HJFLoge("error, rtmp wrapper create failed:{}", res);
             break;
@@ -144,7 +153,7 @@ int HJRTMPMuxer::addFrame(const HJMediaFrame::Ptr& frame)
             break;
         }
         //
-        addRTMPPacket(frame, m_startDTSOffset);
+        res = addRTMPPacket(frame, m_startDTSOffset);
     } while (false);
 
     return res;
@@ -225,6 +234,7 @@ int HJRTMPMuxer::onRTMPWrapperNotify(HJNotification::Ptr ntf)
             if(m_packetManager) {
                 m_packetManager->setWrapperGoing(true);
             }
+            break;
         }
         case HJRTMP_EVENT_CONNECT_FAILED:
         case HJRTMP_EVENT_STREAM_CONNECT_FAIL: 
@@ -264,6 +274,9 @@ int HJRTMPMuxer::addRTMPPacket(HJMediaFrame::Ptr frame, int64_t tsOffset)
         return HJErrNotAlready;
     }
 
+    if(m_inFrameCount < 50 && frame) {
+        HJFLogi("add rtmp packet, frame info:{}", frame->formatInfo());
+    }
     //HJFLogi("entry, frame info:{}", frame->formatInfo());
     HJFLVPacket::Ptr packet = std::make_shared<HJFLVPacket>();
     int res = packet->init(frame, tsOffset);
@@ -272,12 +285,14 @@ int HJRTMPMuxer::addRTMPPacket(HJMediaFrame::Ptr frame, int64_t tsOffset)
         return HJErrInvalidParams;
     }
     if (!m_packetManager) {
-        m_packetManager = HJCreateu<HJRTMPPacketManager>(m_mediaInfo, m_opts, m_listener);
+        m_packetManager = HJCreateu<HJRTMPPacketManager>(m_mediaInfo, m_mediaTypes, m_opts, m_listener);
     }
     m_packetManager->push(packet);
 
     //
     HJPERIOD_RUN1([&]() {notifyStatLiveInfo();});
+
+    m_inFrameCount++;
     
     return HJ_OK;
 }
@@ -290,11 +305,13 @@ int HJRTMPMuxer::gatherMediaInfo(const HJMediaFrame::Ptr& frame)
         auto mediaInfo = m_mediaInfo->getStreamInfo(mtype);
         if (!mediaInfo) {
             m_mediaInfo->addStreamInfo(frame->getInfo());
-            HJFLogi("add stream info:{}, key frame info:{}", mtype, frame->formatInfo());
+            HJFLogi("add stream info:{}, key frame info:{}",
+                    HJMediaType2String(mtype),
+                    frame->formatInfo());
         }
     }
     else {
-        HJFLoge("deliver not support media type:{}", mtype);
+        HJFLoge("deliver not support media type:{}", HJMediaType2String(mtype));
         return HJErrNotSupport;
     }
     return HJ_OK;

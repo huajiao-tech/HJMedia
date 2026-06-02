@@ -1,0 +1,18 @@
+1）ios
+examples\ios\HJMediaUI xcode 编译的时候，必须设置为Release，编译后会自动将 demo core（HJRender.framework) resource 拷贝到demo\faceu\ios\Export，之后进行build_ios.sh 生成工程 编译；
+
+2）Android
+examples\android\HJMedia 利用android studio gradle去编译生成 jar 和 armv7 armv8，之后打开demo\faceu\android\Export android studio编译，注意不像ios demo并没有拷贝，有些修改比较一下需要；
+
+3）windows
+所有的工程和demo export都在demo\faceu\pc\HJFaceuUI目录下，区别与 ios android；
+x86, x64都需要编译；会将core resource拷贝，但是不会将demo拷贝；
+
+win32只需要把HJRender编译一下就行了，否则其他关联的ffmpeg tnn ncnn opencv这些都是没有的
+
+4）harmony
+需要命令行编译 HJRender 就会将之拷贝到demo\faceu\harmony\Export，然后打开后编译
+
+其中打开gitignore就知道哪个需要拷贝 哪个自动拷贝了
+
+

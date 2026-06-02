@@ -82,6 +82,13 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
     if (m_fifo) {
         HJMediaFrame::Ptr mavf = m_fifo->getFrame();
         if (mavf) {
+            if (m_isChanged || m_forceFlush) {
+                mavf->setFlush();
+                mavf->m_flag |= m_pendingFrameFlag;
+                m_isChanged = false;
+                m_forceFlush = false;
+                m_pendingFrameFlag = 0;
+            }
             frame = std::move(mavf);
             //
             //HJNipInterval::Ptr nip = m_nipMuster->getOutNip();
@@ -212,9 +219,12 @@ int HJADecFFMpeg::getFrame(HJMediaFrame::Ptr& frame)
 
             if (mvf) 
             {
-                if (m_isChanged) {
+                if (m_isChanged || m_forceFlush) {
                     mvf->setFlush();
+                    mvf->m_flag |= m_pendingFrameFlag;
                     m_isChanged = false;
+                    m_forceFlush = false;
+                    m_pendingFrameFlag = 0;
                 }
                 frame = std::move(mvf);
                 //
@@ -254,6 +264,10 @@ int HJADecFFMpeg::run(const HJMediaFrame::Ptr frame)
     AVCodecContext* avctx = (AVCodecContext*)m_avctx;
     do {
         HJMediaFrame::Ptr mvf = frame->deepDup();
+        if (frame->isFlushFrame()) {
+            m_forceFlush = true;
+            m_pendingFrameFlag |= frame->m_flag;
+        }
 #if HJ_HAVE_CHECK_XTRADATA
         bool invalid = checkFrame(mvf);
         if (invalid) {
@@ -310,6 +324,8 @@ int HJADecFFMpeg::flush()
         AVCodecContext* avctx = (AVCodecContext*)m_avctx;
         avcodec_flush_buffers(avctx);
     }
+    m_forceFlush = false;
+    m_pendingFrameFlag = 0;
     m_runState = HJRun_Ready;
     return HJ_OK;
 }
@@ -362,6 +378,8 @@ void HJADecFFMpeg::done()
     m_converter = nullptr;
     m_adopter = nullptr;
     m_fifo = nullptr;
+    m_forceFlush = false;
+    m_pendingFrameFlag = 0;
 }
 
 int HJADecFFMpeg::buildConverters()

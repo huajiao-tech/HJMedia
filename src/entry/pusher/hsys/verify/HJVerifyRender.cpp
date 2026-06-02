@@ -23,6 +23,7 @@
 #include "HJVerifyRender.h"
 #include "HJVerifyManager.h"
 #include "HJMediaInfo.h"
+#include "HJRteGraphSetupInfo.h"
 
 NS_HJ_USING
 
@@ -84,7 +85,7 @@ namespace NativeXComponentSample
             }
             if (m_window)
             {
-                i_err = m_livestream->setNativeWindow(m_window, m_windowWidth, m_windowHeight, HJTargetState_Create);
+                i_err = m_livestream->setNativeWindow(HJRteGraphConfig::HJNodeClass_TargetUI_0, HJRteGraphConfig::HJNodeClass_TargetUI_0, m_window, m_windowWidth, m_windowHeight, HJTargetState_Create);
                 if (i_err < 0)
                 {
                     break;
@@ -122,7 +123,7 @@ namespace NativeXComponentSample
         if (m_livestream)
         {
             HJPusherPNGSegInfo pngInfo;
-            pngInfo.pngSeqUrl = std::string("/data/storage/el2/base/haps/entry/files/ShuangDanCaiShen");
+            pngInfo.pngSeqUrl = std::string("/data/storage/el1/bundle/entry/resources/resfile/pngseq/ShuangDanCaiShen");
             m_livestream->openPngSeq(pngInfo);
         }
     }
@@ -249,7 +250,7 @@ namespace NativeXComponentSample
 
     void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window)
     {
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, "Callback", "OnSurfaceChangedCB");
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, "Callback", "HVSwitchStat OnSurfaceChangedCB");
         if ((component == nullptr) || (window == nullptr))
         {
             OH_LOG_Print(LOG_APP, LOG_ERROR, LOG_PRINT_DOMAIN, "Callback",
@@ -461,6 +462,11 @@ namespace NativeXComponentSample
 
     void HJVerifyRender::onSurfaceChanged()
     {
+        if (m_livestream)
+        {
+            m_livestream->setNativeWindow(HJRteGraphConfig::HJNodeClass_TargetUI_0, HJRteGraphConfig::HJNodeClass_TargetUI_0, m_window, m_windowWidth, m_windowHeight, HJTargetState_Change);
+        }
+        
     }
 
     void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window)
@@ -539,9 +545,10 @@ namespace NativeXComponentSample
         m_windowWidth = width;
         m_windowHeight = height;
         onSurfaceChanged();
-
-        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, "OH_NativeXComponent_GetXComponentOffset",
-                     "offsetX = %{public}lf, offsetY = %{public}lf w:%{public}d h:%{public}d", offsetX, offsetY, width, height);
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, "Callback", "HVSwitchStat OnSurfaceChangedCB w:%{public}d h:%{public}d",width, height);
+    
+        OH_LOG_Print(LOG_APP, LOG_INFO, LOG_PRINT_DOMAIN, "OnSurfaceChanged OH_NativeXComponent_GetXComponentOffset",
+                     "HVSwitchStat native change offsetX = %{public}lf, offsetY = %{public}lf w:%{public}d h:%{public}d", offsetX, offsetY, width, height);
     }
 
     void HJVerifyRender::OnTouchEvent(OH_NativeXComponent *component, void *window)

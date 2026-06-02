@@ -14,6 +14,7 @@ public:
     static int init(HJEntryType i_type, const HJEntryContextInfo& i_contextInfo);
     static void unInit();
     static int  getSystemVersion();
+    static int renderNotifyIdMap(int i_renderId);
 private:
     static bool m_bContextInit;
     

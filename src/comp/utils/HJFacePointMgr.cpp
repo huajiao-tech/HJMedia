@@ -1,6 +1,12 @@
+#if 0
 #include "HJFacePointMgr.h"
 #include "HJFLog.h"
-#include "HJPrioCom.h"
+
+//#if defined(HJ_ENABLE_RENDER_PRIO)
+//    #include "HJPrioCom.h"
+//#endif
+
+#include "HJFacePointsReal.h"
 
 NS_HJ_BEGIN
     
@@ -154,7 +160,7 @@ int HJFacePointMgr::procPre()
             for (int i = 0; i < m_filterVec.size(); i++)
             {
                 m_filterVec[i]->updateWinSize(windowSize);
-                facepoint->addFilterPoint(m_filterVec[i]->compute(pts[i]));
+                facepoint->add(m_filterVec[i]->compute(pts[i]));
             }
             m_distanceStat->save(facepoint->getFilterPt());
             
@@ -163,7 +169,7 @@ int HJFacePointMgr::procPre()
             std::vector<HJPointf> rectPoints = point->getRectPoints();
             for (auto pt : rectPoints)
             {
-                facepoint->addFilterPoint(pt);
+                facepoint->add(pt);
             }
             
 //            for (int i = 0; i < 1/*facepoint->getFilterPt().size()*/; i++)
@@ -175,7 +181,7 @@ int HJFacePointMgr::procPre()
             {
                 m_smoother = HJLandmarkSmoother::Create();
             }    
-            facepoint->copyFilterPoint(m_smoother->smooth(point->getFacePoints()));
+            facepoint->copy(m_smoother->smooth(point->getFacePoints()));
 #endif
         }    
         else 
@@ -222,5 +228,10 @@ void HJFacePointMgr::registSubscriber(HJFaceSubscribeFuncPtr i_subscriberPtr)
 {
     m_eventBus.subscribe(s_subscribeName, i_subscriberPtr);
 }
-
+void HJFacePointMgr::unRegistSubscriber(HJFaceSubscribeFuncPtr i_subscriberPtr)
+{
+    m_eventBus.unSubscribe(s_subscribeName, i_subscriberPtr);
+}
 NS_HJ_END
+
+#endif

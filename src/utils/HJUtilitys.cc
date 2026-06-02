@@ -9,10 +9,11 @@
 #include <cstring>
 #include <string>
 #include <algorithm>
+#include <cctype>
 #include <random>
 #include <filesystem>
 #include "HJUtilitys.h"
-#if defined(HJ_OS_HARMONY)
+#if defined(HJ_OS_HARMONY) || defined(HJ_OS_ANDROID)
 #include <unistd.h> //Harmonyos readlink need this head file
 #endif
 #include <locale> 
@@ -212,6 +213,18 @@ std::string HJUtilitys::checkDir(const std::string& dir)
         }
         return dir + "/";
     }
+}
+
+std::string HJUtilitys::trimmedDir(const std::string& dir)
+{
+    std::string result = dir;
+    if (result.empty()) {
+        return result;
+    }
+    while (result.back() == '/' || result.back() == '\\') {
+        result.pop_back();
+    }
+    return result;
 }
 
 const std::string HJUtilitys::removeSuffix(const std::string& str)
@@ -722,6 +735,110 @@ static inline uint8_t hexVal(char c)
     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(10 + (c - 'a'));
     return 0xFF;
+}
+
+static inline int8_t base64Val(char c)
+{
+    if (c >= 'A' && c <= 'Z') return static_cast<int8_t>(c - 'A');
+    if (c >= 'a' && c <= 'z') return static_cast<int8_t>(c - 'a' + 26);
+    if (c >= '0' && c <= '9') return static_cast<int8_t>(c - '0' + 52);
+    if (c == '+') return 62;
+    if (c == '/') return 63;
+    return -1;
+}
+
+std::string HJUtilitys::base64Encode(const uint8_t* data, size_t len)
+{
+    static constexpr char kBase64Chars[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    if (!data || len == 0) {
+        return "";
+    }
+
+    std::string out;
+    out.reserve(((len + 2) / 3) * 4);
+    for (size_t i = 0; i < len; i += 3) {
+        const uint32_t octet_a = data[i];
+        const uint32_t octet_b = (i + 1 < len) ? data[i + 1] : 0;
+        const uint32_t octet_c = (i + 2 < len) ? data[i + 2] : 0;
+        const uint32_t triple = (octet_a << 16) | (octet_b << 8) | octet_c;
+
+        out.push_back(kBase64Chars[(triple >> 18) & 0x3F]);
+        out.push_back(kBase64Chars[(triple >> 12) & 0x3F]);
+        out.push_back((i + 1 < len) ? kBase64Chars[(triple >> 6) & 0x3F] : '=');
+        out.push_back((i + 2 < len) ? kBase64Chars[triple & 0x3F] : '=');
+    }
+    return out;
+}
+
+HJRawBuffer HJUtilitys::base64Decode(const std::string& text)
+{
+    std::string clean;
+    clean.reserve(text.size());
+    for (unsigned char ch : text) {
+        if (!std::isspace(ch)) {
+            clean.push_back(static_cast<char>(ch));
+        }
+    }
+
+    if (clean.empty()) {
+        return {};
+    }
+    if ((clean.size() % 4) != 0) {
+        return {};
+    }
+
+    HJRawBuffer out;
+    out.reserve((clean.size() / 4) * 3);
+    for (size_t i = 0; i < clean.size(); i += 4) {
+        int vals[4] = { 0, 0, 0, 0 };
+        int padding = 0;
+        for (size_t j = 0; j < 4; ++j) {
+            const char ch = clean[i + j];
+            if (ch == '=') {
+                vals[j] = 0;
+                ++padding;
+                continue;
+            }
+            if (padding > 0) {
+                return {};
+            }
+            const int8_t val = base64Val(ch);
+            if (val < 0) {
+                return {};
+            }
+            vals[j] = val;
+        }
+
+        if (padding > 2) {
+            return {};
+        }
+        const bool is_last_block = (i + 4 == clean.size());
+        if (padding > 0 && !is_last_block) {
+            return {};
+        }
+        if (padding == 1 && clean[i + 3] != '=') {
+            return {};
+        }
+        if (padding == 2 && !(clean[i + 2] == '=' && clean[i + 3] == '=')) {
+            return {};
+        }
+
+        const uint32_t triple = (static_cast<uint32_t>(vals[0]) << 18) |
+                                (static_cast<uint32_t>(vals[1]) << 12) |
+                                (static_cast<uint32_t>(vals[2]) << 6) |
+                                static_cast<uint32_t>(vals[3]);
+        out.push_back(static_cast<uint8_t>((triple >> 16) & 0xFF));
+        if (padding < 2) {
+            out.push_back(static_cast<uint8_t>((triple >> 8) & 0xFF));
+        }
+        if (padding < 1) {
+            out.push_back(static_cast<uint8_t>(triple & 0xFF));
+        }
+    }
+
+    return out;
 }
 
 std::vector<uint8_t> HJUtilitys::parseUuidTo16Bytes(const std::string& uuid)

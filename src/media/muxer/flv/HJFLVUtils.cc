@@ -53,9 +53,9 @@ int HJFLVPacket::init(HJMediaFrame::Ptr frame, int64_t tsOffset)
 		//SEI
 		std::vector<uint8_t> nalsWithSeiData{};
 		HJSEINals::Ptr seiNals{};
-		if (frame->haveValue(HJMediaFrame::STORE_KEY_SEIINFO)) 
+		if (frame->haveValue(HJMediaFrame::STORE_KEY_SEIINAL))
 		{
-			seiNals = frame->getValue<HJSEINals::Ptr>(HJMediaFrame::STORE_KEY_SEIINFO);
+			seiNals = frame->getValue<HJSEINals::Ptr>(HJMediaFrame::STORE_KEY_SEIINAL);
 			if (seiNals && !seiNals->empty()) 
 			{
 				bool isH265 = (AV_CODEC_ID_H265 == m_codecid);
@@ -135,6 +135,9 @@ int HJFLVPacketQueue::push(HJFLVPacket::Ptr packet)
 HJFLVPacket::Ptr HJFLVPacketQueue::pop()
 {
 	HJ_AUTO_LOCK(m_mutex);
+	if (m_packets.empty()) {
+		return nullptr;
+	}
 	HJFLVPacket::Ptr packet = m_packets.front();
 	m_packets.pop_front();
 	return packet;
@@ -143,19 +146,21 @@ HJFLVPacket::Ptr HJFLVPacketQueue::pop()
 HJFLVPacket::Ptr HJFLVPacketQueue::front()
 {
 	HJ_AUTO_LOCK(m_mutex);
+	if (m_packets.empty()) {
+		return nullptr;
+	}
 	return m_packets.front();
 }
 
 HJFLVPacket::Ptr HJFLVPacketQueue::findFirstVideoPacket()
 {
 	HJ_AUTO_LOCK(m_mutex);
-	HJFLVPacket::Ptr first = nullptr;
 	for (auto packet : m_packets) {
 		if (HJMEDIA_TYPE_VIDEO == packet->m_type) {
-			first = packet;
+			return packet;
 		}
 	}
-	return first;
+	return nullptr;
 }
 
 //size_t HJFLVPacketQueue::drop(int priority)

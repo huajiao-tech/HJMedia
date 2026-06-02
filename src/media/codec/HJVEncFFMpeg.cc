@@ -107,7 +107,11 @@ int HJVEncFFMpeg::init(const HJStreamInfo::Ptr& info)
     m_avctx = avctx;
     //
     avctx->bit_rate = videoInfo->m_bitrate;
-    avctx->rc_max_rate = avctx->bit_rate * 1.3;
+    if (m_codecID != AV_CODEC_ID_MJPEG && avctx->bit_rate > 0) {
+        avctx->rc_max_rate = static_cast<int64_t>(avctx->bit_rate * 1.3);
+    } else {
+        avctx->rc_max_rate = 0;
+    }
 //    avctx->rc_max_available_vbv_use = avctx->rc_max_rate;
     avctx->width = videoInfo->m_width;
     avctx->height = videoInfo->m_height;
